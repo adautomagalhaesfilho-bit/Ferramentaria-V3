@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ferramentaria — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family:'Inter',sans-serif; min-height:100vh;
+      background:linear-gradient(135deg,#0f1e3c 0%,#0056b3 60%,#0ea5e9 100%);
+      display:flex; align-items:center; justify-content:center; padding:20px;
+    }
+    .card {
+      background:#fff; border-radius:24px; padding:48px 40px;
+      width:100%; max-width:400px; box-shadow:0 32px 80px rgba(0,0,0,0.3);
+    }
+    .logo { text-align:center; margin-bottom:32px; }
+    .logo-icon {
+      width:68px; height:68px;
+      background:linear-gradient(135deg,#0056b3,#0ea5e9);
+      border-radius:18px; display:inline-flex; align-items:center;
+      justify-content:center; font-size:30px; margin-bottom:16px;
+      box-shadow:0 8px 24px rgba(0,86,179,0.35);
+    }
+    .logo-title { font-size:26px; font-weight:800; color:#0f1e3c; }
+    .logo-sub   { font-size:13px; color:#64748b; margin-top:4px; }
+    .group  { margin-bottom:20px; }
+    .label  { font-size:11px; font-weight:700; color:#374151; letter-spacing:0.8px; display:block; margin-bottom:8px; }
+    .input  {
+      width:100%; padding:14px 16px; border:2px solid #e2e8f0; border-radius:10px;
+      font-size:14px; font-family:'Inter',sans-serif; outline:none;
+      transition:border 0.2s,box-shadow 0.2s; color:#1e3a5f;
+    }
+    .input:focus { border-color:#0056b3; box-shadow:0 0 0 3px rgba(0,86,179,0.1); }
+    .erro {
+      background:#fef2f2; border:1px solid #fecaca; color:#dc2626;
+      padding:12px 16px; border-radius:10px; font-size:13px;
+      margin-bottom:20px; display:none;
+    }
+    .btn {
+      width:100%; padding:15px;
+      background:linear-gradient(135deg,#0056b3,#0ea5e9);
+      color:#fff; border:none; border-radius:10px;
+      font-size:15px; font-weight:700; cursor:pointer;
+      font-family:'Inter',sans-serif; transition:opacity 0.2s,transform 0.1s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn:hover   { opacity:0.92; }
+    .btn:active  { transform:scale(0.98); }
+    .btn:disabled { opacity:0.6; cursor:not-allowed; }
+    .spinner {
+      width:18px; height:18px; border:2px solid rgba(255,255,255,0.4);
+      border-top:2px solid #fff; border-radius:50%;
+      animation:spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .footer { text-align:center; margin-top:24px; font-size:11px; color:#94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">🔧</div>
+      <div class="logo-title">Ferramentaria</div>
+      <div class="logo-sub">Sistema de Gestão Industrial — V3</div>
+    </div>
+    <div class="erro" id="erroMsg"></div>
+    <div class="group">
+      <label class="label">USUÁRIO</label>
+      <input type="text" class="input" id="inputNome" placeholder="Digite seu usuário" autocomplete="off">
+    </div>
+    <div class="group">
+      <label class="label">SENHA</label>
+      <input type="password" class="input" id="inputSenha" placeholder="Digite sua senha"
+        onkeydown="if(event.key==='Enter') fazerLogin()">
+    </div>
+    <button class="btn" id="btnLogin" onclick="fazerLogin()">
+      <span id="btnTxt">Entrar</span>
+    </button>
+    <div class="footer">© 2026 Desenvolvido por Adauto J M Filho</div>
+  </div>
+
+  <script src="js/supabase.js"></script>
+  <script>
+    // Redireciona se já logado
+    if (sessionStorage.getItem('ferramentaria_user')) {
+      window.location.href = 'app.html';
+    }
+
+    async function fazerLogin() {
+      var nome  = document.getElementById('inputNome').value.trim();
+      var senha = document.getElementById('inputSenha').value.trim();
+      var btn   = document.getElementById('btnLogin');
+      var txt   = document.getElementById('btnTxt');
+      var erro  = document.getElementById('erroMsg');
+      if (!nome || !senha) { erro.innerText='Preencha usuário e senha.'; erro.style.display='block'; return; }
+      btn.disabled = true;
+      txt.innerHTML = '<div class="spinner"></div>';
+      erro.style.display = 'none';
+      try {
+        var user = await db.login(nome, senha);
+        if (user) {
+          sessionStorage.setItem('ferramentaria_user', JSON.stringify(user));
+          window.location.href = 'app.html';
+        } else {
+          erro.innerText = 'Usuário ou senha incorretos.';
+          erro.style.display = 'block';
+        }
+      } catch(e) {
+        erro.innerText = 'Erro de conexão. Tente novamente.';
+        erro.style.display = 'block';
+      }
+      btn.disabled = false; txt.innerText = 'Entrar';
+    }
+  </script>
+</body>
+</html>
