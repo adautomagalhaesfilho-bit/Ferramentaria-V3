@@ -263,14 +263,18 @@ label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bo
 .modal-form {
   background:#fff; border-radius:20px;
   width:100%; max-width:600px; max-height:90vh;
-  overflow-y:auto; box-shadow:0 24px 80px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,0.25);
   animation:slideUp 0.25s ease;
 }
 @keyframes slideUp { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 .modal-form-header {
   display:flex; align-items:center; justify-content:space-between;
   padding:20px 24px; border-bottom:1px solid var(--borda);
-  position:sticky; top:0; background:#fff; z-index:1; border-radius:20px 20px 0 0;
+  background:#fff; z-index:1; border-radius:20px 20px 0 0;
+  flex-shrink: 0;
 }
 .modal-form-header h2 { font-size:16px; font-weight:700; color:var(--azul-dark); }
 .btn-fechar-modal {
@@ -280,7 +284,16 @@ label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bo
   border-radius:8px; transition:background 0.15s;
 }
 .btn-fechar-modal:hover { background:#f1f5f9; }
-.modal-form-body { padding:24px; }
+.modal-form-body { 
+  padding:24px; 
+  overflow-y: auto; 
+  flex-grow: 1;
+}
+.modal-form-body::-webkit-scrollbar { width: 6px; }
+.modal-form-body::-webkit-scrollbar-track { background: transparent; }
+.modal-form-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.modal-form-body::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
 .modal-form-section {
   border:1px solid var(--borda); border-radius:10px;
   padding:16px; margin-bottom:16px;
@@ -459,81 +472,4 @@ tbody tr:hover { background:#f8fafc; }
   .metric-card { min-width:140px; }
   .board-kanban { flex-direction:column; }
   .form-row { flex-direction:column; }
-}
-/* ==========================================================================
-   MODAL DE LANÇAMENTO REFINADO (BARRA DE ROLAGEM EMBUTIDA)
-   ========================================================================== */
-
-/* Caixa flutuante principal */
-.modal-content {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-    width: 100%;
-    max-width: 650px;
-    max-height: 90vh; /* Não deixa o modal passar de 90% da altura da tela */
-    display: flex;
-    flex-direction: column; /* Organiza em Cabeçalho, Corpo e Rodapé */
-    overflow: hidden; /* Garante que nada vaze para fora dos cantos arredondados */
-    animation: modalFadeIn 0.3s ease-out;
-}
-
-/* Cabeçalho do Modal (Fixo no topo) */
-.modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #eef2f5;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #ffffff;
-    z-index: 2;
-}
-
-/* Corpo do Formulário (Único lugar que desliza) */
-.modal-body {
-    padding: 24px;
-    overflow-y: auto; /* Ativa a rolagem vertical apenas aqui dentro */
-    flex-grow: 1;
-    background: #fdfdfe;
-}
-
-/* Rodapé com os botões (Fixo embaixo) */
-.modal-footer {
-    padding: 16px 24px;
-    border-top: 1px solid #eef2f5;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    background: #ffffff;
-    z-index: 2;
-}
-
-/* Estilização da barra de rolagem interna (Minimalista) */
-.modal-body::-webkit-scrollbar {
-    width: 6px;
-}
-
-.modal-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.modal-body::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
-/* Animação suave de entrada */
-@keyframes modalFadeIn {
-    from {
-        transform: translateY(20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
 }
