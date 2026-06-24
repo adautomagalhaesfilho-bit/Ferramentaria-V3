@@ -460,3 +460,80 @@ tbody tr:hover { background:#f8fafc; }
   .board-kanban { flex-direction:column; }
   .form-row { flex-direction:column; }
 }
+/* ==========================================================================
+   MODAL DE LANÇAMENTO REFINADO (BARRA DE ROLAGEM EMBUTIDA)
+   ========================================================================== */
+
+/* Caixa flutuante principal */
+.modal-content {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    width: 100%;
+    max-width: 650px;
+    max-height: 90vh; /* Não deixa o modal passar de 90% da altura da tela */
+    display: flex;
+    flex-direction: column; /* Organiza em Cabeçalho, Corpo e Rodapé */
+    overflow: hidden; /* Garante que nada vaze para fora dos cantos arredondados */
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+/* Cabeçalho do Modal (Fixo no topo) */
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #eef2f5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    z-index: 2;
+}
+
+/* Corpo do Formulário (Único lugar que desliza) */
+.modal-body {
+    padding: 24px;
+    overflow-y: auto; /* Ativa a rolagem vertical apenas aqui dentro */
+    flex-grow: 1;
+    background: #fdfdfe;
+}
+
+/* Rodapé com os botões (Fixo embaixo) */
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #eef2f5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: #ffffff;
+    z-index: 2;
+}
+
+/* Estilização da barra de rolagem interna (Minimalista) */
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Animação suave de entrada */
+@keyframes modalFadeIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
