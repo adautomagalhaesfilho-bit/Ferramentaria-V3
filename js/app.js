@@ -1,5 +1,5 @@
 // ==========================================
-// 🚀 APP.JS — Inicialização e Navegação
+// 🚀 APP.JS — Inicialização e Navegação V3
 // ==========================================
 
 var _telaAtual = null;
@@ -11,11 +11,17 @@ var _excluirCallback = null;
 window.addEventListener('DOMContentLoaded', async () => {
   if (!carregarSessao()) return;
 
+  // Saudação personalizada
+  const hora = new Date().getHours();
+  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+  const elSauda = document.getElementById('saudacaoTitulo');
+  if (elSauda) elSauda.innerText = saudacao + ', ' + (_sessao?.nome || '') + '!';
+
   // Data na topbar
   const hoje = new Date();
   const diasSem = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-  document.getElementById('topbarData').innerText =
-    diasSem[hoje.getDay()] + ', ' + hoje.toLocaleDateString('pt-BR');
+  const elData = document.getElementById('topbarData');
+  if (elData) elData.innerText = diasSem[hoje.getDay()] + ', ' + hoje.toLocaleDateString('pt-BR');
 
   // Carrega listas globais
   try {
@@ -29,66 +35,93 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Aplica permissões e navega
   aplicarPermissoes();
 
-  // Inicializa datas do dashboard
+  // Datas do dashboard
   const fDate = d => d.toISOString().split('T')[0];
   const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-  document.getElementById('dashIni').value = fDate(ini);
-  document.getElementById('dashFim').value = fDate(hoje);
-  document.getElementById('dashMes').value =
-    hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  const dashIni = document.getElementById('dashIni');
+  const dashFim = document.getElementById('dashFim');
+  const dashMes = document.getElementById('dashMes');
+  if (dashIni) dashIni.value = fDate(ini);
+  if (dashFim) dashFim.value = fDate(hoje);
+  if (dashMes) dashMes.value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+
+  // Navegação por histórico do browser
+  window.addEventListener('popstate', function(e) {
+    if (e.state && e.state.tela) {
+      const el = document.getElementById('menu' + e.state.tela.charAt(0).toUpperCase() + e.state.tela.slice(1)) || null;
+      _irParaSemHistory(e.state.tela, el);
+    }
+  });
 });
 
 // ==========================================
 // 🧭 NAVEGAÇÃO
 // ==========================================
+var _mapaTelaEl = {
+  dashboard:    'telaDashboard',
+  usinagem:     'telaApontamentos',
+  bancada:      'telaApontamentos',
+  projeto:      'telaApontamentos',
+  producao:     'telaProducao',
+  moldes:       'telaMoldes',
+  ficha:        'telaFicha',
+  historico:    'telaHistorico',
+  funcionarios: 'telaFuncionarios',
+  jobsAdmin:    'telaJobsAdmin',
+  maquinasAdmin:'telaMaquinasAdmin',
+  injetoras:    'telaInjetoras',
+  categorias:   'telaCategorias',
+  feriados:     'telaFeriados',
+  usuarios:     'telaUsuarios',
+};
+
+var _mapaTitulos = {
+  dashboard:    'BI / Dashboard',
+  usinagem:     'Usinagem',
+  bancada:      'Bancada',
+  projeto:      'Projeto',
+  producao:     'Produção / Setup',
+  moldes:       'Gestão de Moldes',
+  ficha:        'Ficha do Molde',
+  historico:    'Histórico',
+  funcionarios: 'Funcionários',
+  jobsAdmin:    'Moldes / Jobs',
+  maquinasAdmin:'Máquinas',
+  injetoras:    'Injetoras',
+  categorias:   'Categorias',
+  feriados:     'Gestão e RH',
+  usuarios:     'Usuários',
+};
+
 function irPara(tela, elMenu) {
-  // Esconde todas as telas
+  // Empurra no histórico do browser
+  history.pushState({ tela: tela }, '', '#' + tela);
+  _irParaSemHistory(tela, elMenu);
+}
+
+function _irParaSemHistory(tela, elMenu) {
   document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
   document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
 
-  // Mapa tela → elemento HTML
-  const mapa = {
-    dashboard: 'telaDashboard',
-    usinagem:  'telaApontamentos',
-    bancada:   'telaApontamentos',
-    projeto:   'telaApontamentos',
-    producao:  'telaProducao',
-    moldes:    'telaMoldes',
-    ficha:     'telaFicha',
-    historico: 'telaHistorico',
-    rh:        'telaRH',
-    usuarios:  'telaUsuarios',
-  };
-
-  const titulos = {
-    dashboard: 'BI / Dashboard',
-    usinagem:  'Usinagem',
-    bancada:   'Bancada',
-    projeto:   'Projeto',
-    producao:  'Produção / Setup',
-    moldes:    'Gestão de Moldes',
-    ficha:     'Ficha do Molde',
-    historico: 'Histórico',
-    rh:        'Gestão e RH',
-    usuarios:  'Usuários',
-  };
-
   _telaAtual = tela;
-  const idTela = mapa[tela];
+  const idTela = _mapaTelaEl[tela];
   if (idTela) document.getElementById(idTela)?.classList.add('ativa');
   if (elMenu) elMenu.classList.add('active');
 
-  document.getElementById('topbarTitulo').innerText = titulos[tela] || tela;
+  const titulo = document.getElementById('topbarTitulo');
+  if (titulo) titulo.innerText = _mapaTitulos[tela] || tela;
 
   // Fechar sidebar no mobile
   if (window.innerWidth <= 768) {
     document.getElementById('sidebar')?.classList.remove('open');
-    document.getElementById('overlayMobile')?.classList.remove('active');
   }
+
+  // Fechar modal se estiver aberto
+  fecharModalForm();
 
   // Ações automáticas ao navegar
   setTimeout(() => {
-    if (tela === 'usinagem' || tela === 'bancada' || tela === 'projeto') {
+    if (['usinagem','bancada','projeto'].includes(tela)) {
       abrirSetor(tela);
     } else if (tela === 'producao') {
       inicializarProducao();
@@ -98,12 +131,33 @@ function irPara(tela, elMenu) {
       carregarMoldes();
     } else if (tela === 'historico') {
       inicializarHistorico();
-    } else if (tela === 'rh') {
+    } else if (tela === 'feriados') {
       inicializarRH();
     } else if (tela === 'usuarios') {
       carregarUsuarios();
+    } else if (tela === 'funcionarios') {
+      carregarFuncionariosAdmin();
+    } else if (tela === 'jobsAdmin') {
+      carregarJobsAdmin();
+    } else if (tela === 'maquinasAdmin') {
+      carregarMaquinasAdmin();
+    } else if (tela === 'injetoras') {
+      carregarInjetoras();
+    } else if (tela === 'categorias') {
+      carregarCategorias();
     }
   }, 50);
+}
+
+// ==========================================
+// 🔒 ADMIN RECOLHÍVEL
+// ==========================================
+function toggleAdmin() {
+  const label = document.getElementById('adminLabel');
+  const items = document.getElementById('adminItems');
+  if (!label || !items) return;
+  label.classList.toggle('aberto');
+  items.classList.toggle('aberto');
 }
 
 // ==========================================
@@ -112,10 +166,10 @@ function irPara(tela, elMenu) {
 function inicializarAutocompletes() {
   if (!_listas) return;
   const jobs = _listas.jobs || [];
-  setupAC('formJob', 'formJobList', jobs);
-  setupAC('fichaJobInput', 'fichaJobList', jobs);
-  setupAC('histJob', 'histJobList', jobs);
-  setupAC('prodFormMolde', 'prodFormMoldeList', jobs);
+  setupAC('formJob',         'formJobList',         jobs);
+  setupAC('fichaJobInput',   'fichaJobList',         jobs);
+  setupAC('histJob',         'histJobList',          jobs);
+  setupAC('prodFormMolde',   'prodFormMoldeList',    jobs);
   setupAC('formTipoBancadaInput', 'formTipoBancadaList', _listas.tiposBancada || [], val => {
     document.getElementById('formTipoBancada').value = val;
   });
@@ -123,7 +177,7 @@ function inicializarAutocompletes() {
 
 function setupAC(inputId, listaId, dados, onSelect) {
   const input = document.getElementById(inputId);
-  const lista = document.getElementById(listaId);
+  const lista  = document.getElementById(listaId);
   if (!input || !lista) return;
   input.addEventListener('input', () => {
     const termo = input.value.toUpperCase();
@@ -160,6 +214,57 @@ function toast(msg, tipo) {
 }
 
 // ==========================================
+// 🪟 MODAL FORMULÁRIO LANÇAMENTO
+// ==========================================
+function abrirModalForm() {
+  const overlay = document.getElementById('modalFormOverlay');
+  if (overlay) {
+    overlay.classList.add('aberto');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function fecharModalForm() {
+  const overlay = document.getElementById('modalFormOverlay');
+  if (overlay) {
+    overlay.classList.remove('aberto');
+    document.body.style.overflow = '';
+  }
+}
+
+// Fechar ao clicar no overlay (fora do modal)
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('modalFormOverlay');
+  if (overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) fecharModalForm();
+    });
+  }
+  const overlayProd = document.getElementById('modalFormProdOverlay');
+  if (overlayProd) {
+    overlayProd.addEventListener('click', function(e) {
+      if (e.target === overlayProd) cancelarFormProducao();
+    });
+  }
+});
+
+function abrirModalFormProd() {
+  const overlay = document.getElementById('modalFormProdOverlay');
+  if (overlay) {
+    overlay.classList.add('aberto');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function fecharModalFormProd() {
+  const overlay = document.getElementById('modalFormProdOverlay');
+  if (overlay) {
+    overlay.classList.remove('aberto');
+    document.body.style.overflow = '';
+  }
+}
+
+// ==========================================
 // 🗑️ MODAL CONFIRMAÇÃO
 // ==========================================
 function confirmarExclusao(msg, callback) {
@@ -189,7 +294,7 @@ function abrirModalStatus(job) {
   document.getElementById('modalJobNome').innerText = job;
   ['And','Paus','Fin'].forEach(s => {
     const btn = document.getElementById('modalBtn' + s);
-    if (btn) { btn.style.borderColor = ''; btn.style.background = ''; btn.className = 'btn-status'; }
+    if (btn) btn.className = 'btn-status';
   });
   document.getElementById('btnConfirmarStatus').style.opacity = '0.4';
   document.getElementById('btnConfirmarStatus').style.pointerEvents = 'none';
@@ -203,12 +308,9 @@ function abrirModalStatus(job) {
 function selecionarStatusModal(status) {
   _statusAtual = status;
   const mapBtn = { 'Em andamento':'And', 'Pausado':'Paus', 'Finalizado':'Fin' };
-  ['And','Paus','Fin'].forEach(s => {
-    const btn = document.getElementById('modalBtn' + s);
-    if (btn) btn.className = 'btn-status';
-  });
+  ['And','Paus','Fin'].forEach(s => { document.getElementById('modalBtn' + s).className = 'btn-status'; });
   const btn = document.getElementById('modalBtn' + mapBtn[status]);
-  if (btn) btn.className = 'btn-status ' + (status==='Finalizado' ? 'ativo-fin' : 'ativo-and');
+  if (btn) btn.className = 'btn-status ' + (status==='Finalizado'?'ativo-fin':'ativo-and');
   const conf = document.getElementById('btnConfirmarStatus');
   conf.style.opacity = '1'; conf.style.pointerEvents = 'auto';
   document.getElementById('modalDescWrap').style.display = (status==='Pausado'||status==='Finalizado') ? 'block' : 'none';
@@ -219,7 +321,7 @@ async function confirmarStatus() {
   if (!_jobAtual || !_statusAtual) return;
   const btn = document.getElementById('btnConfirmarStatus');
   btn.disabled = true; btn.innerText = 'Salvando...';
-  const desc   = document.getElementById('modalDesc').value.trim();
+  const desc    = document.getElementById('modalDesc').value.trim();
   const dataFim = document.getElementById('modalDataFim').value;
   const job = _jobAtual; const status = _statusAtual;
   fecharModalStatus();
@@ -227,9 +329,7 @@ async function confirmarStatus() {
     await db.salvarStatusJob(job, status, desc, dataFim);
     toast('Status atualizado!', 'sucesso');
     if (typeof carregarMoldes === 'function') await carregarMoldes();
-  } catch(e) {
-    toast('Erro ao salvar status.', 'erro');
-  }
+  } catch(e) { toast('Erro ao salvar status.', 'erro'); }
   btn.disabled = false; btn.innerText = 'Confirmar';
 }
 
@@ -244,10 +344,9 @@ function fecharModalStatus() {
 // ==========================================
 function setSemanaDash(n) {
   const hoje = new Date(); const ano = hoje.getFullYear(); const mes = hoje.getMonth();
-  const ranges = {
-    1: [1,7], 2: [8,14], 3: [15,21], 4: [22, new Date(ano,mes+1,0).getDate()]
-  };
-  const [d1, d2] = ranges[n];
+  const dias = new Date(ano, mes+1, 0).getDate();
+  const ranges = { 1:[1,7], 2:[8,14], 3:[15,21], 4:[22,dias] };
+  const [d1,d2] = ranges[n];
   const fDate = d => new Date(ano,mes,d).toISOString().split('T')[0];
   document.getElementById('dashIni').value = fDate(d1);
   document.getElementById('dashFim').value = fDate(d2);
@@ -257,9 +356,9 @@ function setSemanaDash(n) {
 function selecionarMesDash() {
   const val = document.getElementById('dashMes').value;
   if (!val) return;
-  const [ano, mes] = val.split('-').map(Number);
-  const ini = new Date(ano, mes-1, 1);
-  const fim = new Date(ano, mes, 0);
+  const [ano,mes] = val.split('-').map(Number);
+  const ini = new Date(ano,mes-1,1);
+  const fim = new Date(ano,mes,0);
   const fDate = d => d.toISOString().split('T')[0];
   document.getElementById('dashIni').value = fDate(ini);
   document.getElementById('dashFim').value = fDate(fim);
@@ -269,29 +368,28 @@ function selecionarMesDash() {
 function mudarTabDash(aba, elBtn) {
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('ativo'));
   document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('ativa'));
-  document.getElementById('dash' + aba.charAt(0).toUpperCase() + aba.slice(1))?.classList.add('ativo');
+  const id = 'dash' + aba.charAt(0).toUpperCase() + aba.slice(1);
+  document.getElementById(id)?.classList.add('ativo');
   if (elBtn) elBtn.classList.add('ativa');
   renderizarDashAtivo(aba);
 }
 
 // ==========================================
-// 📱 SIDEBAR MOBILE
+// 📱 SIDEBAR MOBILE / COLLAPSE
 // ==========================================
 function toggleSidebar() {
-  const sidebar  = document.getElementById('sidebar');
-  const overlay  = document.getElementById('overlayMobile');
-  const main     = document.getElementById('main');
+  const sidebar = document.getElementById('sidebar');
+  const main    = document.getElementById('main');
   if (window.innerWidth <= 768) {
     sidebar.classList.toggle('open');
   } else {
     sidebar.classList.toggle('collapsed');
     main.classList.toggle('collapsed');
   }
-  if (overlay) overlay.classList.toggle('active');
 }
 
 // ==========================================
-// 🛠️ HELPERS
+// 🛠️ HELPERS GLOBAIS
 // ==========================================
 function fmtData(d) {
   if (!d) return '-';
@@ -302,8 +400,161 @@ function fmtMin(mins) {
   return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + 'h';
 }
 function corStatus(s) {
-  return s === 'Finalizado' ? '#10b981' : s === 'Pausado' ? '#f59e0b' : '#f97316';
+  return s==='Finalizado'?'#10b981':s==='Pausado'?'#f59e0b':'#f97316';
 }
 function icoStatus(s) {
-  return s === 'Finalizado' ? '🟢' : s === 'Pausado' ? '🟡' : '🟠';
+  return s==='Finalizado'?'🟢':s==='Pausado'?'🟡':'🟠';
+}
+
+// Stubs para telas admin novas (implementadas nos próximos arquivos)
+function carregarFuncionariosAdmin() { if(typeof carregarFuncionariosRH==='function') carregarFuncionariosRH(); }
+function carregarJobsAdmin()      { const el=document.getElementById('listaJobsAdmin');      if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarJobs(); }
+function carregarMaquinasAdmin()  { const el=document.getElementById('listaMaquinas');       if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarMaquinasLista(); }
+function carregarInjetoras()      { const el=document.getElementById('listaInjetoras');      if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarInjetorasLista(); }
+function carregarCategorias()     { const el=document.getElementById('painelCategorias');    if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarCategoriasLista(); }
+
+async function _carregarJobs() {
+  try {
+    const res = await db._get('jobs','order=nome.asc','*');
+    const el = document.getElementById('listaJobsAdmin');
+    if (!el) return;
+    if (!res || !res.length) { el.innerHTML='<div class="empty-msg">Nenhum job cadastrado.</div>'; return; }
+    const filtroTipo = document.getElementById('filtroTipoJob')?.value || 'todos';
+    const busca = (document.getElementById('buscaJobAdmin')?.value || '').toUpperCase();
+    const filtrado = res.filter(j => {
+      const sv = j.nome.toUpperCase().startsWith('SV') || j.nome.toUpperCase().startsWith('S/');
+      if (filtroTipo==='molde' && sv) return false;
+      if (filtroTipo==='servico' && !sv) return false;
+      if (busca && !j.nome.toUpperCase().includes(busca)) return false;
+      return true;
+    });
+    el.innerHTML = filtrado.map(j => `
+      <div class="lista-item">
+        <div class="lista-item-info">
+          <div class="lista-item-nome">${j.nome}</div>
+          <div class="lista-item-sub">${j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/')?'Serviço':'Molde'}</div>
+        </div>
+        <div class="lista-item-acoes">
+          <span class="${j.ativo?'badge-ativo':'badge-inativo'}">${j.ativo?'ATIVO':'INATIVO'}</span>
+          <button class="btn-icon danger" onclick="excluirJob(${j.id})">🗑️</button>
+        </div>
+      </div>`).join('');
+  } catch(e) { toast('Erro ao carregar jobs.','erro'); }
+}
+
+function filtrarJobsAdmin() { _carregarJobs(); }
+
+async function abrirFormJob() {
+  const nome = prompt('Nome do Molde / Job ou Serviço (ex: MOL-001 ou SV-001):');
+  if (!nome || !nome.trim()) return;
+  try {
+    await db._post('jobs', { nome: nome.trim(), ativo: true });
+    toast('Adicionado!','sucesso');
+    if (_listas) _listas.jobs = (_listas.jobs||[]).concat(nome.trim());
+    inicializarAutocompletes();
+    carregarJobsAdmin();
+  } catch(e) { toast('Erro ao adicionar.','erro'); }
+}
+
+async function excluirJob(id) {
+  confirmarExclusao('Remover este job/molde?', async () => {
+    try { await db._patch('jobs','id=eq.'+id,{ativo:false}); toast('Removido!','sucesso'); carregarJobsAdmin(); }
+    catch(e) { toast('Erro.','erro'); }
+  });
+}
+
+async function _carregarMaquinasLista() {
+  try {
+    const res = await db.listarMaquinas();
+    const el = document.getElementById('listaMaquinas');
+    if (!el) return;
+    el.innerHTML = (res||[]).map(m => `
+      <div class="lista-item">
+        <div class="lista-item-info">
+          <div class="lista-item-nome">${m.nome}</div>
+          <div class="lista-item-sub">Turno: ${m.turno||'ADM'} | Cap: ${m.cap_liquida||508} min/dia</div>
+        </div>
+        <div class="lista-item-acoes">
+          <span class="${m.ativo?'badge-ativo':'badge-inativo'}">${m.ativo?'ATIVO':'INATIVO'}</span>
+          <button class="btn-icon danger" onclick="excluirMaquinaAdmin(${m.id})">🗑️</button>
+        </div>
+      </div>`).join('') || '<div class="empty-msg">Nenhuma máquina.</div>';
+  } catch(e) { toast('Erro ao carregar.','erro'); }
+}
+
+async function abrirFormMaquina() {
+  const nome = prompt('Nome da Máquina:');
+  if (!nome||!nome.trim()) return;
+  try { await db.salvarMaquina({nome:nome.trim(),turno:'ADM',ativo:true}); toast('Adicionada!','sucesso'); carregarMaquinasAdmin(); }
+  catch(e) { toast('Erro.','erro'); }
+}
+
+async function excluirMaquinaAdmin(id) {
+  confirmarExclusao('Remover esta máquina?', async()=>{ try { await db.excluirMaquina(id); toast('Removida!','sucesso'); carregarMaquinasAdmin(); } catch(e){toast('Erro.','erro');} });
+}
+
+async function _carregarInjetorasLista() {
+  try {
+    const res = await db.listarProdInjetoras();
+    const el = document.getElementById('listaInjetoras');
+    if (!el) return;
+    el.innerHTML = (res||[]).map(i => `
+      <div class="lista-item">
+        <div class="lista-item-info">
+          <div class="lista-item-nome">${i.nome}</div>
+          <div class="lista-item-sub">${i.tonelagem?i.tonelagem+' ton':'—'} | ${i.fabricante||'—'}</div>
+        </div>
+        <div class="lista-item-acoes">
+          <span class="badge-ativo">ATIVO</span>
+          <button class="btn-icon danger" onclick="excluirInjetoraAdmin(${i.id})">🗑️</button>
+        </div>
+      </div>`).join('') || '<div class="empty-msg">Nenhuma injetora.</div>';
+  } catch(e) { toast('Erro ao carregar.','erro'); }
+}
+
+async function abrirFormInjetora() {
+  const nome = prompt('Nome da Injetora (ex: 160-01):');
+  if (!nome||!nome.trim()) return;
+  const ton  = prompt('Tonelagem (opcional):');
+  const fab  = prompt('Fabricante (opcional):');
+  try { await db.salvarProdInjetora({nome:nome.trim(),tonelagem:ton?parseInt(ton):null,fabricante:fab||null}); toast('Adicionada!','sucesso'); carregarInjetoras(); }
+  catch(e) { toast('Erro.','erro'); }
+}
+
+async function excluirInjetoraAdmin(id) {
+  confirmarExclusao('Remover esta injetora?', async()=>{ try { await db.excluirProdInjetora(id); toast('Removida!','sucesso'); carregarInjetoras(); } catch(e){toast('Erro.','erro');} });
+}
+
+async function _carregarCategoriasLista() {
+  try {
+    const res = await db.listarProdCategorias();
+    const el = document.getElementById('painelCategorias');
+    if (!el) return;
+    const grupos = {};
+    (res||[]).forEach(c => { if (!grupos[c.tipo]) grupos[c.tipo]=[]; grupos[c.tipo].push(c); });
+    const cores = { Setup:'#0056b3', Preventiva:'#10b981', Corretiva:'#ef4444', 'Inspeção':'#f59e0b' };
+    el.innerHTML = '<div class="cards-row" style="flex-wrap:wrap;align-items:flex-start">' +
+      Object.entries(grupos).map(([tipo,cats]) => `
+        <div class="card" style="flex:1;min-width:240px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span style="background:${cores[tipo]||'#64748b'}20;color:${cores[tipo]||'#64748b'};padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">${tipo} (${cats.length})</span>
+            <button class="btn-primary" style="padding:5px 12px;font-size:11px" onclick="adicionarCategoria('${tipo}')">+ Adicionar</button>
+          </div>
+          ${cats.map(c => `<div class="lista-item" style="padding:8px 0">
+            <div class="lista-item-nome" style="font-size:13px">${c.atividade}</div>
+            <button class="btn-icon danger" onclick="excluirCategoria(${c.id})">🗑️</button>
+          </div>`).join('')}
+        </div>`).join('') + '</div>';
+  } catch(e) { toast('Erro ao carregar.','erro'); }
+}
+
+async function adicionarCategoria(tipo) {
+  const ativ = prompt('Nome da nova atividade para ' + tipo + ':');
+  if (!ativ||!ativ.trim()) return;
+  try { await db.salvarProdCategoria({tipo,atividade:ativ.trim(),ativo:true}); toast('Adicionada!','sucesso'); carregarCategorias(); }
+  catch(e) { toast('Erro.','erro'); }
+}
+
+async function excluirCategoria(id) {
+  confirmarExclusao('Remover esta categoria?', async()=>{ try { await db.excluirProdCategoria(id); toast('Removida!','sucesso'); carregarCategorias(); } catch(e){toast('Erro.','erro');} });
 }
