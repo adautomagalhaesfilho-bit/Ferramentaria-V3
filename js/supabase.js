@@ -128,25 +128,27 @@ const db = {
   },
 
   buscarDashboard: async function(dataIni, dataFim) {
-    const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas] = await Promise.all([
+    const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas, prodLanc] = await Promise.all([
       db._get('lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
       db._get('feriados', '', 'data'),
       db._get('ferias', '', '*'),
       db._get('funcionarios', 'ativo=eq.true', '*'),
       db._get('rh_parciais', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
-      db._get('maquinas', 'ativo=eq.true', '*')
+      db._get('maquinas', 'ativo=eq.true', '*'),
+      db._get('prod_lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*')
     ]);
 
     const capMaquinas = {};
     (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno }; });
 
     return {
-      lancamentos:       (lancamentos || []).map(db._formatarLancamento),
-      feriados:          (feriados || []).map(f => f.data),
-      ferias:            ferias || [],
-      funcionarios:      funcionarios || [],
-      parciais:          parciais || [],
-      capacidadesMaquinas: capMaquinas
+      lancamentos:         (lancamentos || []).map(db._formatarLancamento),
+      feriados:            (feriados || []).map(f => f.data),
+      ferias:              ferias || [],
+      funcionarios:        funcionarios || [],
+      parciais:            parciais || [],
+      capacidadesMaquinas: capMaquinas,
+      prodLancamentos:     prodLanc || []
     };
   },
 
