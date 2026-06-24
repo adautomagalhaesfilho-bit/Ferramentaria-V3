@@ -7,11 +7,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-  <link rel="stylesheet" href="css/estilos.css">
+  <link rel="stylesheet" href="css/estilos.css?v=2">
 </head>
 <body>
 
-<!-- SIDEBAR -->
 <nav class="sidebar" id="sidebar">
 
   <div class="sidebar-header">
@@ -75,7 +74,6 @@
 
     <div class="menu-sep"></div>
 
-    <!-- ADMINISTRAÇÃO recolhível -->
     <div class="admin-section" id="adminSection">
       <div class="admin-label" id="adminLabel" onclick="toggleAdmin()">
         <span>Administração</span>
@@ -133,7 +131,6 @@
 
 <div class="overlay-mobile" id="overlayMobile" onclick="toggleSidebar()"></div>
 
-<!-- MAIN -->
 <main class="main" id="main">
   <header class="topbar">
     <button class="btn-menu-mobile" onclick="toggleSidebar()">☰</button>
@@ -143,7 +140,6 @@
 
   <div class="content" id="content">
 
-    <!-- DASHBOARD -->
     <div class="tela ativa" id="telaDashboard">
       <div class="saudacao-wrap">
         <div class="saudacao-titulo" id="saudacaoTitulo">Bom dia!</div>
@@ -178,7 +174,6 @@
       <div id="dashProducao" class="dash-panel"></div>
     </div>
 
-    <!-- APONTAMENTOS -->
     <div class="tela" id="telaApontamentos">
       <div class="page-header">
         <h1 id="tituloApontamentos">⚙️ Apontamentos — Usinagem</h1>
@@ -216,7 +211,6 @@
       </div>
     </div>
 
-    <!-- PRODUÇÃO -->
     <div class="tela" id="telaProducao">
       <div class="page-header">
         <h1>🏭 Produção / Setup</h1>
@@ -246,7 +240,6 @@
       </div>
     </div>
 
-    <!-- GESTÃO DE MOLDES -->
     <div class="tela" id="telaMoldes">
       <div class="page-header">
         <h1>🔩 Gestão de Moldes</h1>
@@ -273,7 +266,6 @@
       </div>
     </div>
 
-    <!-- FICHA DO MOLDE -->
     <div class="tela" id="telaFicha">
       <div class="page-header"><h1>📄 Ficha do Molde</h1></div>
       <div class="card">
@@ -289,7 +281,6 @@
       <div id="fichaVazio" class="empty-state"><div style="font-size:48px">🔩</div><div>Digite o nome do job para ver a ficha completa</div></div>
     </div>
 
-    <!-- HISTÓRICO -->
     <div class="tela" id="telaHistorico">
       <div class="page-header"><h1>🔎 Histórico de Lançamentos</h1></div>
       <div class="card">
@@ -326,7 +317,6 @@
       </div>
     </div>
 
-    <!-- FUNCIONÁRIOS -->
     <div class="tela" id="telaFuncionarios">
       <div class="page-header">
         <h1>👥 Funcionários</h1>
@@ -352,7 +342,6 @@
       </div>
     </div>
 
-    <!-- MOLDES / JOBS ADMIN -->
     <div class="tela" id="telaJobsAdmin">
       <div class="page-header">
         <h1>📁 Moldes / Jobs</h1>
@@ -371,7 +360,6 @@
       </div>
     </div>
 
-    <!-- MÁQUINAS ADMIN -->
     <div class="tela" id="telaMaquinasAdmin">
       <div class="page-header">
         <h1>🤖 Máquinas</h1>
@@ -380,7 +368,6 @@
       <div class="card"><div id="listaMaquinas"></div></div>
     </div>
 
-    <!-- INJETORAS -->
     <div class="tela" id="telaInjetoras">
       <div class="page-header">
         <h1>🏭 Injetoras</h1>
@@ -389,16 +376,13 @@
       <div class="card"><div id="listaInjetoras"></div></div>
     </div>
 
-    <!-- CATEGORIAS -->
     <div class="tela" id="telaCategorias">
       <div class="page-header">
-        <h1>🗂️ Categorias de Atividade</h1>
-        <button class="btn-primary" onclick="abrirFormCategoria()">+ Nova Categoria</button>
+        <h1>🗂️ Categorias e Setores</h1>
       </div>
       <div id="painelCategorias"></div>
     </div>
 
-    <!-- FERIADOS / RH -->
     <div class="tela" id="telaFeriados">
       <div class="page-header"><h1>📅 Gestão e RH</h1></div>
       <div class="tabs-rh">
@@ -411,7 +395,6 @@
       <div id="painelParciais" class="painel-rh"></div>
     </div>
 
-    <!-- USUÁRIOS -->
     <div class="tela" id="telaUsuarios">
       <div class="page-header">
         <h1>👤 Usuários</h1>
@@ -426,10 +409,8 @@
       </div>
     </div>
 
-  </div><!-- /content -->
-</main>
+  </div></main>
 
-<!-- MODAL FORMULÁRIO LANÇAMENTO -->
 <div class="modal-form-overlay" id="modalFormOverlay">
   <div class="modal-form" id="modalForm">
     <div class="modal-form-header">
@@ -440,7 +421,6 @@
       <input type="hidden" id="formId">
       <input type="hidden" id="formSetor">
 
-      <!-- Data e Horário -->
       <div class="modal-form-section">
         <div class="modal-form-section-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -459,7 +439,6 @@
         </div>
       </div>
 
-      <!-- Técnico -->
       <div class="modal-form-section">
         <div class="modal-form-section-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -471,7 +450,6 @@
         </div>
       </div>
 
-      <!-- Campos por setor -->
       <div id="grupoMaquina" style="display:none" class="form-group"><label>Máquina *</label><select id="formMaq"><option value="">Selecione...</option></select></div>
       <div id="grupoTipoUsina" style="display:none" class="form-row">
         <div class="form-group"><label>Tipo de Serviço *</label><select id="formTipoUsina"><option value="">Selecione...</option></select></div>
@@ -490,7 +468,6 @@
         <div class="form-group"><label>Categoria *</label><select id="formCategoria"><option value="">Selecione...</option></select></div>
       </div>
 
-      <!-- Job e Status -->
       <div class="modal-form-section">
         <div class="modal-form-section-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -513,7 +490,6 @@
         </div>
       </div>
 
-      <!-- Descrição -->
       <div class="form-group"><label>Descrição *</label><textarea id="formDesc" rows="3" placeholder="Descreva o que foi feito..."></textarea></div>
 
       <button class="btn-primary btn-full" id="btnSalvarForm" onclick="salvarForm()">💾 Salvar Lançamento</button>
@@ -521,7 +497,6 @@
   </div>
 </div>
 
-<!-- MODAL FORMULÁRIO PRODUÇÃO -->
 <div class="modal-form-overlay" id="modalFormProdOverlay">
   <div class="modal-form" id="modalFormProd">
     <div class="modal-form-header">
@@ -582,7 +557,6 @@
   </div>
 </div>
 
-<!-- MODAL STATUS JOB -->
 <div class="modal-overlay" id="modalStatusOverlay" style="display:none" onclick="fecharModalStatus()"></div>
 <div class="modal" id="modalStatus" style="display:none">
   <div class="modal-header"><h3>Atualizar Status do Molde</h3><button onclick="fecharModalStatus()">✕</button></div>
@@ -602,7 +576,6 @@
   </div>
 </div>
 
-<!-- MODAL CONFIRMAÇÃO -->
 <div class="modal-overlay" id="modalConfOverlay" style="display:none" onclick="fecharModalConf()"></div>
 <div class="modal" id="modalConf" style="display:none">
   <div class="modal-body" style="text-align:center;padding:32px">
@@ -618,16 +591,16 @@
 
 <div id="toast"></div>
 
-<script src="js/supabase.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/apontamentos.js"></script>
-<script src="js/moldes.js"></script>
-<script src="js/ficha.js"></script>
-<script src="js/historico.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/rh.js"></script>
-<script src="js/producao.js"></script>
-<script src="js/usuarios.js"></script>
-<script src="js/app.js"></script>
+<script src="js/supabase.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/apontamentos.js?v=2"></script>
+<script src="js/moldes.js?v=2"></script>
+<script src="js/ficha.js?v=2"></script>
+<script src="js/historico.js?v=2"></script>
+<script src="js/dashboard.js?v=2"></script>
+<script src="js/rh.js?v=2"></script>
+<script src="js/producao.js?v=2"></script>
+<script src="js/usuarios.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
 </body>
 </html>
