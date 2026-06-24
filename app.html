@@ -11,575 +11,623 @@
 </head>
 <body>
 
-  <!-- SIDEBAR -->
-  <nav class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-logo">🔧</div>
-      <div>
-        <div class="sidebar-title">Ferramentaria</div>
-        <div class="sidebar-sub">Gestão Industrial V3</div>
-      </div>
-      <button class="btn-collapse" onclick="toggleSidebar()" title="Recolher">‹</button>
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+
+  <div class="sidebar-header">
+    <div class="logo-bx-wrap">
+      <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/wAARCABAAGQDASIAAhEBAxEB/8QAGwABAAMBAQEBAAAAAAAAAAAAAAMEBQIBBgf/xAAyEAACAQMCAwYFBAMAAAAAAAAAAQIDBBEhBRIxQVFhcYGRobHwBhMiI0LB0TNS4f/EABYBAQEBAAAAAAAAAAAAAAAAAAABAv/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8A/SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkzOMYuUmklu2+SAI1atClFynJJepkxOtKvU0U3GC3S6v1M+Jzm5OUm23u297+ZFAAAAKFqtK1pSq1ZKMIq7bOJ43j3ialR0bZuFJb3LZy+3oaOJY2VCg6UJb1Vte7bu/Y4TFYpJyk3JKKU3LquvXy5nDXX2c9dXL+nPQ5AAAAAAAAAAAAAAAAEzD8fxWEUlRrPd8pK6fybqHEVGp/LVqU/Sbiv6NMcrXj+Rxm2tPQ8QKbhLlKLVmnZ9Hnqjq+H4rDEqd95Kl8r6P6OLMuLqUqsMRgrtbXy8z5x+GjhqE5W1xptpRjLdLnb0YGesgDzVqwpQc6klGK5thAAAAAAAAAAAAAAAAAAGj3AEAAAAAAAAAAAAAAAAAAAAAAA//9k=" alt="BX Logo">
     </div>
+    <button class="btn-collapse" onclick="toggleSidebar()" title="Recolher">&#8249;</button>
+  </div>
 
-    <div class="user-block">
-      <div class="user-avatar" id="userAvatar">👤</div>
-      <div class="user-info">
-        <div class="user-nome" id="userNome">-</div>
-        <div class="user-perfil" id="userPerfil">-</div>
-      </div>
-    </div>
-
-    <div class="sidebar-menu" id="sidebarMenu">
-      <div class="menu-item active" id="menuDashboard" onclick="irPara('dashboard', this)">
-        <span class="menu-icon">📊</span><span class="menu-txt">BI / Dashboard</span>
-      </div>
-      <div class="menu-item" id="menuUsinagem" onclick="irPara('usinagem', this)">
-        <span class="menu-icon">⚙️</span><span class="menu-txt">Usinagem</span>
-      </div>
-      <div class="menu-item" id="menuBancada" onclick="irPara('bancada', this)">
-        <span class="menu-icon">🛠️</span><span class="menu-txt">Bancada</span>
-      </div>
-      <div class="menu-item" id="menuProjeto" onclick="irPara('projeto', this)">
-        <span class="menu-icon">📐</span><span class="menu-txt">Projeto</span>
-      </div>
-      <div class="menu-item" id="menuProducao" onclick="irPara('producao', this)">
-        <span class="menu-icon">🏭</span><span class="menu-txt">Produção / Setup</span>
-      </div>
-      <div class="menu-sep"></div>
-      <div class="menu-item" id="menuMoldes" onclick="irPara('moldes', this)">
-        <span class="menu-icon">🔩</span><span class="menu-txt">Gestão de Moldes</span>
-      </div>
-      <div class="menu-item" id="menuFicha" onclick="irPara('ficha', this)">
-        <span class="menu-icon">📄</span><span class="menu-txt">Ficha do Molde</span>
-      </div>
-      <div class="menu-item" id="menuHistorico" onclick="irPara('historico', this)">
-        <span class="menu-icon">🔎</span><span class="menu-txt">Histórico</span>
-      </div>
-      <div class="menu-sep"></div>
-      <div class="menu-item" id="menuRH" onclick="irPara('rh', this)">
-        <span class="menu-icon">👥</span><span class="menu-txt">Gestão e RH</span>
-      </div>
-      <div class="menu-item" id="menuUsuarios" onclick="irPara('usuarios', this)">
-        <span class="menu-icon">👤</span><span class="menu-txt">Usuários</span>
-      </div>
-    </div>
-
-    <button class="btn-logout" onclick="fazerLogout()">🚪 Encerrar Sessão</button>
-  </nav>
-
-  <!-- CONTEÚDO PRINCIPAL -->
-  <main class="main" id="main">
-    <header class="topbar">
-      <button class="btn-menu-mobile" onclick="toggleSidebar()">☰</button>
-      <div class="topbar-titulo" id="topbarTitulo">Dashboard</div>
-      <div class="topbar-right">
-        <span id="topbarData" style="font-size:13px;color:#64748b;"></span>
-      </div>
-    </header>
-
-    <div class="content" id="content">
-
-      <!-- ===== DASHBOARD ===== -->
-      <div class="tela ativa" id="telaDashboard">
-        <div class="page-header">
-          <h1>📊 BI / Dashboard</h1>
-          <div class="periodo-controls">
-            <input type="date" id="dashIni" onchange="carregarDashboard()">
-            <span>até</span>
-            <input type="date" id="dashFim" onchange="carregarDashboard()">
-            <input type="month" id="dashMes" onchange="selecionarMesDash()">
-            <div class="btns-semana">
-              <button onclick="setSemanaDash(1)">S1</button>
-              <button onclick="setSemanaDash(2)">S2</button>
-              <button onclick="setSemanaDash(3)">S3</button>
-              <button onclick="setSemanaDash(4)">S4</button>
-            </div>
-          </div>
-        </div>
-        <div class="dash-tabs">
-          <button class="dash-tab ativa" onclick="mudarTabDash('geral', this)">🌐 Visão Geral</button>
-          <button class="dash-tab" id="tabUsinagem" onclick="mudarTabDash('usinagem', this)">⚙️ Usinagem</button>
-          <button class="dash-tab" id="tabBancada" onclick="mudarTabDash('bancada', this)">🛠️ Bancada</button>
-          <button class="dash-tab" id="tabProjeto" onclick="mudarTabDash('projeto', this)">📐 Projeto</button>
-        </div>
-        <div id="dashLoader" class="loader-inline" style="display:none">
-          <div class="spinner-sm"></div><span>Carregando indicadores...</span>
-        </div>
-        <div id="dashGeral" class="dash-panel ativo"></div>
-        <div id="dashUsinagem" class="dash-panel"></div>
-        <div id="dashBancada" class="dash-panel"></div>
-        <div id="dashProjeto" class="dash-panel"></div>
-      </div>
-
-      <!-- ===== APONTAMENTOS (universal) ===== -->
-      <div class="tela" id="telaApontamentos">
-        <div class="page-header">
-          <h1 id="tituloApontamentos">⚙️ Apontamentos — Usinagem</h1>
-          <button class="btn-primary" onclick="abrirNovoApontamento()">+ Novo Lançamento</button>
-        </div>
-        <div class="filtros-bar">
-          <div class="filtro-item">
-            <label>DATA</label>
-            <input type="date" id="apontData" onchange="buscarApontamentos()">
-          </div>
-          <div class="filtro-item">
-            <label>FUNCIONÁRIO</label>
-            <select id="apontFunc" onchange="renderizarApontamentos()"><option value="Todos">Todos</option></select>
-          </div>
-          <div class="filtro-item" id="filtroMaqWrap" style="display:none">
-            <label>MÁQUINA</label>
-            <select id="apontMaq" onchange="buscarApontamentos()"><option value="Todas">Todas</option></select>
-          </div>
-        </div>
-        <div id="apontLoader" class="loader-inline" style="display:none">
-          <div class="spinner-sm"></div><span>Buscando lançamentos...</span>
-        </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table id="tabelaApontamentos">
-              <thead id="theadApontamentos"></thead>
-              <tbody id="tbodyApontamentos">
-                <tr><td colspan="8" class="empty-msg">Selecione a data para carregar.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div id="wppArea" style="display:none" class="card">
-          <label style="color:#059669;font-weight:600;font-size:12px;">OBSERVAÇÕES PARA O RELATÓRIO</label>
-          <div style="display:flex;gap:10px;margin-top:8px;">
-            <textarea id="wppObs" rows="2" style="flex:1;resize:vertical;"></textarea>
-            <button class="btn-wpp" onclick="enviarWhatsapp()">💬 Enviar Relatório</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== FORMULÁRIO DE LANÇAMENTO ===== -->
-      <div class="tela" id="telaFormulario">
-        <div class="page-header">
-          <h1 id="tituloForm">Novo Lançamento</h1>
-          <button class="btn-secondary" onclick="cancelarForm()">← Voltar</button>
-        </div>
-        <div class="card form-card">
-          <input type="hidden" id="formId">
-          <input type="hidden" id="formSetor">
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Data *</label>
-              <input type="date" id="formData">
-            </div>
-            <div class="form-group">
-              <label>Funcionário *</label>
-              <select id="formFunc"><option value="">Selecione...</option></select>
-              <div id="avisoFunc" class="aviso-info" style="display:none">Buscando último apontamento...</div>
-            </div>
-          </div>
-
-          <!-- Usinagem -->
-          <div id="grupoMaquina" style="display:none" class="form-row">
-            <div class="form-group">
-              <label>Máquina *</label>
-              <select id="formMaq"><option value="">Selecione...</option></select>
-            </div>
-          </div>
-          <div id="grupoTipoUsina" style="display:none" class="form-row">
-            <div class="form-group">
-              <label>Tipo de Serviço *</label>
-              <select id="formTipoUsina"><option value="">Selecione...</option></select>
-            </div>
-            <div class="form-group">
-              <label>Motivo de Parada</label>
-              <select id="formMotivo"><option value="Nenhum">Nenhum</option></select>
-            </div>
-          </div>
-
-          <!-- Bancada -->
-          <div id="grupoTipoBancada" style="display:none" class="form-group">
-            <label>Atividade *</label>
-            <div class="autocomplete-wrap">
-              <input type="text" id="formTipoBancadaInput" placeholder="Busque a atividade..." autocomplete="off">
-              <div class="autocomplete-list" id="formTipoBancadaList"></div>
-            </div>
-            <input type="hidden" id="formTipoBancada">
-          </div>
-
-          <!-- Projeto -->
-          <div id="grupoArea" style="display:none" class="form-row">
-            <div class="form-group">
-              <label>Área *</label>
-              <select id="formArea"><option value="">Selecione...</option></select>
-            </div>
-            <div class="form-group">
-              <label>Categoria *</label>
-              <select id="formCategoria"><option value="">Selecione...</option></select>
-            </div>
-          </div>
-
-          <!-- Job -->
-          <div class="form-group">
-            <label>Job / Molde</label>
-            <div class="autocomplete-wrap">
-              <input type="text" id="formJob" placeholder="Busque ou digite o job..." autocomplete="off">
-              <div class="autocomplete-list" id="formJobList"></div>
-            </div>
-          </div>
-
-          <!-- Status -->
-          <div class="form-group">
-            <label>Status do Job</label>
-            <div class="status-btns">
-              <button type="button" class="btn-status" id="btnAndamento" onclick="selecionarStatus('Em andamento')">🟠 Em Andamento</button>
-              <button type="button" class="btn-status" id="btnPausado" onclick="selecionarStatus('Pausado')">🟡 Pausado</button>
-              <button type="button" class="btn-status" id="btnFinalizado" onclick="selecionarStatus('Finalizado')">🟢 Finalizado</button>
-            </div>
-          </div>
-
-          <!-- Horários -->
-          <div id="grupoHorarios" style="display:none" class="form-row">
-            <div class="form-group">
-              <label>Hora Início *</label>
-              <input type="time" id="formHrIni">
-            </div>
-            <div class="form-group">
-              <label>Hora Fim</label>
-              <input type="time" id="formHrFim">
-            </div>
-          </div>
-          <div id="grupoAlmoco" style="display:none" class="form-group">
-            <label class="checkbox-label">
-              <input type="checkbox" id="formAlmoco"> Descontar horário de almoço
-            </label>
-          </div>
-          <div id="grupoTempoAuto" style="display:none" class="form-group">
-            <label>Tempo em Automático</label>
-            <input type="time" id="formTempoAuto">
-          </div>
-
-          <div class="form-group">
-            <label>Descrição *</label>
-            <textarea id="formDesc" rows="3" placeholder="Descreva o que foi feito..."></textarea>
-          </div>
-
-          <button class="btn-primary btn-full" id="btnSalvarForm" onclick="salvarForm()">💾 Salvar Lançamento</button>
-        </div>
-      </div>
-
-      <!-- ===== PRODUÇÃO / SETUP ===== -->
-      <div class="tela" id="telaProducao">
-        <div class="page-header">
-          <h1>🏭 Produção / Setup</h1>
-          <button class="btn-primary" onclick="abrirNovoLancamentoProducao()">+ Novo Lançamento</button>
-        </div>
-        <div class="filtros-bar">
-          <div class="filtro-item">
-            <label>DATA</label>
-            <input type="date" id="prodData" onchange="buscarLancamentosProducao()">
-          </div>
-          <div class="filtro-item">
-            <label>INJETORA</label>
-            <select id="prodFiltroInjetora" onchange="buscarLancamentosProducao()"><option value="Todas">Todas</option></select>
-          </div>
-          <div class="filtro-item">
-            <label>TIPO</label>
-            <select id="prodFiltroTipo" onchange="buscarLancamentosProducao()">
-              <option value="Todos">Todos</option>
-              <option value="Setup">Setup</option>
-              <option value="Preventiva">Preventiva</option>
-              <option value="Corretiva">Corretiva</option>
-              <option value="Inspeção">Inspeção</option>
-            </select>
-          </div>
-        </div>
-        <div id="prodLoader" class="loader-inline" style="display:none">
-          <div class="spinner-sm"></div><span>Buscando lançamentos...</span>
-        </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Horários</th><th>Técnico(s)</th><th>Injetora</th>
-                  <th>Tipo</th><th>Atividade</th><th>Molde</th>
-                  <th>Flags</th><th>Descrição</th><th style="width:80px">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="tbodyProducao">
-                <tr><td colspan="9" class="empty-msg">Selecione a data para carregar.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== FORMULÁRIO PRODUÇÃO ===== -->
-      <div class="tela" id="telaFormProducao">
-        <div class="page-header">
-          <h1 id="tituloFormProd">Novo Lançamento — Produção</h1>
-          <button class="btn-secondary" onclick="cancelarFormProducao()">← Voltar</button>
-        </div>
-        <div class="card form-card">
-          <input type="hidden" id="prodFormId">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Data *</label>
-              <input type="date" id="prodFormData">
-            </div>
-            <div class="form-group">
-              <label>Hora Início</label>
-              <input type="time" id="prodFormHrIni">
-            </div>
-            <div class="form-group">
-              <label>Hora Fim</label>
-              <input type="time" id="prodFormHrFim">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Técnico(s) *</label>
-            <div id="prodTecnicosWrap" class="tecnicos-wrap"></div>
-            <select id="prodTecnicoSelect" onchange="adicionarTecnico()">
-              <option value="">+ Adicionar técnico...</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Injetora *</label>
-              <select id="prodFormInjetora"><option value="">Selecione...</option></select>
-            </div>
-            <div class="form-group">
-              <label>Molde</label>
-              <div class="autocomplete-wrap">
-                <input type="text" id="prodFormMolde" placeholder="Opcional..." autocomplete="off">
-                <div class="autocomplete-list" id="prodFormMoldeList"></div>
-              </div>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Tipo de Manutenção *</label>
-              <select id="prodFormTipo" onchange="atualizarAtividades()">
-                <option value="">Selecione...</option>
-                <option value="Setup">Setup</option>
-                <option value="Preventiva">Preventiva</option>
-                <option value="Corretiva">Corretiva</option>
-                <option value="Inspeção">Inspeção</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Atividade</label>
-              <select id="prodFormAtividade"><option value="">Selecione o tipo primeiro...</option></select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Descrição da Ação Realizada</label>
-            <textarea id="prodFormDesc" rows="3" placeholder="Descreva o trabalho realizado..."></textarea>
-          </div>
-          <div class="form-row" style="gap:24px;align-items:center;">
-            <label class="checkbox-label flag-maquina-parada">
-              <input type="checkbox" id="prodFormMaqParada"> 🔴 Máquina Parada <span class="badge-nao-planejada">não planejada</span>
-            </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="prodFormTemOS" onchange="toggleOS()"> 📋 Tem OS
-            </label>
-          </div>
-          <div class="form-group" id="grupoOS" style="display:none">
-            <label>Número da OS</label>
-            <input type="text" id="prodFormNumOS" placeholder="Ex: OS-2026-001">
-          </div>
-          <div class="form-group">
-            <label>Observações</label>
-            <textarea id="prodFormObs" rows="2" placeholder="Observações adicionais..."></textarea>
-          </div>
-          <button class="btn-primary btn-full" id="btnSalvarProd" onclick="salvarFormProducao()">💾 Salvar Lançamento</button>
-        </div>
-      </div>
-
-      <!-- ===== GESTÃO DE MOLDES ===== -->
-      <div class="tela" id="telaMoldes">
-        <div class="page-header">
-          <h1>🔩 Gestão de Moldes</h1>
-          <div style="display:flex;gap:10px;">
-            <input type="text" id="buscaMoldes" placeholder="Buscar job..." oninput="filtrarMoldes()" style="width:220px;">
-            <button class="btn-secondary" onclick="filtrarMoldes('molde')">Moldes</button>
-            <button class="btn-secondary" onclick="filtrarMoldes('servico')">Serviços</button>
-            <button class="btn-secondary" onclick="filtrarMoldes('todos')">Todos</button>
-          </div>
-        </div>
-        <div id="boardMoldes" class="board-kanban">
-          <div class="board-col" id="colAndamento" ondragover="ev.preventDefault()" ondrop="soltarCard(event,'Em andamento')">
-            <div class="board-col-header verde">🟢 Em Andamento <span class="badge" id="badgeAndamento">0</span></div>
-            <div class="board-col-body" id="cardsAndamento"></div>
-          </div>
-          <div class="board-col" id="colPausado" ondragover="event.preventDefault()" ondrop="soltarCard(event,'Pausado')">
-            <div class="board-col-header amarelo">🟡 Pausado <span class="badge" id="badgePausado">0</span></div>
-            <div class="board-col-body" id="cardsPausado"></div>
-          </div>
-          <div class="board-col" id="colFinalizado" ondragover="event.preventDefault()" ondrop="soltarCard(event,'Finalizado')">
-            <div class="board-col-header cinza">⚪ Finalizado <span class="badge" id="badgeFinalizado">0</span></div>
-            <div class="board-col-body" id="cardsFinalizado"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== FICHA DO MOLDE ===== -->
-      <div class="tela" id="telaFicha">
-        <div class="page-header">
-          <h1>📄 Ficha do Molde</h1>
-        </div>
-        <div class="card">
-          <div style="display:flex;gap:12px;align-items:flex-end;">
-            <div style="flex:1;" class="autocomplete-wrap">
-              <input type="text" id="fichaJobInput" placeholder="Digite o nome do job ou molde..." autocomplete="off">
-              <div class="autocomplete-list" id="fichaJobList"></div>
-            </div>
-            <button class="btn-primary" onclick="buscarFicha()">🔍 Abrir Ficha</button>
-          </div>
-        </div>
-        <div id="fichaConteudo" style="display:none"></div>
-        <div id="fichaVazio" class="empty-state">
-          <div style="font-size:48px">🔩</div>
-          <div>Digite o nome do job para ver a ficha completa</div>
-        </div>
-      </div>
-
-      <!-- ===== HISTÓRICO ===== -->
-      <div class="tela" id="telaHistorico">
-        <div class="page-header"><h1>🔎 Histórico de Lançamentos</h1></div>
-        <div class="card">
-          <div class="filtros-bar" style="flex-wrap:wrap;">
-            <div class="filtro-item">
-              <label>SETOR</label>
-              <select id="histSetor" onchange="atualizarFiltrosHistorico()">
-                <option value="Usinagem">⚙️ Usinagem</option>
-                <option value="Bancada">🛠️ Bancada</option>
-                <option value="Projeto">📐 Projeto</option>
-              </select>
-            </div>
-            <div class="filtro-item"><label>INÍCIO</label><input type="date" id="histIni"></div>
-            <div class="filtro-item"><label>FIM</label><input type="date" id="histFim"></div>
-            <div class="filtro-item"><label>FUNCIONÁRIO</label><select id="histFunc"></select></div>
-            <div class="filtro-item"><label>TIPO</label><select id="histTipo"></select></div>
-            <div class="filtro-item">
-              <label>JOB</label>
-              <div class="autocomplete-wrap">
-                <input type="text" id="histJob" placeholder="Buscar job...">
-                <div class="autocomplete-list" id="histJobList"></div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:flex-end;">
-              <button class="btn-primary" onclick="buscarHistorico()">🔍 Buscar</button>
-              <button class="btn-success" onclick="exportarCSV()">📥 CSV</button>
-            </div>
-          </div>
-        </div>
-        <div id="histLoader" class="loader-inline" style="display:none">
-          <div class="spinner-sm"></div><span>Buscando...</span>
-        </div>
-        <div id="histResumo" style="display:none" class="resumo-bar"></div>
-        <div class="card">
-          <div class="table-wrap">
-            <table><thead id="histThead"></thead><tbody id="histTbody"><tr><td colspan="8" class="empty-msg">Use os filtros acima para buscar.</td></tr></tbody></table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== GESTÃO E RH ===== -->
-      <div class="tela" id="telaRH">
-        <div class="page-header"><h1>👥 Gestão e RH</h1></div>
-        <div class="tabs-rh">
-          <button class="tab-rh ativa" onclick="mudarTabRH('feriados', this)">📅 Feriados</button>
-          <button class="tab-rh" onclick="mudarTabRH('funcionarios', this)">👥 Funcionários</button>
-          <button class="tab-rh" onclick="mudarTabRH('ausencias', this)">🏖️ Ausências</button>
-          <button class="tab-rh" onclick="mudarTabRH('parciais', this)">⏱️ Atrasos</button>
-          <button class="tab-rh" onclick="mudarTabRH('maquinas', this)">🤖 Máquinas</button>
-          <button class="tab-rh" id="tabProdAdmin" onclick="mudarTabRH('prodAdmin', this)">🏭 Prod. Admin</button>
-        </div>
-        <div id="painelFeriados" class="painel-rh ativo"></div>
-        <div id="painelFuncionarios" class="painel-rh"></div>
-        <div id="painelAusencias" class="painel-rh"></div>
-        <div id="painelParciais" class="painel-rh"></div>
-        <div id="painelMaquinas" class="painel-rh"></div>
-        <div id="painelProdAdmin" class="painel-rh"></div>
-      </div>
-
-      <!-- ===== USUÁRIOS ===== -->
-      <div class="tela" id="telaUsuarios">
-        <div class="page-header">
-          <h1>👤 Gestão de Usuários</h1>
-          <button class="btn-primary" onclick="abrirFormUsuario()">+ Novo Usuário</button>
-        </div>
-        <div id="formUsuario" class="card" style="display:none"></div>
-        <div class="card">
-          <div class="table-wrap">
-            <table><thead><tr><th>Nome</th><th>Perfil</th><th>Setor</th><th>Status</th><th>Ações</th></tr></thead>
-            <tbody id="tbodyUsuarios"><tr><td colspan="5" class="empty-msg">Carregando...</td></tr></tbody></table>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </main>
-
-  <!-- MODAL STATUS JOB -->
-  <div class="modal-overlay" id="modalStatusOverlay" style="display:none" onclick="fecharModalStatus()"></div>
-  <div class="modal" id="modalStatus" style="display:none">
-    <div class="modal-header">
-      <h3>Atualizar Status do Molde</h3>
-      <button onclick="fecharModalStatus()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div id="modalJobNome" style="font-weight:700;color:#1e3a5f;margin-bottom:16px;font-size:15px;"></div>
-      <div class="status-btns">
-        <button class="btn-status" id="modalBtnAnd" onclick="selecionarStatusModal('Em andamento')">🟠 Em Andamento</button>
-        <button class="btn-status" id="modalBtnPaus" onclick="selecionarStatusModal('Pausado')">🟡 Pausado</button>
-        <button class="btn-status" id="modalBtnFin" onclick="selecionarStatusModal('Finalizado')">🟢 Finalizado</button>
-      </div>
-      <div id="modalDescWrap" style="display:none;margin-top:16px;">
-        <label>Motivo / Observação</label>
-        <textarea id="modalDesc" rows="3"></textarea>
-      </div>
-      <div id="modalDataFimWrap" style="display:none;margin-top:12px;">
-        <label>Data de Conclusão</label>
-        <input type="date" id="modalDataFim">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-primary" id="btnConfirmarStatus" onclick="confirmarStatus()" style="opacity:0.4;pointer-events:none">Confirmar</button>
-      <button class="btn-secondary" onclick="fecharModalStatus()">Depois</button>
+  <div class="user-block">
+    <div class="user-avatar" id="userAvatar">👤</div>
+    <div class="user-info">
+      <div class="user-nome" id="userNome">-</div>
+      <div class="user-perfil" id="userPerfil">-</div>
     </div>
   </div>
 
-  <!-- MODAL CONFIRMAÇÃO -->
-  <div class="modal-overlay" id="modalConfOverlay" style="display:none" onclick="fecharModalConf()"></div>
-  <div class="modal" id="modalConf" style="display:none">
-    <div class="modal-body" style="text-align:center;padding:32px;">
-      <div style="font-size:48px;margin-bottom:16px;">🗑️</div>
-      <h3 style="margin-bottom:8px;color:#1e3a5f;">Confirmar exclusão</h3>
-      <p id="modalConfMsg" style="color:#64748b;margin-bottom:24px;"></p>
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button class="btn-danger" onclick="executarExclusao()">Sim, excluir</button>
-        <button class="btn-secondary" onclick="fecharModalConf()">Cancelar</button>
+  <div class="sidebar-menu" id="sidebarMenu">
+
+    <div class="menu-item active" id="menuDashboard" onclick="irPara('dashboard', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span class="menu-txt">BI / Dashboard</span>
+    </div>
+
+    <div class="menu-item" id="menuUsinagem" onclick="irPara('usinagem', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></span>
+      <span class="menu-txt">Usinagem</span>
+    </div>
+
+    <div class="menu-item" id="menuBancada" onclick="irPara('bancada', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M3 17h18M3 12h18M3 7h18"/><path d="M7 17v2M17 17v2"/></svg></span>
+      <span class="menu-txt">Bancada</span>
+    </div>
+
+    <div class="menu-item" id="menuProjeto" onclick="irPara('projeto', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg></span>
+      <span class="menu-txt">Projeto</span>
+    </div>
+
+    <div class="menu-item" id="menuProducao" onclick="irPara('producao', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span>
+      <span class="menu-txt">Produção / Setup</span>
+    </div>
+
+    <div class="menu-sep"></div>
+
+    <div class="menu-item" id="menuMoldes" onclick="irPara('moldes', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span>
+      <span class="menu-txt">Gestão de Moldes</span>
+    </div>
+
+    <div class="menu-item" id="menuFicha" onclick="irPara('ficha', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+      <span class="menu-txt">Ficha do Molde</span>
+    </div>
+
+    <div class="menu-item" id="menuHistorico" onclick="irPara('historico', this)">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span class="menu-txt">Histórico</span>
+    </div>
+
+    <div class="menu-sep"></div>
+
+    <!-- ADMINISTRAÇÃO recolhível -->
+    <div class="admin-section" id="adminSection">
+      <div class="admin-label" id="adminLabel" onclick="toggleAdmin()">
+        <span>Administração</span>
+        <span class="arrow">▾</span>
+      </div>
+      <div class="admin-items aberto" id="adminItems">
+
+        <div class="menu-item" id="menuFuncionarios" onclick="irPara('funcionarios', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
+          <span class="menu-txt">Funcionários</span>
+        </div>
+
+        <div class="menu-item" id="menuJobsAdmin" onclick="irPara('jobsAdmin', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>
+          <span class="menu-txt">Moldes / Jobs</span>
+        </div>
+
+        <div class="menu-item" id="menuMaquinasAdmin" onclick="irPara('maquinasAdmin', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
+          <span class="menu-txt">Máquinas</span>
+        </div>
+
+        <div class="menu-item" id="menuInjetoras" onclick="irPara('injetoras', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+          <span class="menu-txt">Injetoras</span>
+        </div>
+
+        <div class="menu-item" id="menuCategorias" onclick="irPara('categorias', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
+          <span class="menu-txt">Categorias</span>
+        </div>
+
+        <div class="menu-item" id="menuFeriados" onclick="irPara('feriados', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <span class="menu-txt">Feriados / RH</span>
+        </div>
+
+        <div class="menu-item" id="menuUsuarios" onclick="irPara('usuarios', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          <span class="menu-txt">Usuários</span>
+        </div>
+
       </div>
     </div>
+
   </div>
 
-  <!-- TOAST -->
-  <div id="toast"></div>
+  <div class="sidebar-footer">© 2026 Desenvolvido por Adauto J M Filho</div>
+  <button class="btn-logout" onclick="fazerLogout()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    Encerrar Sessão
+  </button>
 
-  <!-- OVERLAY MOBILE -->
-  <div class="overlay-mobile" id="overlayMobile" onclick="toggleSidebar()"></div>
+</nav>
 
-  <!-- SCRIPTS -->
-  <script src="js/supabase.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/apontamentos.js"></script>
-  <script src="js/moldes.js"></script>
-  <script src="js/ficha.js"></script>
-  <script src="js/historico.js"></script>
-  <script src="js/dashboard.js"></script>
-  <script src="js/rh.js"></script>
-  <script src="js/producao.js"></script>
-  <script src="js/usuarios.js"></script>
-  <script src="js/app.js"></script>
+<div class="overlay-mobile" id="overlayMobile" onclick="toggleSidebar()"></div>
+
+<!-- MAIN -->
+<main class="main" id="main">
+  <header class="topbar">
+    <button class="btn-menu-mobile" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-titulo" id="topbarTitulo">Dashboard</div>
+    <div id="topbarData" style="font-size:13px;color:#64748b;"></div>
+  </header>
+
+  <div class="content" id="content">
+
+    <!-- DASHBOARD -->
+    <div class="tela ativa" id="telaDashboard">
+      <div class="saudacao-wrap">
+        <div class="saudacao-titulo" id="saudacaoTitulo">Bom dia!</div>
+        <div class="saudacao-sub">Aqui está o seu resumo</div>
+      </div>
+      <div class="page-header" style="margin-top:0">
+        <div class="periodo-controls">
+          <input type="date" id="dashIni" onchange="carregarDashboard()" style="width:auto">
+          <span>até</span>
+          <input type="date" id="dashFim" onchange="carregarDashboard()" style="width:auto">
+          <input type="month" id="dashMes" onchange="selecionarMesDash()" style="width:auto">
+          <div class="btns-semana">
+            <button onclick="setSemanaDash(1)">S1</button>
+            <button onclick="setSemanaDash(2)">S2</button>
+            <button onclick="setSemanaDash(3)">S3</button>
+            <button onclick="setSemanaDash(4)">S4</button>
+          </div>
+        </div>
+      </div>
+      <div class="dash-tabs">
+        <button class="dash-tab ativa" onclick="mudarTabDash('geral',this)">🌐 Visão Geral</button>
+        <button class="dash-tab" onclick="mudarTabDash('usinagem',this)">⚙️ Usinagem</button>
+        <button class="dash-tab" onclick="mudarTabDash('bancada',this)">🛠️ Bancada</button>
+        <button class="dash-tab" onclick="mudarTabDash('projeto',this)">📐 Projeto</button>
+        <button class="dash-tab" onclick="mudarTabDash('producao',this)">🏭 Produção</button>
+      </div>
+      <div id="dashLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Carregando indicadores...</span></div>
+      <div id="dashGeral" class="dash-panel ativo"></div>
+      <div id="dashUsinagem" class="dash-panel"></div>
+      <div id="dashBancada" class="dash-panel"></div>
+      <div id="dashProjeto" class="dash-panel"></div>
+      <div id="dashProducao" class="dash-panel"></div>
+    </div>
+
+    <!-- APONTAMENTOS -->
+    <div class="tela" id="telaApontamentos">
+      <div class="page-header">
+        <h1 id="tituloApontamentos">⚙️ Apontamentos — Usinagem</h1>
+        <button class="btn-primary" onclick="abrirNovoApontamento()">+ Novo Lançamento</button>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-item">
+          <label>DATA</label>
+          <input type="date" id="apontData" onchange="buscarApontamentos()">
+        </div>
+        <div class="filtro-item">
+          <label>FUNCIONÁRIO</label>
+          <select id="apontFunc" onchange="renderizarApontamentos()"><option value="Todos">Todos</option></select>
+        </div>
+        <div class="filtro-item" id="filtroMaqWrap" style="display:none">
+          <label>MÁQUINA</label>
+          <select id="apontMaq" onchange="buscarApontamentos()"><option value="Todas">Todas</option></select>
+        </div>
+      </div>
+      <div id="apontLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Buscando lançamentos...</span></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="tabelaApontamentos">
+            <thead id="theadApontamentos"></thead>
+            <tbody id="tbodyApontamentos"><tr><td colspan="8" class="empty-msg">Selecione a data para carregar.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="wppArea" style="display:none" class="card">
+        <label style="color:#059669;font-weight:600;font-size:12px">OBSERVAÇÕES PARA O RELATÓRIO</label>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <textarea id="wppObs" rows="2" style="flex:1;resize:vertical"></textarea>
+          <button class="btn-wpp" onclick="enviarWhatsapp()">💬 Enviar Relatório</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUÇÃO -->
+    <div class="tela" id="telaProducao">
+      <div class="page-header">
+        <h1>🏭 Produção / Setup</h1>
+        <button class="btn-primary" onclick="abrirNovoLancamentoProducao()">+ Novo Lançamento</button>
+      </div>
+      <div class="filtros-bar">
+        <div class="filtro-item"><label>DATA</label><input type="date" id="prodData" onchange="buscarLancamentosProducao()"></div>
+        <div class="filtro-item"><label>INJETORA</label><select id="prodFiltroInjetora" onchange="buscarLancamentosProducao()"><option value="Todas">Todas</option></select></div>
+        <div class="filtro-item"><label>TIPO</label>
+          <select id="prodFiltroTipo" onchange="buscarLancamentosProducao()">
+            <option value="Todos">Todos</option>
+            <option value="Setup">Setup</option>
+            <option value="Preventiva">Preventiva</option>
+            <option value="Corretiva">Corretiva</option>
+            <option value="Inspeção">Inspeção</option>
+          </select>
+        </div>
+      </div>
+      <div id="prodLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Buscando...</span></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Horários</th><th>Técnico(s)</th><th>Injetora</th><th>Tipo</th><th>Atividade</th><th>Molde</th><th>Flags</th><th>Descrição</th><th>Ações</th></tr></thead>
+            <tbody id="tbodyProducao"><tr><td colspan="9" class="empty-msg">Selecione a data para carregar.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- GESTÃO DE MOLDES -->
+    <div class="tela" id="telaMoldes">
+      <div class="page-header">
+        <h1>🔩 Gestão de Moldes</h1>
+        <div style="display:flex;gap:10px">
+          <input type="text" id="buscaMoldes" placeholder="Buscar job..." oninput="filtrarMoldes()" style="width:220px">
+          <button class="btn-secondary" onclick="filtrarMoldes('molde')">Moldes</button>
+          <button class="btn-secondary" onclick="filtrarMoldes('servico')">Serviços</button>
+          <button class="btn-secondary" onclick="filtrarMoldes('todos')">Todos</button>
+        </div>
+      </div>
+      <div class="board-kanban">
+        <div class="board-col" ondragover="event.preventDefault()" ondrop="soltarCard(event,'Em andamento')">
+          <div class="board-col-header verde">🟢 Em Andamento <span class="badge" id="badgeAndamento">0</span></div>
+          <div class="board-col-body" id="cardsAndamento"></div>
+        </div>
+        <div class="board-col" ondragover="event.preventDefault()" ondrop="soltarCard(event,'Pausado')">
+          <div class="board-col-header amarelo">🟡 Pausado <span class="badge" id="badgePausado">0</span></div>
+          <div class="board-col-body" id="cardsPausado"></div>
+        </div>
+        <div class="board-col" ondragover="event.preventDefault()" ondrop="soltarCard(event,'Finalizado')">
+          <div class="board-col-header cinza">⚪ Finalizado <span class="badge" id="badgeFinalizado">0</span></div>
+          <div class="board-col-body" id="cardsFinalizado"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FICHA DO MOLDE -->
+    <div class="tela" id="telaFicha">
+      <div class="page-header"><h1>📄 Ficha do Molde</h1></div>
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:flex-end">
+          <div style="flex:1" class="autocomplete-wrap">
+            <input type="text" id="fichaJobInput" placeholder="Digite o nome do job ou molde...">
+            <div class="autocomplete-list" id="fichaJobList"></div>
+          </div>
+          <button class="btn-primary" onclick="buscarFicha()">🔍 Abrir Ficha</button>
+        </div>
+      </div>
+      <div id="fichaConteudo" style="display:none"></div>
+      <div id="fichaVazio" class="empty-state"><div style="font-size:48px">🔩</div><div>Digite o nome do job para ver a ficha completa</div></div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div class="tela" id="telaHistorico">
+      <div class="page-header"><h1>🔎 Histórico de Lançamentos</h1></div>
+      <div class="card">
+        <div class="filtros-bar" style="flex-wrap:wrap">
+          <div class="filtro-item"><label>SETOR</label>
+            <select id="histSetor" onchange="atualizarFiltrosHistorico()">
+              <option value="Usinagem">⚙️ Usinagem</option>
+              <option value="Bancada">🛠️ Bancada</option>
+              <option value="Projeto">📐 Projeto</option>
+            </select>
+          </div>
+          <div class="filtro-item"><label>INÍCIO</label><input type="date" id="histIni"></div>
+          <div class="filtro-item"><label>FIM</label><input type="date" id="histFim"></div>
+          <div class="filtro-item"><label>FUNCIONÁRIO</label><select id="histFunc"></select></div>
+          <div class="filtro-item"><label>TIPO</label><select id="histTipo"></select></div>
+          <div class="filtro-item"><label>JOB</label>
+            <div class="autocomplete-wrap">
+              <input type="text" id="histJob" placeholder="Buscar job...">
+              <div class="autocomplete-list" id="histJobList"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <button class="btn-primary" onclick="buscarHistorico()">🔍 Buscar</button>
+            <button class="btn-success" onclick="exportarCSV()">📥 CSV</button>
+          </div>
+        </div>
+      </div>
+      <div id="histLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Buscando...</span></div>
+      <div id="histResumo" style="display:none" class="resumo-bar"></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table><thead id="histThead"></thead><tbody id="histTbody"><tr><td colspan="8" class="empty-msg">Use os filtros acima para buscar.</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FUNCIONÁRIOS -->
+    <div class="tela" id="telaFuncionarios">
+      <div class="page-header">
+        <h1>👥 Funcionários</h1>
+        <button class="btn-primary" onclick="abrirFormFuncionario()">+ Novo Funcionário</button>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <input type="text" id="buscaFunc" placeholder="Buscar funcionário..." oninput="filtrarFuncionarios()" style="flex:1;min-width:200px">
+          <select id="filtroSetorFunc" onchange="filtrarFuncionarios()">
+            <option value="Todos">Todos os setores</option>
+            <option value="Usinagem">Usinagem</option>
+            <option value="Bancada">Bancada</option>
+            <option value="Projeto">Projeto</option>
+            <option value="Produção">Produção</option>
+          </select>
+          <select id="filtroStatusFunc" onchange="filtrarFuncionarios()">
+            <option value="ativos">Ativos</option>
+            <option value="todos">Todos</option>
+            <option value="inativos">Inativos</option>
+          </select>
+        </div>
+        <div id="listaFuncionarios"><div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div></div>
+      </div>
+    </div>
+
+    <!-- MOLDES / JOBS ADMIN -->
+    <div class="tela" id="telaJobsAdmin">
+      <div class="page-header">
+        <h1>📁 Moldes / Jobs</h1>
+        <button class="btn-primary" onclick="abrirFormJob()">+ Novo</button>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <input type="text" id="buscaJobAdmin" placeholder="Buscar..." oninput="filtrarJobsAdmin()" style="flex:1">
+          <select id="filtroTipoJob" onchange="filtrarJobsAdmin()">
+            <option value="todos">Todos</option>
+            <option value="molde">Moldes</option>
+            <option value="servico">Serviços</option>
+          </select>
+        </div>
+        <div id="listaJobsAdmin"></div>
+      </div>
+    </div>
+
+    <!-- MÁQUINAS ADMIN -->
+    <div class="tela" id="telaMaquinasAdmin">
+      <div class="page-header">
+        <h1>🤖 Máquinas</h1>
+        <button class="btn-primary" onclick="abrirFormMaquina()">+ Nova Máquina</button>
+      </div>
+      <div class="card"><div id="listaMaquinas"></div></div>
+    </div>
+
+    <!-- INJETORAS -->
+    <div class="tela" id="telaInjetoras">
+      <div class="page-header">
+        <h1>🏭 Injetoras</h1>
+        <button class="btn-primary" onclick="abrirFormInjetora()">+ Nova Injetora</button>
+      </div>
+      <div class="card"><div id="listaInjetoras"></div></div>
+    </div>
+
+    <!-- CATEGORIAS -->
+    <div class="tela" id="telaCategorias">
+      <div class="page-header">
+        <h1>🗂️ Categorias de Atividade</h1>
+        <button class="btn-primary" onclick="abrirFormCategoria()">+ Nova Categoria</button>
+      </div>
+      <div id="painelCategorias"></div>
+    </div>
+
+    <!-- FERIADOS / RH -->
+    <div class="tela" id="telaFeriados">
+      <div class="page-header"><h1>📅 Gestão e RH</h1></div>
+      <div class="tabs-rh">
+        <button class="tab-rh ativa" onclick="mudarTabRH('feriados',this)">📅 Feriados</button>
+        <button class="tab-rh" onclick="mudarTabRH('ausencias',this)">🏖️ Ausências</button>
+        <button class="tab-rh" onclick="mudarTabRH('parciais',this)">⏱️ Atrasos</button>
+      </div>
+      <div id="painelFeriados" class="painel-rh ativo"></div>
+      <div id="painelAusencias" class="painel-rh"></div>
+      <div id="painelParciais" class="painel-rh"></div>
+    </div>
+
+    <!-- USUÁRIOS -->
+    <div class="tela" id="telaUsuarios">
+      <div class="page-header">
+        <h1>👤 Usuários</h1>
+        <button class="btn-primary" onclick="abrirFormUsuario()">+ Novo Usuário</button>
+      </div>
+      <div id="formUsuario" class="card" style="display:none"></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table><thead><tr><th>Nome</th><th>Perfil</th><th>Setor</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="tbodyUsuarios"><tr><td colspan="5" class="empty-msg">Carregando...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<!-- MODAL FORMULÁRIO LANÇAMENTO -->
+<div class="modal-form-overlay" id="modalFormOverlay">
+  <div class="modal-form" id="modalForm">
+    <div class="modal-form-header">
+      <h2 id="tituloForm">Novo Lançamento</h2>
+      <button class="btn-fechar-modal" onclick="fecharModalForm()">×</button>
+    </div>
+    <div class="modal-form-body">
+      <input type="hidden" id="formId">
+      <input type="hidden" id="formSetor">
+
+      <!-- Data e Horário -->
+      <div class="modal-form-section">
+        <div class="modal-form-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Data e Horário
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Data *</label><input type="date" id="formData"></div>
+          <div class="form-group" id="grupoHrIni"><label>Hora Início *</label><input type="time" id="formHrIni"></div>
+          <div class="form-group" id="grupoHrFim"><label>Hora Fim</label><input type="time" id="formHrFim"></div>
+        </div>
+        <div id="grupoAlmoco" class="form-group">
+          <label class="checkbox-label"><input type="checkbox" id="formAlmoco"> Descontar horário de almoço</label>
+        </div>
+        <div id="grupoTempoAuto" class="form-group" style="display:none">
+          <label>Tempo em Automático</label><input type="time" id="formTempoAuto">
+        </div>
+      </div>
+
+      <!-- Técnico -->
+      <div class="modal-form-section">
+        <div class="modal-form-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Técnico
+        </div>
+        <div class="form-group">
+          <select id="formFunc"><option value="">Selecione...</option></select>
+          <div id="avisoFunc" class="aviso-info" style="display:none">Buscando último apontamento...</div>
+        </div>
+      </div>
+
+      <!-- Campos por setor -->
+      <div id="grupoMaquina" style="display:none" class="form-group"><label>Máquina *</label><select id="formMaq"><option value="">Selecione...</option></select></div>
+      <div id="grupoTipoUsina" style="display:none" class="form-row">
+        <div class="form-group"><label>Tipo de Serviço *</label><select id="formTipoUsina"><option value="">Selecione...</option></select></div>
+        <div class="form-group"><label>Motivo de Parada</label><select id="formMotivo"><option value="Nenhum">Nenhum</option></select></div>
+      </div>
+      <div id="grupoTipoBancada" style="display:none" class="form-group">
+        <label>Atividade *</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="formTipoBancadaInput" placeholder="Busque a atividade...">
+          <div class="autocomplete-list" id="formTipoBancadaList"></div>
+        </div>
+        <input type="hidden" id="formTipoBancada">
+      </div>
+      <div id="grupoArea" style="display:none" class="form-row">
+        <div class="form-group"><label>Área *</label><select id="formArea"><option value="">Selecione...</option></select></div>
+        <div class="form-group"><label>Categoria *</label><select id="formCategoria"><option value="">Selecione...</option></select></div>
+      </div>
+
+      <!-- Job e Status -->
+      <div class="modal-form-section">
+        <div class="modal-form-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+          Job / Status
+        </div>
+        <div class="form-group">
+          <label>Job / Molde</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="formJob" placeholder="Busque ou digite o job...">
+            <div class="autocomplete-list" id="formJobList"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Status do Job</label>
+          <div class="status-btns">
+            <button type="button" class="btn-status" id="btnAndamento" onclick="selecionarStatus('Em andamento')">🟠 Em Andamento</button>
+            <button type="button" class="btn-status" id="btnPausado" onclick="selecionarStatus('Pausado')">🟡 Pausado</button>
+            <button type="button" class="btn-status" id="btnFinalizado" onclick="selecionarStatus('Finalizado')">🟢 Finalizado</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Descrição -->
+      <div class="form-group"><label>Descrição *</label><textarea id="formDesc" rows="3" placeholder="Descreva o que foi feito..."></textarea></div>
+
+      <button class="btn-primary btn-full" id="btnSalvarForm" onclick="salvarForm()">💾 Salvar Lançamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FORMULÁRIO PRODUÇÃO -->
+<div class="modal-form-overlay" id="modalFormProdOverlay">
+  <div class="modal-form" id="modalFormProd">
+    <div class="modal-form-header">
+      <h2 id="tituloFormProd">Novo Lançamento — Produção</h2>
+      <button class="btn-fechar-modal" onclick="cancelarFormProducao()">×</button>
+    </div>
+    <div class="modal-form-body">
+      <input type="hidden" id="prodFormId">
+      <div class="modal-form-section">
+        <div class="modal-form-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Data e Horário
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Data *</label><input type="date" id="prodFormData"></div>
+          <div class="form-group"><label>Hora Início</label><input type="time" id="prodFormHrIni"></div>
+          <div class="form-group"><label>Hora Fim</label><input type="time" id="prodFormHrFim"></div>
+        </div>
+      </div>
+      <div class="modal-form-section">
+        <div class="modal-form-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          Técnicos
+        </div>
+        <div id="prodTecnicosWrap" class="tecnicos-wrap"></div>
+        <select id="prodTecnicoSelect" onchange="adicionarTecnico()"><option value="">+ Adicionar técnico...</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Injetora *</label><select id="prodFormInjetora"><option value="">Selecione...</option></select></div>
+        <div class="form-group"><label>Molde</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="prodFormMolde" placeholder="Opcional...">
+            <div class="autocomplete-list" id="prodFormMoldeList"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tipo de Manutenção *</label>
+          <select id="prodFormTipo" onchange="atualizarAtividades()">
+            <option value="">Selecione...</option>
+            <option value="Setup">Setup</option>
+            <option value="Preventiva">Preventiva</option>
+            <option value="Corretiva">Corretiva</option>
+            <option value="Inspeção">Inspeção</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Atividade</label><select id="prodFormAtividade"><option value="">Selecione o tipo primeiro...</option></select></div>
+      </div>
+      <div class="form-group"><label>Descrição da Ação Realizada</label><textarea id="prodFormDesc" rows="3" placeholder="Descreva o trabalho realizado..."></textarea></div>
+      <div class="form-row" style="gap:24px;align-items:center">
+        <label class="checkbox-label flag-maquina-parada"><input type="checkbox" id="prodFormMaqParada"> 🔴 Máquina Parada <span class="badge-nao-planejada">não planejada</span></label>
+        <label class="checkbox-label"><input type="checkbox" id="prodFormTemOS" onchange="toggleOS()"> 📋 Tem OS</label>
+      </div>
+      <div class="form-group" id="grupoOS" style="display:none"><label>Número da OS</label><input type="text" id="prodFormNumOS" placeholder="Ex: OS-2026-001"></div>
+      <div class="form-group"><label>Observações</label><textarea id="prodFormObs" rows="2" placeholder="Observações adicionais..."></textarea></div>
+      <button class="btn-primary btn-full" id="btnSalvarProd" onclick="salvarFormProducao()">💾 Salvar Lançamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STATUS JOB -->
+<div class="modal-overlay" id="modalStatusOverlay" style="display:none" onclick="fecharModalStatus()"></div>
+<div class="modal" id="modalStatus" style="display:none">
+  <div class="modal-header"><h3>Atualizar Status do Molde</h3><button onclick="fecharModalStatus()">✕</button></div>
+  <div class="modal-body">
+    <div id="modalJobNome" style="font-weight:700;color:#1e3a5f;margin-bottom:16px;font-size:15px"></div>
+    <div class="status-btns">
+      <button class="btn-status" id="modalBtnAnd" onclick="selecionarStatusModal('Em andamento')">🟠 Em Andamento</button>
+      <button class="btn-status" id="modalBtnPaus" onclick="selecionarStatusModal('Pausado')">🟡 Pausado</button>
+      <button class="btn-status" id="modalBtnFin" onclick="selecionarStatusModal('Finalizado')">🟢 Finalizado</button>
+    </div>
+    <div id="modalDescWrap" style="display:none;margin-top:16px"><label>Motivo / Observação</label><textarea id="modalDesc" rows="3"></textarea></div>
+    <div id="modalDataFimWrap" style="display:none;margin-top:12px"><label>Data de Conclusão</label><input type="date" id="modalDataFim"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-primary" id="btnConfirmarStatus" onclick="confirmarStatus()" style="opacity:0.4;pointer-events:none">Confirmar</button>
+    <button class="btn-secondary" onclick="fecharModalStatus()">Depois</button>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAÇÃO -->
+<div class="modal-overlay" id="modalConfOverlay" style="display:none" onclick="fecharModalConf()"></div>
+<div class="modal" id="modalConf" style="display:none">
+  <div class="modal-body" style="text-align:center;padding:32px">
+    <div style="font-size:48px;margin-bottom:16px">🗑️</div>
+    <h3 style="margin-bottom:8px;color:#1e3a5f">Confirmar exclusão</h3>
+    <p id="modalConfMsg" style="color:#64748b;margin-bottom:24px"></p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn-danger" onclick="executarExclusao()">Sim, excluir</button>
+      <button class="btn-secondary" onclick="fecharModalConf()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/apontamentos.js"></script>
+<script src="js/moldes.js"></script>
+<script src="js/ficha.js"></script>
+<script src="js/historico.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/rh.js"></script>
+<script src="js/producao.js"></script>
+<script src="js/usuarios.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
