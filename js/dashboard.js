@@ -306,8 +306,8 @@ function desenharProducao(ini,fim){
   const div=document.getElementById('dashProducao');
   if(!div||!_dadosDash) return;
 
-  // Busca dados de produção separadamente
-  db.buscarProdPeriodo(ini,fim,'Todas','Todos','Todos').then(prod=>{
+  // Usa dados já carregados no dashboard
+  const _render = prod => {
     if(!prod||!prod.length){div.innerHTML='<div class="empty-state"><div style="font-size:48px">🏭</div><div>Nenhum lançamento de Produção no período.</div></div>';return;}
 
     const total=prod.length;
@@ -390,7 +390,16 @@ function desenharProducao(ini,fim){
       criarChart('chartProdTipos',{type:'doughnut',data:{labels:tipoEnt.map(e=>e[0]),datasets:[{data:tipoEnt.map(e=>e[1]),backgroundColor:tipoEnt.map(e=>coresTipo[e[0]]||'#64748b'),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'},datalabels:{color:'#fff',font:{weight:'bold',size:13},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return t>0?Math.round(v/t*100)+'%':''}}}}});
       if(topInj.length>0) criarChart('chartProdInj',{type:'bar',data:{labels:topInj.map(e=>e[0]),datasets:[{data:topInj.map(e=>e[1]),backgroundColor:paleta,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{anchor:'end',align:'end',color:'#1e3a5f',font:{weight:'bold'}}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
     },100);
-  }).catch(e=>{ div.innerHTML='<div class="empty-state">Erro ao carregar dados de Produção.</div>'; });
+  };
+
+  // Usa prodLancamentos do dashboard ou busca separado
+  if (_dadosDash.prodLancamentos && _dadosDash.prodLancamentos.length >= 0) {
+    _render(_dadosDash.prodLancamentos);
+  } else {
+    db.buscarProdPeriodo(ini,fim,'Todas','Todos','Todos')
+      .then(_render)
+      .catch(()=>{ div.innerHTML='<div class="empty-state">Erro ao carregar dados de Produção.</div>'; });
+  }
 }
 
 // ==========================================
