@@ -1,5 +1,5 @@
 // ==========================================
-// 👥 RH.JS — Funcionários + RH V3
+// 👥 RH.JS — Funcionários + RH V3 + Upload Imagem
 // ==========================================
 
 // ==========================================
@@ -12,7 +12,6 @@ async function carregarFuncionariosRH() {
   if (!el) return;
   el.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>';
   try {
-    // Carrega ferramentaria + produção
     const [ferr, prod] = await Promise.all([
       db.listarFuncionarios(),
       db.listarProdTecnicos()
@@ -47,8 +46,7 @@ function filtrarFuncionarios() {
 
   const coresSe = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', Produção:'#10b981', 'Projeto / Desenvolvimento':'#8b5cf6' };
   el.innerHTML = filtrado.map(f => {
-    const cor = coresSe[f.setor]||'#64748b';
-    const sub = [f.setor, f.turno, f.supervisor?'Sup: '+f.supervisor:null].filter(Boolean).join(' | ');
+    const cor  = coresSe[f.setor]||'#64748b';
     const acoes = f._origem==='Producao'
       ? `<button class="btn-icon danger" onclick="excluirFuncAdmin(${f.id},'Producao')">🗑️</button>`
       : `<button class="btn-icon" onclick="editarFuncAdmin(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️</button>
@@ -56,7 +54,7 @@ function filtrarFuncionarios() {
     return `<div class="lista-item">
       <div class="lista-item-info">
         <div class="lista-item-nome">${f.nome}</div>
-        <div class="lista-item-sub" style="display:flex;gap:8px;align-items:center;margin-top:3px">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:3px">
           <span style="background:${cor}15;color:${cor};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${f.setor||'—'}</span>
           <span style="font-size:11px;color:#94a3b8">${f.turno||''} ${f.supervisor?'| Sup: '+f.supervisor:''}</span>
         </div>
@@ -70,13 +68,10 @@ function filtrarFuncionarios() {
 }
 
 function abrirFormFuncionario() {
-  const setores = ['Usinagem','Bancada','Projeto / Desenvolvimento','Produção','Supervisão'];
-  const turnos  = ['ADM','Turma A','Turma B','5x2','6x1','2x2'];
-  const origem  = prompt('Origem:\n1 - Ferramentaria (Usinagem/Bancada/Projeto)\n2 - Produção\n\nDigite 1 ou 2:');
+  const origem = prompt('Origem:\n1 - Ferramentaria (Usinagem/Bancada/Projeto)\n2 - Produção\n\nDigite 1 ou 2:');
   if (!origem) return;
-
   if (origem.trim()==='2') {
-    const nome = prompt('Nome do técnico:');
+    const nome  = prompt('Nome do técnico:');
     if (!nome||!nome.trim()) return;
     const turno = prompt('Turno (5x2 / 6x1 / 2x2):') || '5x2';
     const sup   = prompt('Supervisor (opcional):') || null;
@@ -84,11 +79,13 @@ function abrirFormFuncionario() {
       .then(()=>{ toast('Adicionado!','sucesso'); carregarFuncionariosRH(); })
       .catch(()=>toast('Erro.','erro'));
   } else {
-    const nome   = prompt('Nome completo:');
+    const setores = ['Usinagem','Bancada','Projeto / Desenvolvimento','Produção','Supervisão'];
+    const turnos  = ['ADM','Turma A','Turma B','5x2','6x1','2x2'];
+    const nome    = prompt('Nome completo:');
     if (!nome||!nome.trim()) return;
-    const setor  = prompt('Setor:\n'+setores.join('\n')) || 'Usinagem';
-    const turno  = prompt('Turno:\n'+turnos.join('\n'))  || 'ADM';
-    const admiss = prompt('Data de admissão (AAAA-MM-DD):') || null;
+    const setor   = prompt('Setor:\n'+setores.join('\n')) || 'Usinagem';
+    const turno   = prompt('Turno:\n'+turnos.join('\n'))  || 'ADM';
+    const admiss  = prompt('Data de admissão (AAAA-MM-DD):') || null;
     db.salvarFuncionario({ nome:nome.trim(), setor, turno, admissao:admiss, ativo:true })
       .then(()=>{ toast('Adicionado!','sucesso'); carregarFuncionariosRH(); })
       .catch(()=>toast('Erro.','erro'));
@@ -96,12 +93,12 @@ function abrirFormFuncionario() {
 }
 
 function editarFuncAdmin(f) {
-  const nome   = prompt('Nome:', f.nome);
+  const nome  = prompt('Nome:', f.nome);
   if (!nome) return;
   const setores = ['Usinagem','Bancada','Projeto / Desenvolvimento','Supervisão'];
-  const setor  = prompt('Setor:\n'+setores.join('\n'), f.setor)||f.setor;
-  const turno  = prompt('Turno (ADM / Turma A / Turma B):', f.turno)||f.turno;
-  const dem    = prompt('Data desligamento (AAAA-MM-DD, deixe vazio se ativo):', f.demissao||'');
+  const setor   = prompt('Setor:\n'+setores.join('\n'), f.setor)||f.setor;
+  const turno   = prompt('Turno (ADM / Turma A / Turma B):', f.turno)||f.turno;
+  const dem     = prompt('Data desligamento (AAAA-MM-DD, deixe vazio se ativo):', f.demissao||'');
   db.salvarFuncionario({ id:f.id, nome:nome.trim(), setor, turno, admissao:f.admissao||null, demissao:dem||null, ativo:!dem })
     .then(()=>{ toast('Atualizado!','sucesso'); carregarFuncionariosRH(); })
     .catch(()=>toast('Erro.','erro'));
@@ -131,12 +128,14 @@ function mudarTabRH(aba, elBtn) {
 }
 
 function carregarPainelRH(aba) {
-  if (aba==='feriados') carregarFeriados();
+  if (aba==='feriados')  carregarFeriados();
   else if (aba==='ausencias') carregarFerias();
-  else if (aba==='parciais') carregarParciais();
+  else if (aba==='parciais')  carregarParciais();
 }
 
-// FERIADOS
+// ==========================================
+// 📅 FERIADOS
+// ==========================================
 async function carregarFeriados() {
   const el = document.getElementById('painelFeriados');
   if (!el) return;
@@ -152,19 +151,27 @@ async function carregarFeriados() {
   try {
     const res = await db.listarFeriados();
     document.getElementById('tbodyFeriados').innerHTML = res.length
-      ? res.map(f=>`<tr><td><b>${f.data?f.data.split('-').reverse().join('/'):'—'}</b></td><td>${f.nome}</td><td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriado(${f.id})">X</button></td></tr>`).join('')
+      ? res.map(f=>`<tr><td><b>${f.data?f.data.split('-').reverse().join('/'):'—'}</b></td><td>${f.nome}</td>
+          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriado(${f.id})">X</button></td></tr>`).join('')
       : '<tr><td colspan="3" class="empty-msg">Nenhum feriado.</td></tr>';
   } catch(e) {}
 }
+
 async function salvarFeriado() {
   const dt=document.getElementById('ferData')?.value, nm=document.getElementById('ferNome')?.value;
   if (!dt||!nm) return toast('Preencha data e nome.','erro');
   try { await db.salvarFeriado(dt,nm); toast('Adicionado!','sucesso'); document.getElementById('ferNome').value=''; carregarFeriados(); }
   catch(e) { toast('Erro.','erro'); }
 }
-async function excluirFeriado(id) { confirmarExclusao('Excluir este feriado?',async()=>{ try{await db.excluirFeriado(id);toast('Removido!','sucesso');carregarFeriados();}catch(e){} }); }
+async function excluirFeriado(id) {
+  confirmarExclusao('Excluir este feriado?', async()=>{
+    try { await db.excluirFeriado(id); toast('Removido!','sucesso'); carregarFeriados(); } catch(e){}
+  });
+}
 
-// AUSÊNCIAS
+// ==========================================
+// 🏖️ AUSÊNCIAS
+// ==========================================
 async function carregarFerias() {
   const el = document.getElementById('painelAusencias');
   if (!el) return;
@@ -184,50 +191,251 @@ async function carregarFerias() {
   try {
     const res = await db.listarFerias();
     document.getElementById('tbodyFerias').innerHTML = res.length
-      ? res.map(f=>`<tr><td><b>${f.funcionario}</b></td><td>${f.inicio?f.inicio.split('-').reverse().join('/'):'—'}</td><td>${f.fim?f.fim.split('-').reverse().join('/'):'—'}</td><td style="color:${f.motivo?.includes('Falta')?'#ef4444':'#059669'};font-weight:600">${f.motivo}</td><td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFerias(${f.id})">X</button></td></tr>`).join('')
+      ? res.map(f=>`<tr>
+          <td><b>${f.funcionario}</b></td>
+          <td>${f.inicio?f.inicio.split('-').reverse().join('/'):'—'}</td>
+          <td>${f.fim?f.fim.split('-').reverse().join('/'):'—'}</td>
+          <td style="color:${f.motivo?.includes('Falta')?'#ef4444':'#059669'};font-weight:600">${f.motivo}</td>
+          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFerias(${f.id})">X</button></td>
+        </tr>`).join('')
       : '<tr><td colspan="5" class="empty-msg">Nenhum registro.</td></tr>';
   } catch(e) {}
 }
+
 async function salvarFerias() {
-  const func=document.getElementById('ferFunc')?.value,ini=document.getElementById('ferIni')?.value,fim=document.getElementById('ferFim')?.value,motivo=document.getElementById('ferMotivo')?.value;
+  const func=document.getElementById('ferFunc')?.value, ini=document.getElementById('ferIni')?.value,
+        fim=document.getElementById('ferFim')?.value, motivo=document.getElementById('ferMotivo')?.value;
   if (!func||!ini||!fim) return toast('Preencha todos os campos.','erro');
   try { await db.salvarFerias({funcionario:func,inicio:ini,fim,motivo}); toast('Registrado!','sucesso'); carregarFerias(); }
   catch(e) { toast('Erro.','erro'); }
 }
-async function excluirFerias(id) { confirmarExclusao('Excluir este registro?',async()=>{ try{await db.excluirFerias(id);toast('Removido!','sucesso');carregarFerias();}catch(e){} }); }
+async function excluirFerias(id) {
+  confirmarExclusao('Excluir este registro?', async()=>{
+    try { await db.excluirFerias(id); toast('Removido!','sucesso'); carregarFerias(); } catch(e){}
+  });
+}
 
-// PARCIAIS
+// ==========================================
+// ⏱️ PARCIAIS / ATRASOS — com upload de imagem
+// ==========================================
 async function carregarParciais() {
   const el = document.getElementById('painelParciais');
   if (!el) return;
   const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[]).concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
   const motivos = ['Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
-  el.innerHTML = `<div class="card" style="background:#fefce8">
+
+  el.innerHTML = `
+  <div class="card" style="background:#fefce8;border-color:#fde68a">
+    <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:16px">⏱️ Registrar Ocorrência</div>
     <div class="form-row">
-      <div class="form-group"><label>Técnico</label><select id="parcFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${f}">${f}</option>`).join('')}</select></div>
-      <div class="form-group"><label>Data</label><input type="date" id="parcData"></div>
+      <div class="form-group"><label>Técnico *</label><select id="parcFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${f}">${f}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Data *</label><input type="date" id="parcData"></div>
       <div class="form-group"><label>Saída</label><input type="time" id="parcIni"></div>
       <div class="form-group"><label>Retorno</label><input type="time" id="parcFim"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Motivo</label><select id="parcMotivo">${motivos.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
-      <div class="form-group" style="flex:2"><label>Observação</label><input type="text" id="parcObs"></div>
+      <div class="form-group"><label>Motivo *</label><select id="parcMotivo">${motivos.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+      <div class="form-group" style="flex:2"><label>Observação</label><input type="text" id="parcObs" placeholder="Detalhes adicionais..."></div>
     </div>
-    <button class="btn-warning" onclick="salvarParcial()" style="margin-bottom:16px">+ Registrar</button>
+
+    <!-- UPLOAD DE IMAGEM -->
+    <div style="border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:16px;background:#fff">
+      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:10px">📎 Anexo / Comprovante (opcional)</div>
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:8px;background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;color:#64748b;transition:all 0.2s"
+          onmouseover="this.style.borderColor='#0056b3';this.style.color='#0056b3'"
+          onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#64748b'">
+          📷 Selecionar Imagem
+          <input type="file" id="parcImagem" accept="image/*" style="display:none" onchange="previewImagemParcial(this)">
+        </label>
+        <div id="parcImagemPreview" style="display:none;position:relative">
+          <img id="parcImagemImg" style="max-width:120px;max-height:90px;border-radius:8px;border:2px solid #e2e8f0;object-fit:cover">
+          <button onclick="removerImagemParcial()" style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+        </div>
+        <div id="parcUploadStatus" style="font-size:12px;color:#64748b;align-self:center"></div>
+      </div>
+    </div>
+
+    <button class="btn-warning" onclick="salvarParcial()" style="margin-bottom:4px">+ Registrar Ocorrência</button>
   </div>
-  <div class="card"><div class="table-wrap"><table><thead><tr><th>Data</th><th>Técnico</th><th>Saída</th><th>Retorno</th><th>Motivo</th><th>Obs</th><th>Ação</th></tr></thead>
-  <tbody id="tbodyParciais"><tr><td colspan="7" class="empty-msg">Carregando...</td></tr></tbody></table></div></div>`;
+
+  <div class="card">
+    <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:16px">📋 Registros</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Data</th><th>Técnico</th><th>Saída</th><th>Retorno</th><th>Motivo</th><th>Obs</th><th>Anexo</th><th>Ação</th></tr></thead>
+        <tbody id="tbodyParciais"><tr><td colspan="8" class="empty-msg">Carregando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  await _renderizarParciais();
+}
+
+async function _renderizarParciais() {
   try {
     const res = await db.listarParciais();
-    document.getElementById('tbodyParciais').innerHTML = res.length
-      ? res.map(p=>`<tr><td><b>${p.data?p.data.split('-').reverse().join('/'):'—'}</b></td><td>${p.funcionario}</td><td>${p.inicio?p.inicio.substring(0,5):'—'}</td><td>${p.fim?p.fim.substring(0,5):'—'}</td><td style="color:${p.motivo?.includes('Injustificado')?'#ef4444':'#ca8a04'};font-weight:600">${p.motivo||'—'}</td><td>${p.obs||'—'}</td><td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcial(${p.id})">X</button></td></tr>`).join('')
-      : '<tr><td colspan="7" class="empty-msg">Nenhum registro.</td></tr>';
+    const tbody = document.getElementById('tbodyParciais');
+    if (!tbody) return;
+    tbody.innerHTML = res.length
+      ? res.map(p=>`<tr>
+          <td><b>${p.data?p.data.split('-').reverse().join('/'):'—'}</b></td>
+          <td>${p.funcionario}</td>
+          <td>${p.inicio?p.inicio.substring(0,5):'—'}</td>
+          <td>${p.fim?p.fim.substring(0,5):'—'}</td>
+          <td style="color:${p.motivo?.includes('Injustificado')?'#ef4444':'#ca8a04'};font-weight:600">${p.motivo||'—'}</td>
+          <td style="font-size:12px;color:#64748b">${p.obs||'—'}</td>
+          <td>${p.imagem_url
+            ? `<a href="${p.imagem_url}" target="_blank">
+                <img src="${p.imagem_url}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer" title="Ver comprovante">
+               </a>`
+            : '<span style="color:#94a3b8;font-size:11px">—</span>'
+          }</td>
+          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcial(${p.id})">🗑️</button></td>
+        </tr>`).join('')
+      : '<tr><td colspan="8" class="empty-msg">Nenhum registro.</td></tr>';
   } catch(e) {}
 }
-async function salvarParcial() {
-  const func=document.getElementById('parcFunc')?.value,dt=document.getElementById('parcData')?.value,ini=document.getElementById('parcIni')?.value,fim=document.getElementById('parcFim')?.value,motivo=document.getElementById('parcMotivo')?.value;
-  if (!func||!dt||!ini||!fim) return toast('Preencha funcionário, data e horários.','erro');
-  try { await db.salvarParcial({funcionario:func,data:dt,inicio:ini,fim,motivo,obs:document.getElementById('parcObs')?.value}); toast('Registrado!','sucesso'); carregarParciais(); }
-  catch(e) { toast('Erro.','erro'); }
+
+// Preview da imagem selecionada
+function previewImagemParcial(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const wrap  = document.getElementById('parcImagemPreview');
+  const img   = document.getElementById('parcImagemImg');
+  const status = document.getElementById('parcUploadStatus');
+  const reader = new FileReader();
+  reader.onload = e => {
+    img.src = e.target.result;
+    wrap.style.display = 'block';
+    status.innerText = `${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+  };
+  reader.readAsDataURL(file);
 }
-async function excluirParcial(id) { confirmarExclusao('Excluir este registro?',async()=>{ try{await db.excluirParcial(id);toast('Removido!','sucesso');carregarParciais();}catch(e){} }); }
+
+function removerImagemParcial() {
+  document.getElementById('parcImagem').value = '';
+  document.getElementById('parcImagemPreview').style.display = 'none';
+  document.getElementById('parcImagemImg').src = '';
+  document.getElementById('parcUploadStatus').innerText = '';
+}
+
+// Comprime a imagem via canvas antes de fazer upload
+async function _comprimirImagem(file, maxWidth=800, qualidade=0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        // Calcula dimensões mantendo proporção
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        canvas.toBlob(blob => {
+          if (!blob) return reject(new Error('Falha ao comprimir'));
+          resolve(blob);
+        }, 'image/jpeg', qualidade);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Upload para Supabase Storage
+async function _uploadImagemParcial(file, funcionario, data) {
+  const status = document.getElementById('parcUploadStatus');
+  if (status) status.innerText = 'Comprimindo imagem...';
+
+  // Comprime antes de enviar
+  const blob = await _comprimirImagem(file);
+  const tamanhoKB = (blob.size / 1024).toFixed(0);
+  if (status) status.innerText = `Enviando... (${tamanhoKB} KB após compressão)`;
+
+  // Nome único para o arquivo
+  const ts   = Date.now();
+  const nome = `parciais/${data}_${funcionario.replace(/\s/g,'_')}_${ts}.jpg`;
+
+  const url  = `${SUPABASE_URL}/storage/v1/object/rh-anexos/${nome}`;
+  const res  = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'apikey':        SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type':  'image/jpeg',
+      'x-upsert':      'true'
+    },
+    body: blob
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Upload falhou: ' + err);
+  }
+
+  // Retorna URL pública
+  return `${SUPABASE_URL}/storage/v1/object/public/rh-anexos/${nome}`;
+}
+
+async function salvarParcial() {
+  const func   = document.getElementById('parcFunc')?.value;
+  const dt     = document.getElementById('parcData')?.value;
+  const ini    = document.getElementById('parcIni')?.value;
+  const fim    = document.getElementById('parcFim')?.value;
+  const motivo = document.getElementById('parcMotivo')?.value;
+  if (!func||!dt||!motivo) return toast('Preencha funcionário, data e motivo.','erro');
+
+  const btn = document.querySelector('#painelParciais .btn-warning');
+  if (btn) { btn.disabled=true; btn.innerText='Salvando...'; }
+
+  try {
+    let imagemUrl = null;
+    const fileInput = document.getElementById('parcImagem');
+    const file = fileInput?.files[0];
+
+    if (file) {
+      try {
+        imagemUrl = await _uploadImagemParcial(file, func, dt);
+        const status = document.getElementById('parcUploadStatus');
+        if (status) status.innerText = '✅ Imagem enviada!';
+      } catch(e) {
+        console.error('Erro no upload:', e);
+        toast('Aviso: imagem não foi enviada, mas o registro foi salvo.','erro');
+      }
+    }
+
+    await db.salvarParcial({
+      funcionario: func, data:dt, inicio:ini||null, fim:fim||null,
+      motivo, obs: document.getElementById('parcObs')?.value||null,
+      imagem_url: imagemUrl
+    });
+
+    toast('Registrado com sucesso!','sucesso');
+
+    // Limpa formulário
+    ['parcFunc','parcData','parcIni','parcFim','parcObs'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; }
+    });
+    removerImagemParcial();
+    await _renderizarParciais();
+  } catch(e) {
+    toast('Erro ao registrar.','erro'); console.error(e);
+  }
+
+  if (btn) { btn.disabled=false; btn.innerText='+ Registrar Ocorrência'; }
+}
+
+async function excluirParcial(id) {
+  confirmarExclusao('Excluir este registro?', async()=>{
+    try { await db.excluirParcial(id); toast('Removido!','sucesso'); await _renderizarParciais(); }
+    catch(e) { toast('Erro.','erro'); }
+  });
+}
