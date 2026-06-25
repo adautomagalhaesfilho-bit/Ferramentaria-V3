@@ -45,6 +45,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (dashFim) dashFim.value = fDate(hoje);
   if (dashMes) dashMes.value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
 
+  // QR Code — abre ficha automaticamente se vier ?job= na URL
+  if (typeof verificarQRCodeURL === 'function') verificarQRCodeURL();
+
   // Navegação por histórico do browser
   window.addEventListener('popstate', function(e) {
     if (e.state && e.state.tela) {
@@ -73,6 +76,7 @@ var _mapaTelaEl = {
   categorias:   'telaCategorias',
   feriados:     'telaFeriados',
   usuarios:     'telaUsuarios',
+  pcm:          'telaPCM',
 };
 
 var _mapaTitulos = {
@@ -91,6 +95,7 @@ var _mapaTitulos = {
   categorias:   'Categorias',
   feriados:     'Gestão e RH',
   usuarios:     'Usuários',
+  pcm:          'PCM — Controle de Moldes',
 };
 
 function irPara(tela, elMenu) {
@@ -145,6 +150,8 @@ function _irParaSemHistory(tela, elMenu) {
       carregarInjetoras();
     } else if (tela === 'categorias') {
       carregarCategorias();
+    } else if (tela === 'pcm') {
+      inicializarPCM();
     }
   }, 50);
 }
@@ -406,26 +413,21 @@ function icoStatus(s) {
   return s==='Finalizado'?'🟢':s==='Pausado'?'🟡':'🟠';
 }
 
-// Stubs para telas admin
+// Stubs para telas admin novas (implementadas nos próximos arquivos)
 function carregarFuncionariosAdmin() { if(typeof carregarFuncionariosRH==='function') carregarFuncionariosRH(); }
 function carregarJobsAdmin()      { const el=document.getElementById('listaJobsAdmin');      if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarJobs(); }
 function carregarMaquinasAdmin()  { const el=document.getElementById('listaMaquinas');       if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarMaquinasLista(); }
 function carregarInjetoras()      { const el=document.getElementById('listaInjetoras');      if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarInjetorasLista(); }
 function carregarCategorias()     { const el=document.getElementById('painelCategorias');    if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarCategoriasLista(); }
 
-// ==========================================
-// 🗂️ ADMIN: JOBS / MOLDES
-// ==========================================
 async function _carregarJobs() {
   try {
     const res = await db._get('jobs','order=nome.asc','*');
     const el = document.getElementById('listaJobsAdmin');
     if (!el) return;
     if (!res || !res.length) { el.innerHTML='<div class="empty-msg">Nenhum job cadastrado.</div>'; return; }
-    
     const filtroTipo = document.getElementById('filtroTipoJob')?.value || 'todos';
     const busca = (document.getElementById('buscaJobAdmin')?.value || '').toUpperCase();
-    
     const filtrado = res.filter(j => {
       const sv = j.nome.toUpperCase().startsWith('SV') || j.nome.toUpperCase().startsWith('S/');
       if (filtroTipo==='molde' && sv) return false;
@@ -433,7 +435,6 @@ async function _carregarJobs() {
       if (busca && !j.nome.toUpperCase().includes(busca)) return false;
       return true;
     });
-    
     el.innerHTML = filtrado.map(j => `
       <div class="lista-item">
         <div class="lista-item-info">
@@ -442,8 +443,7 @@ async function _carregarJobs() {
         </div>
         <div class="lista-item-acoes">
           <span class="${j.ativo?'badge-ativo':'badge-inativo'}">${j.ativo?'ATIVO':'INATIVO'}</span>
-          <button class="btn-icon" title="Editar" onclick="editarJob(${j.id}, '${j.nome}')">✏️</button>
-          <button class="btn-icon danger" title="Excluir" onclick="excluirJob(${j.id})">🗑️</button>
+          <button class="btn-icon danger" onclick="excluirJob(${j.id})">🗑️</button>
         </div>
       </div>`).join('');
   } catch(e) { toast('Erro ao carregar jobs.','erro'); }
@@ -463,16 +463,6 @@ async function abrirFormJob() {
   } catch(e) { toast('Erro ao adicionar.','erro'); }
 }
 
-async function editarJob(id, nomeAtual) {
-  const nome = prompt('Renomear Molde/Job ou Serviço:', nomeAtual);
-  if (!nome || !nome.trim() || nome.trim() === nomeAtual) return;
-  try {
-    await db._patch('jobs', 'id=eq.'+id, { nome: nome.trim() });
-    toast('Atualizado com sucesso!', 'sucesso');
-    carregarJobsAdmin();
-  } catch(e) { toast('Erro ao atualizar.', 'erro'); }
-}
-
 async function excluirJob(id) {
   confirmarExclusao('Remover este job/molde?', async () => {
     try { await db._patch('jobs','id=eq.'+id,{ativo:false}); toast('Removido!','sucesso'); carregarJobsAdmin(); }
@@ -480,9 +470,6 @@ async function excluirJob(id) {
   });
 }
 
-// ==========================================
-// ⚙️ ADMIN: MÁQUINAS (USINAGEM/BANCADA)
-// ==========================================
 async function _carregarMaquinasLista() {
   try {
     const res = await db.listarMaquinas();
@@ -496,8 +483,7 @@ async function _carregarMaquinasLista() {
         </div>
         <div class="lista-item-acoes">
           <span class="${m.ativo?'badge-ativo':'badge-inativo'}">${m.ativo?'ATIVO':'INATIVO'}</span>
-          <button class="btn-icon" title="Editar" onclick="editarMaquinaAdmin(${m.id}, '${m.nome}', '${m.turno||'ADM'}', ${m.cap_liquida||508})">✏️</button>
-          <button class="btn-icon danger" title="Excluir" onclick="excluirMaquinaAdmin(${m.id})">🗑️</button>
+          <button class="btn-icon danger" onclick="excluirMaquinaAdmin(${m.id})">🗑️</button>
         </div>
       </div>`).join('') || '<div class="empty-msg">Nenhuma máquina.</div>';
   } catch(e) { toast('Erro ao carregar.','erro'); }
@@ -510,25 +496,10 @@ async function abrirFormMaquina() {
   catch(e) { toast('Erro.','erro'); }
 }
 
-async function editarMaquinaAdmin(id, nomeAtual, turnoAtual, capAtual) {
-  const nome = prompt('Novo nome da Máquina:', nomeAtual);
-  if (!nome || !nome.trim()) return;
-  const turno = prompt('Turno (ex: ADM, 1T, 2T):', turnoAtual);
-  const cap = prompt('Capacidade Líquida (min/dia):', capAtual);
-  try { 
-    await db._patch('maquinas', 'id=eq.'+id, { nome: nome.trim(), turno: turno, cap_liquida: parseInt(cap) || 508 }); 
-    toast('Máquina atualizada!', 'sucesso'); 
-    carregarMaquinasAdmin(); 
-  } catch(e) { toast('Erro ao atualizar.', 'erro'); }
-}
-
 async function excluirMaquinaAdmin(id) {
   confirmarExclusao('Remover esta máquina?', async()=>{ try { await db.excluirMaquina(id); toast('Removida!','sucesso'); carregarMaquinasAdmin(); } catch(e){toast('Erro.','erro');} });
 }
 
-// ==========================================
-// 🏭 ADMIN: INJETORAS (PRODUÇÃO)
-// ==========================================
 async function _carregarInjetorasLista() {
   try {
     const res = await db.listarProdInjetoras();
@@ -542,8 +513,7 @@ async function _carregarInjetorasLista() {
         </div>
         <div class="lista-item-acoes">
           <span class="badge-ativo">ATIVO</span>
-          <button class="btn-icon" title="Editar" onclick="editarInjetoraAdmin(${i.id}, '${i.nome}', '${i.tonelagem||''}', '${i.fabricante||''}')">✏️</button>
-          <button class="btn-icon danger" title="Excluir" onclick="excluirInjetoraAdmin(${i.id})">🗑️</button>
+          <button class="btn-icon danger" onclick="excluirInjetoraAdmin(${i.id})">🗑️</button>
         </div>
       </div>`).join('') || '<div class="empty-msg">Nenhuma injetora.</div>';
   } catch(e) { toast('Erro ao carregar.','erro'); }
@@ -558,104 +528,40 @@ async function abrirFormInjetora() {
   catch(e) { toast('Erro.','erro'); }
 }
 
-async function editarInjetoraAdmin(id, nomeAtual, tonAtual, fabAtual) {
-  const nome = prompt('Novo nome da Injetora:', nomeAtual);
-  if (!nome || !nome.trim()) return;
-  const ton = prompt('Tonelagem:', tonAtual);
-  const fab = prompt('Fabricante:', fabAtual);
-  try { 
-    await db._patch('prod_injetoras', 'id=eq.'+id, { nome: nome.trim(), tonelagem: ton ? parseInt(ton) : null, fabricante: fab || null }); 
-    toast('Injetora atualizada!', 'sucesso'); 
-    carregarInjetoras(); 
-  } catch(e) { toast('Erro ao atualizar.', 'erro'); }
-}
-
 async function excluirInjetoraAdmin(id) {
   confirmarExclusao('Remover esta injetora?', async()=>{ try { await db.excluirProdInjetora(id); toast('Removida!','sucesso'); carregarInjetoras(); } catch(e){toast('Erro.','erro');} });
 }
 
-// ==========================================
-// 🏷️ ADMIN: CATEGORIAS E SETORES (DINÂMICO)
-// ==========================================
 async function _carregarCategoriasLista() {
   try {
     const res = await db.listarProdCategorias();
     const el = document.getElementById('painelCategorias');
     if (!el) return;
-    
-    // Agrupa as categorias de forma totalmente dinâmica pelo Tipo/Setor
     const grupos = {};
-    (res||[]).forEach(c => { 
-      if (!grupos[c.tipo]) grupos[c.tipo]=[]; 
-      grupos[c.tipo].push(c); 
-    });
-    
-    const paletaCores = ['#0056b3', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#0891b2', '#ec4899', '#14b8a6'];
-    let corIndex = 0;
-
-    let html = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-        <p style="font-size:13px; color:var(--cinza);">Crie os Setores (Ex: Usinagem) e adicione as subcategorias dentro deles.</p>
-        <button class="btn-primary" onclick="criarNovoGrupoCategoria()">+ Novo Grupo / Setor</button>
-      </div>
-      <div class="cards-row" style="flex-wrap:wrap; align-items:flex-start">
-    `;
-
-    Object.entries(grupos).forEach(([tipo, cats]) => {
-      const cor = paletaCores[corIndex % paletaCores.length];
-      corIndex++;
-      
-      html += `
-        <div class="card" style="flex:1; min-width:280px; margin-bottom: 16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--borda);">
-            <span style="background:${cor}20;color:${cor};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${tipo}</span>
-            <button class="btn-secondary" style="padding:6px 12px;font-size:11px" onclick="adicionarCategoria('${tipo}')">+ Subcategoria</button>
+    (res||[]).forEach(c => { if (!grupos[c.tipo]) grupos[c.tipo]=[]; grupos[c.tipo].push(c); });
+    const cores = { Setup:'#0056b3', Preventiva:'#10b981', Corretiva:'#ef4444', 'Inspeção':'#f59e0b' };
+    el.innerHTML = '<div class="cards-row" style="flex-wrap:wrap;align-items:flex-start">' +
+      Object.entries(grupos).map(([tipo,cats]) => `
+        <div class="card" style="flex:1;min-width:240px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span style="background:${cores[tipo]||'#64748b'}20;color:${cores[tipo]||'#64748b'};padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">${tipo} (${cats.length})</span>
+            <button class="btn-primary" style="padding:5px 12px;font-size:11px" onclick="adicionarCategoria('${tipo}')">+ Adicionar</button>
           </div>
-          ${cats.map(c => `
-            <div class="lista-item" style="padding:10px 0; border-bottom: 1px dashed #f1f5f9;">
-              <div class="lista-item-nome" style="font-size:13px; font-weight:500;">• ${c.atividade}</div>
-              <div class="lista-item-acoes">
-                <button class="btn-icon" title="Editar" onclick="editarCategoria(${c.id}, '${c.atividade}')">✏️</button>
-                <button class="btn-icon danger" title="Excluir" onclick="excluirCategoria(${c.id})">🗑️</button>
-              </div>
-            </div>`).join('')}
-        </div>`;
-    });
-    
-    html += '</div>';
-    el.innerHTML = html;
-  } catch(e) { toast('Erro ao carregar categorias.','erro'); }
-}
-
-async function criarNovoGrupoCategoria() {
-  const tipo = prompt('Qual será o nome do Novo Grupo ou Setor?\n(Exemplo: Usinagem, Bancada, Produção - Preventiva)');
-  if (!tipo || !tipo.trim()) return;
-  adicionarCategoria(tipo.trim()); // Pede logo a primeira subcategoria para o grupo existir
+          ${cats.map(c => `<div class="lista-item" style="padding:8px 0">
+            <div class="lista-item-nome" style="font-size:13px">${c.atividade}</div>
+            <button class="btn-icon danger" onclick="excluirCategoria(${c.id})">🗑️</button>
+          </div>`).join('')}
+        </div>`).join('') + '</div>';
+  } catch(e) { toast('Erro ao carregar.','erro'); }
 }
 
 async function adicionarCategoria(tipo) {
-  const ativ = prompt(`Nome da nova atividade/subcategoria para o grupo [${tipo}]:`);
-  if (!ativ || !ativ.trim()) return;
-  try { 
-    await db.salvarProdCategoria({tipo: tipo, atividade: ativ.trim(), ativo: true}); 
-    toast('Adicionada com sucesso!', 'sucesso'); 
-    carregarCategorias(); 
-  } catch(e) { toast('Erro ao adicionar.', 'erro'); }
-}
-
-async function editarCategoria(id, ativAtual) {
-  const ativ = prompt('Renomear subcategoria:', ativAtual);
-  if (!ativ || !ativ.trim() || ativ.trim() === ativAtual) return;
-  try {
-    await db._patch('prod_categorias', 'id=eq.'+id, { atividade: ativ.trim() });
-    toast('Categoria atualizada!', 'sucesso');
-    carregarCategorias();
-  } catch(e) { toast('Erro ao atualizar.', 'erro'); }
+  const ativ = prompt('Nome da nova atividade para ' + tipo + ':');
+  if (!ativ||!ativ.trim()) return;
+  try { await db.salvarProdCategoria({tipo,atividade:ativ.trim(),ativo:true}); toast('Adicionada!','sucesso'); carregarCategorias(); }
+  catch(e) { toast('Erro.','erro'); }
 }
 
 async function excluirCategoria(id) {
-  confirmarExclusao('Remover esta subcategoria?', async()=>{ 
-    try { await db.excluirProdCategoria(id); toast('Removida!','sucesso'); carregarCategorias(); } 
-    catch(e){toast('Erro.','erro');} 
-  });
+  confirmarExclusao('Remover esta categoria?', async()=>{ try { await db.excluirProdCategoria(id); toast('Removida!','sucesso'); carregarCategorias(); } catch(e){toast('Erro.','erro');} });
 }
