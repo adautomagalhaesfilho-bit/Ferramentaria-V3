@@ -29,7 +29,9 @@ const db = {
 
   // GET com filtros
   _get: async function(tabela, filtros = '', select = '*') {
-    const q = '?select=' + select + (filtros ? '&' + filtros : '') + '&order=id.asc';
+    const temOrder = filtros && filtros.includes('order=');
+    const order = temOrder ? '' : '&order=id.asc';
+    const q = '?select=' + select + (filtros ? '&' + filtros : '') + order;
     return await db._fetch(tabela + q);
   },
 
@@ -281,16 +283,20 @@ const db = {
   // 📄 FICHA DO MOLDE
   // ==========================================
   buscarFicha: async function(job) {
-    const [lancamentos, statusHistory, pendencias, localizacao] = await Promise.all([
+    const [lancamentos, statusHistory, localizacao] = await Promise.all([
       db._get('lancamentos', 'job=eq.' + encodeURIComponent(job) + '&order=data.asc', '*'),
       db.historicoStatusJob(job),
-      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*'),
       db.buscarLocalizacao(job)
     ]);
+    // Pendências em try/catch caso tabela ainda não exista
+    let pendencias = [];
+    try {
+      pendencias = await db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*') || [];
+    } catch(e) { console.warn('molde_pendencias não encontrada:', e); }
     return {
       lancamentos:   (lancamentos || []).map(db._formatarLancamento),
       statusHistory: statusHistory || [],
-      pendencias:    pendencias || [],
+      pendencias,
       localizacao:   localizacao || null
     };
   },
