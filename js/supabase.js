@@ -76,35 +76,78 @@ const db = {
   // 📋 LISTAS GLOBAIS
   // ==========================================
   obterListas: async function() {
-    const [funcionarios, maquinas, jobs, tipos, motivos] = await Promise.all([
+    const [funcionarios, maquinas, jobs, categorias, motivos] = await Promise.all([
       db._get('funcionarios', 'ativo=eq.true', 'nome,setor,turno'),
       db._get('maquinas', 'ativo=eq.true', 'nome,turno,cap_liquida'),
       db._get('jobs', 'ativo=eq.true', 'nome'),
-      db._get('tipos_servico', 'ativo=eq.true', 'nome,setor,categoria'),
+      db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
       db._get('motivos_parada', 'ativo=eq.true', 'nome')
     ]);
 
     const funcUsina   = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome);
     const funcBancada = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome);
     const funcProjeto = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome);
-    const tiposUsina  = tipos.filter(t => t.setor === 'Usinagem').map(t => t.nome);
-    const tiposBancada = tipos.filter(t => t.setor === 'Bancada').map(t => t.nome);
+    const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome);
+
+    // Tipos por setor vindos de prod_categorias (lista mestra)
+    const catUsina   = categorias.filter(c => c.setor === 'Usinagem');
+    const catBancada = categorias.filter(c => c.setor === 'Bancada');
+    const catProjeto = categorias.filter(c => c.setor === 'Projeto');
+    const catProd    = categorias.filter(c => c.setor === 'Producao');
+
+    // Tipos únicos por setor (campo tipo = categoria pai)
+    const tiposUsina   = [...new Set(catUsina.map(c => c.atividade))];
+    const tiposBancada = [...new Set(catBancada.map(c => c.atividade))];
+
+    // Para bancada: mapa atividade -> tipo (categoria pai)
     const mapaBancada = {};
-    tipos.filter(t => t.setor === 'Bancada').forEach(t => { mapaBancada[t.nome] = t.categoria || t.nome; });
+    catBancada.forEach(c => { mapaBancada[c.atividade] = c.tipo || c.atividade; });
+
+    // Para projeto: áreas = tipos, categorias = atividades
+    const areasProj    = [...new Set(catProjeto.map(c => c.tipo))];
+    const catsProjMap  = {};
+    catProjeto.forEach(c => { if (!catsProjMap[c.tipo]) catsProjMap[c.tipo]=[]; catsProjMap[c.tipo].push(c.atividade); });
+
+    // Para produção: tipos pai e atividades filhas
+    const tiposProd = [...new Set(catProd.map(c => c.tipo))];
+    const catsProdMap = {};
+    catProd.forEach(c => { if (!catsProdMap[c.tipo]) catsProdMap[c.tipo]=[]; catsProdMap[c.tipo].push(c.atividade); });
 
     return {
-      funcionarios:  funcUsina,
-      funcBancada:   funcBancada,
-      funcProjeto:   funcProjeto,
-      maquinas:      maquinas.map(m => m.nome),
-      jobs:          jobs.map(j => j.nome),
-      tipos:         tiposUsina,
-      tiposBancada:  tiposBancada,
-      motivos:       motivos.map(m => m.nome),
-      mapaBancada:   mapaBancada,
-      areasProj:     [],
-      categoriasProj: []
+      funcionarios:   funcUsina,
+      funcBancada:    funcBancada,
+      funcProjeto:    funcProjeto,
+      funcProducao:   funcProducao,
+      maquinas:       maquinas.map(m => m.nome),
+      jobs:           jobs.map(j => j.nome),
+      tipos:          tiposUsina,
+      tiposBancada:   tiposBancada,
+      tiposProd:      tiposProd,
+      motivos:        motivos.map(m => m.nome),
+      mapaBancada:    mapaBancada,
+      areasProj:      areasProj,
+      categoriasProj: catProjeto.map(c => c.atividade),
+      catsProjMap:    catsProjMap,
+      catsProdMap:    catsProdMap,
+      // Dados completos para a tela de categorias
+      todasCategorias: categorias
     };
+  },
+
+  // Busca categorias por setor (para filtros dinâmicos)
+  buscarCategoriasPorSetor: async function(setor) {
+    return await db._get('prod_categorias',
+      'ativo=eq.true&setor=eq.' + encodeURIComponent(setor) + '&order=tipo.asc,atividade.asc', '*');
+  },
+
+  // Salvar categoria com setor
+  salvarProdCategoria: async function(dados) {
+    if (dados.id) return await db._patch('prod_categorias', 'id=eq.' + dados.id, dados);
+    return await db._post('prod_categorias', dados);
+  },
+
+  excluirProdCategoria: async function(id) {
+    return await db._patch('prod_categorias', 'id=eq.' + id, { ativo: false });
   },
 
   // ==========================================
@@ -331,14 +374,7 @@ const db = {
   // 🏭 PRODUÇÃO / SETUP
   // ==========================================
   listarProdCategorias: async function() {
-    return await db._get('prod_categorias', 'ativo=eq.true&order=tipo.asc,atividade.asc', '*');
-  },
-  salvarProdCategoria: async function(dados) {
-    if (dados.id) return await db._patch('prod_categorias', 'id=eq.' + dados.id, dados);
-    return await db._post('prod_categorias', dados);
-  },
-  excluirProdCategoria: async function(id) {
-    return await db._patch('prod_categorias', 'id=eq.' + id, { ativo: false });
+    return await db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*');
   },
 
   listarProdTecnicos: async function() {
