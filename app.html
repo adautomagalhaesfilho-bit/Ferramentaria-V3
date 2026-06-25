@@ -550,19 +550,17 @@
 
 <div id="toast"></div>
 
-<script>
-  // Cache busting automático — garante sempre a versão mais recente
-  const _v = Date.now();
-  const _scripts = [
-    'js/supabase.js','js/auth.js','js/apontamentos.js','js/moldes.js',
-    'js/ficha.js','js/historico.js','js/dashboard.js','js/rh.js',
-    'js/producao.js','js/usuarios.js','js/pcm.js','js/app.js'
-  ];
-  _scripts.forEach(s => {
-    const el = document.createElement('script');
-    el.src = s + '?v=' + _v;
-    document.body.appendChild(el);
-  });
-</script>
+<script src="js/supabase.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/apontamentos.js?v=2"></script>
+<script src="js/moldes.js?v=2"></script>
+<script src="js/ficha.js?v=2"></script>
+<script src="js/historico.js?v=2"></script>
+<script src="js/dashboard.js?v=2"></script>
+<script src="js/rh.js?v=2"></script>
+<script src="js/producao.js?v=2"></script>
+<script src="js/usuarios.js?v=2"></script>
+<script src="js/pcm.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
 </body>
 </html>
