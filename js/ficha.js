@@ -255,10 +255,14 @@ function renderizarTimeline(hist, lancs) {
     // Sem histórico de status → agrupa por data
     const porData = {};
     lancs.forEach(l => {
-      if (!porData[l.data]) porData[l.data]={ setores:{}, count:0 };
+      if (!porData[l.data]) porData[l.data]={ setores:{}, count:0, copos:[] };
       if (!porData[l.data].setores[l.setor]) porData[l.data].setores[l.setor]=0;
       porData[l.data].setores[l.setor]++;
       porData[l.data].count++;
+      // Registra troca de copo
+      if (l.trocaCopo===true||l.trocaCopo==='true') {
+        porData[l.data].copos.push({ func:l.funcionario, tipo:l.tipoCopo||'—', job:l.job||'—' });
+      }
     });
     const cors = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
     const datas = Object.keys(porData).sort();
@@ -275,6 +279,9 @@ function renderizarTimeline(hist, lancs) {
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               ${Object.entries(porData[dt].setores).map(([s,n])=>`
                 <span style="background:#f1f5f9;color:${cors[s]||'#64748b'};font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600">${s}: ${n}</span>
+              `).join('')}
+              ${porData[dt].copos.map(c=>`
+                <span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700">🔄 Troca de Copo: ${c.tipo} (${c.func})</span>
               `).join('')}
             </div>
           </div>
