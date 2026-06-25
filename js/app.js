@@ -11,19 +11,16 @@ var _excluirCallback = null;
 window.addEventListener('DOMContentLoaded', async () => {
   if (!carregarSessao()) return;
 
-  // Saudação personalizada
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
   const elSauda = document.getElementById('saudacaoTitulo');
   if (elSauda) elSauda.innerText = saudacao + ', ' + (_sessao?.nome || '') + '!';
 
-  // Data na topbar
   const hoje = new Date();
   const diasSem = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   const elData = document.getElementById('topbarData');
   if (elData) elData.innerText = diasSem[hoje.getDay()] + ', ' + hoje.toLocaleDateString('pt-BR');
 
-  // Carrega listas globais
   try {
     _listas = await db.obterListas();
     inicializarAutocompletes();
@@ -32,10 +29,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     toast('Erro ao carregar dados do sistema.', 'erro');
   }
 
-  // Aplica permissões e navega
   aplicarPermissoes();
 
-  // Datas do dashboard
   const fDate = d => d.toISOString().split('T')[0];
   const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   const dashIni = document.getElementById('dashIni');
@@ -45,10 +40,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (dashFim) dashFim.value = fDate(hoje);
   if (dashMes) dashMes.value = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
 
-  // QR Code — abre ficha automaticamente se vier ?job= na URL
   if (typeof verificarQRCodeURL === 'function') verificarQRCodeURL();
 
-  // Navegação por histórico do browser
   window.addEventListener('popstate', function(e) {
     if (e.state && e.state.tela) {
       const el = document.getElementById('menu' + e.state.tela.charAt(0).toUpperCase() + e.state.tela.slice(1)) || null;
@@ -99,7 +92,6 @@ var _mapaTitulos = {
 };
 
 function irPara(tela, elMenu) {
-  // Empurra no histórico do browser
   history.pushState({ tela: tela }, '', '#' + tela);
   _irParaSemHistory(tela, elMenu);
 }
@@ -107,52 +99,28 @@ function irPara(tela, elMenu) {
 function _irParaSemHistory(tela, elMenu) {
   document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
   document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-
   _telaAtual = tela;
   const idTela = _mapaTelaEl[tela];
   if (idTela) document.getElementById(idTela)?.classList.add('ativa');
   if (elMenu) elMenu.classList.add('active');
-
   const titulo = document.getElementById('topbarTitulo');
   if (titulo) titulo.innerText = _mapaTitulos[tela] || tela;
-
-  // Fechar sidebar no mobile
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar')?.classList.remove('open');
-  }
-
-  // Fechar modal se estiver aberto
+  if (window.innerWidth <= 768) document.getElementById('sidebar')?.classList.remove('open');
   fecharModalForm();
-
-  // Ações automáticas ao navegar
   setTimeout(() => {
-    if (['usinagem','bancada','projeto'].includes(tela)) {
-      abrirSetor(tela);
-    } else if (tela === 'producao') {
-      inicializarProducao();
-    } else if (tela === 'dashboard') {
-      carregarDashboard();
-    } else if (tela === 'moldes') {
-      carregarMoldes();
-    } else if (tela === 'historico') {
-      inicializarHistorico();
-    } else if (tela === 'feriados') {
-      inicializarRH();
-    } else if (tela === 'usuarios') {
-      carregarUsuarios();
-    } else if (tela === 'funcionarios') {
-      carregarFuncionariosAdmin();
-    } else if (tela === 'jobsAdmin') {
-      carregarJobsAdmin();
-    } else if (tela === 'maquinasAdmin') {
-      carregarMaquinasAdmin();
-    } else if (tela === 'injetoras') {
-      carregarInjetoras();
-    } else if (tela === 'categorias') {
-      carregarCategorias();
-    } else if (tela === 'pcm') {
-      inicializarPCM();
-    }
+    if (['usinagem','bancada','projeto'].includes(tela)) { abrirSetor(tela); }
+    else if (tela === 'producao')     { inicializarProducao(); }
+    else if (tela === 'dashboard')    { carregarDashboard(); }
+    else if (tela === 'moldes')       { carregarMoldes(); }
+    else if (tela === 'historico')    { inicializarHistorico(); }
+    else if (tela === 'feriados')     { inicializarRH(); }
+    else if (tela === 'usuarios')     { carregarUsuarios(); }
+    else if (tela === 'funcionarios') { carregarFuncionariosAdmin(); }
+    else if (tela === 'jobsAdmin')    { carregarJobsAdmin(); }
+    else if (tela === 'maquinasAdmin'){ carregarMaquinasAdmin(); }
+    else if (tela === 'injetoras')    { carregarInjetoras(); }
+    else if (tela === 'categorias')   { carregarCategorias(); }
+    else if (tela === 'pcm')          { inicializarPCM(); }
   }, 50);
 }
 
@@ -160,11 +128,8 @@ function _irParaSemHistory(tela, elMenu) {
 // 🔒 ADMIN RECOLHÍVEL
 // ==========================================
 function toggleAdmin() {
-  const label = document.getElementById('adminLabel');
-  const items = document.getElementById('adminItems');
-  if (!label || !items) return;
-  label.classList.toggle('aberto');
-  items.classList.toggle('aberto');
+  document.getElementById('adminLabel')?.classList.toggle('aberto');
+  document.getElementById('adminItems')?.classList.toggle('aberto');
 }
 
 // ==========================================
@@ -173,18 +138,18 @@ function toggleAdmin() {
 function inicializarAutocompletes() {
   if (!_listas) return;
   const jobs = _listas.jobs || [];
-  setupAC('formJob',         'formJobList',         jobs);
-  setupAC('fichaJobInput',   'fichaJobList',         jobs);
-  setupAC('histJob',         'histJobList',          jobs);
-  setupAC('prodFormMolde',   'prodFormMoldeList',    jobs);
-  setupAC('formTipoBancadaInput', 'formTipoBancadaList', _listas.tiposBancada || [], val => {
+  setupAC('formJob',              'formJobList',          jobs);
+  setupAC('fichaJobInput',        'fichaJobList',         jobs);
+  setupAC('histJob',              'histJobList',          jobs);
+  setupAC('prodFormMolde',        'prodFormMoldeList',    jobs);
+  setupAC('formTipoBancadaInput', 'formTipoBancadaList',  _listas.tiposBancada || [], val => {
     document.getElementById('formTipoBancada').value = val;
   });
 }
 
 function setupAC(inputId, listaId, dados, onSelect) {
   const input = document.getElementById(inputId);
-  const lista  = document.getElementById(listaId);
+  const lista = document.getElementById(listaId);
   if (!input || !lista) return;
   input.addEventListener('input', () => {
     const termo = input.value.toUpperCase();
@@ -196,11 +161,7 @@ function setupAC(inputId, listaId, dados, onSelect) {
       const div = document.createElement('div');
       div.className = 'autocomplete-item';
       div.innerText = item;
-      div.onclick = () => {
-        input.value = item;
-        lista.style.display = 'none';
-        if (onSelect) onSelect(item);
-      };
+      div.onclick = () => { input.value = item; lista.style.display = 'none'; if (onSelect) onSelect(item); };
       lista.appendChild(div);
     });
     lista.style.display = 'block';
@@ -221,55 +182,31 @@ function toast(msg, tipo) {
 }
 
 // ==========================================
-// 🪟 MODAL FORMULÁRIO LANÇAMENTO
+// 🪟 MODAIS
 // ==========================================
 function abrirModalForm() {
-  const overlay = document.getElementById('modalFormOverlay');
-  if (overlay) {
-    overlay.classList.add('aberto');
-    document.body.style.overflow = 'hidden';
-  }
+  const o = document.getElementById('modalFormOverlay');
+  if (o) { o.classList.add('aberto'); document.body.style.overflow = 'hidden'; }
 }
-
 function fecharModalForm() {
-  const overlay = document.getElementById('modalFormOverlay');
-  if (overlay) {
-    overlay.classList.remove('aberto');
-    document.body.style.overflow = '';
-  }
+  const o = document.getElementById('modalFormOverlay');
+  if (o) { o.classList.remove('aberto'); document.body.style.overflow = ''; }
 }
-
-// Fechar ao clicar no overlay (fora do modal)
-document.addEventListener('DOMContentLoaded', () => {
-  const overlay = document.getElementById('modalFormOverlay');
-  if (overlay) {
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) fecharModalForm();
-    });
-  }
-  const overlayProd = document.getElementById('modalFormProdOverlay');
-  if (overlayProd) {
-    overlayProd.addEventListener('click', function(e) {
-      if (e.target === overlayProd) cancelarFormProducao();
-    });
-  }
-});
-
 function abrirModalFormProd() {
-  const overlay = document.getElementById('modalFormProdOverlay');
-  if (overlay) {
-    overlay.classList.add('aberto');
-    document.body.style.overflow = 'hidden';
-  }
+  const o = document.getElementById('modalFormProdOverlay');
+  if (o) { o.classList.add('aberto'); document.body.style.overflow = 'hidden'; }
+}
+function fecharModalFormProd() {
+  const o = document.getElementById('modalFormProdOverlay');
+  if (o) { o.classList.remove('aberto'); document.body.style.overflow = ''; }
 }
 
-function fecharModalFormProd() {
-  const overlay = document.getElementById('modalFormProdOverlay');
-  if (overlay) {
-    overlay.classList.remove('aberto');
-    document.body.style.overflow = '';
-  }
-}
+document.addEventListener('DOMContentLoaded', () => {
+  const o = document.getElementById('modalFormOverlay');
+  if (o) o.addEventListener('click', e => { if (e.target === o) fecharModalForm(); });
+  const op = document.getElementById('modalFormProdOverlay');
+  if (op) op.addEventListener('click', e => { if (e.target === op) cancelarFormProducao(); });
+});
 
 // ==========================================
 // 🗑️ MODAL CONFIRMAÇÃO
@@ -299,10 +236,7 @@ var _statusAtual = null;
 function abrirModalStatus(job) {
   _jobAtual = job; _statusAtual = null;
   document.getElementById('modalJobNome').innerText = job;
-  ['And','Paus','Fin'].forEach(s => {
-    const btn = document.getElementById('modalBtn' + s);
-    if (btn) btn.className = 'btn-status';
-  });
+  ['And','Paus','Fin'].forEach(s => { const b=document.getElementById('modalBtn'+s); if(b) b.className='btn-status'; });
   document.getElementById('btnConfirmarStatus').style.opacity = '0.4';
   document.getElementById('btnConfirmarStatus').style.pointerEvents = 'none';
   document.getElementById('modalDescWrap').style.display = 'none';
@@ -311,35 +245,32 @@ function abrirModalStatus(job) {
   document.getElementById('modalStatusOverlay').style.display = 'block';
   document.getElementById('modalStatus').style.display = 'block';
 }
-
 function selecionarStatusModal(status) {
   _statusAtual = status;
   const mapBtn = { 'Em andamento':'And', 'Pausado':'Paus', 'Finalizado':'Fin' };
-  ['And','Paus','Fin'].forEach(s => { document.getElementById('modalBtn' + s).className = 'btn-status'; });
-  const btn = document.getElementById('modalBtn' + mapBtn[status]);
-  if (btn) btn.className = 'btn-status ' + (status==='Finalizado'?'ativo-fin':'ativo-and');
+  ['And','Paus','Fin'].forEach(s => { document.getElementById('modalBtn'+s).className='btn-status'; });
+  const btn = document.getElementById('modalBtn'+mapBtn[status]);
+  if (btn) btn.className = 'btn-status '+(status==='Finalizado'?'ativo-fin':'ativo-and');
   const conf = document.getElementById('btnConfirmarStatus');
   conf.style.opacity = '1'; conf.style.pointerEvents = 'auto';
-  document.getElementById('modalDescWrap').style.display = (status==='Pausado'||status==='Finalizado') ? 'block' : 'none';
-  document.getElementById('modalDataFimWrap').style.display = status==='Finalizado' ? 'block' : 'none';
+  document.getElementById('modalDescWrap').style.display = (status==='Pausado'||status==='Finalizado')?'block':'none';
+  document.getElementById('modalDataFimWrap').style.display = status==='Finalizado'?'block':'none';
 }
-
 async function confirmarStatus() {
   if (!_jobAtual || !_statusAtual) return;
   const btn = document.getElementById('btnConfirmarStatus');
   btn.disabled = true; btn.innerText = 'Salvando...';
-  const desc    = document.getElementById('modalDesc').value.trim();
+  const desc = document.getElementById('modalDesc').value.trim();
   const dataFim = document.getElementById('modalDataFim').value;
   const job = _jobAtual; const status = _statusAtual;
   fecharModalStatus();
   try {
     await db.salvarStatusJob(job, status, desc, dataFim);
-    toast('Status atualizado!', 'sucesso');
+    toast('Status atualizado!','sucesso');
     if (typeof carregarMoldes === 'function') await carregarMoldes();
-  } catch(e) { toast('Erro ao salvar status.', 'erro'); }
+  } catch(e) { toast('Erro ao salvar status.','erro'); }
   btn.disabled = false; btn.innerText = 'Confirmar';
 }
-
 function fecharModalStatus() {
   document.getElementById('modalStatusOverlay').style.display = 'none';
   document.getElementById('modalStatus').style.display = 'none';
@@ -351,7 +282,7 @@ function fecharModalStatus() {
 // ==========================================
 function setSemanaDash(n) {
   const hoje = new Date(); const ano = hoje.getFullYear(); const mes = hoje.getMonth();
-  const dias = new Date(ano, mes+1, 0).getDate();
+  const dias = new Date(ano,mes+1,0).getDate();
   const ranges = { 1:[1,7], 2:[8,14], 3:[15,21], 4:[22,dias] };
   const [d1,d2] = ranges[n];
   const fDate = d => new Date(ano,mes,d).toISOString().split('T')[0];
@@ -359,209 +290,361 @@ function setSemanaDash(n) {
   document.getElementById('dashFim').value = fDate(d2);
   carregarDashboard();
 }
-
 function selecionarMesDash() {
   const val = document.getElementById('dashMes').value;
   if (!val) return;
   const [ano,mes] = val.split('-').map(Number);
-  const ini = new Date(ano,mes-1,1);
-  const fim = new Date(ano,mes,0);
   const fDate = d => d.toISOString().split('T')[0];
-  document.getElementById('dashIni').value = fDate(ini);
-  document.getElementById('dashFim').value = fDate(fim);
+  document.getElementById('dashIni').value = fDate(new Date(ano,mes-1,1));
+  document.getElementById('dashFim').value = fDate(new Date(ano,mes,0));
   carregarDashboard();
 }
-
 function mudarTabDash(aba, elBtn) {
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('ativo'));
   document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('ativa'));
-  const id = 'dash' + aba.charAt(0).toUpperCase() + aba.slice(1);
-  document.getElementById(id)?.classList.add('ativo');
+  document.getElementById('dash'+aba.charAt(0).toUpperCase()+aba.slice(1))?.classList.add('ativo');
   if (elBtn) elBtn.classList.add('ativa');
   renderizarDashAtivo(aba);
 }
 
 // ==========================================
-// 📱 SIDEBAR MOBILE / COLLAPSE
+// 📱 SIDEBAR
 // ==========================================
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const main    = document.getElementById('main');
-  if (window.innerWidth <= 768) {
-    sidebar.classList.toggle('open');
-  } else {
-    sidebar.classList.toggle('collapsed');
-    main.classList.toggle('collapsed');
-  }
+  if (window.innerWidth <= 768) { sidebar.classList.toggle('open'); }
+  else { sidebar.classList.toggle('collapsed'); main.classList.toggle('collapsed'); }
 }
 
 // ==========================================
 // 🛠️ HELPERS GLOBAIS
 // ==========================================
-function fmtData(d) {
-  if (!d) return '-';
-  return d.split('-').reverse().join('/');
-}
+function fmtData(d) { return d ? d.split('-').reverse().join('/') : '-'; }
 function fmtMin(mins) {
   const h = Math.floor(mins/60), m = Math.round(mins%60);
-  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + 'h';
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+'h';
 }
-function corStatus(s) {
-  return s==='Finalizado'?'#10b981':s==='Pausado'?'#f59e0b':'#f97316';
-}
-function icoStatus(s) {
-  return s==='Finalizado'?'🟢':s==='Pausado'?'🟡':'🟠';
-}
+function corStatus(s) { return s==='Finalizado'?'#10b981':s==='Pausado'?'#f59e0b':'#f97316'; }
+function icoStatus(s) { return s==='Finalizado'?'🟢':s==='Pausado'?'🟡':'🟠'; }
 
-// Stubs para telas admin novas (implementadas nos próximos arquivos)
+// ==========================================
+// 🗂️ ADMIN: STUBS
+// ==========================================
 function carregarFuncionariosAdmin() { if(typeof carregarFuncionariosRH==='function') carregarFuncionariosRH(); }
-function carregarJobsAdmin()      { const el=document.getElementById('listaJobsAdmin');      if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarJobs(); }
-function carregarMaquinasAdmin()  { const el=document.getElementById('listaMaquinas');       if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarMaquinasLista(); }
-function carregarInjetoras()      { const el=document.getElementById('listaInjetoras');      if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarInjetorasLista(); }
-function carregarCategorias()     { const el=document.getElementById('painelCategorias');    if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarCategoriasLista(); }
+function carregarJobsAdmin()      { const el=document.getElementById('listaJobsAdmin');   if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarJobs(); }
+function carregarMaquinasAdmin()  { const el=document.getElementById('listaMaquinas');    if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarMaquinasLista(); }
+function carregarInjetoras()      { const el=document.getElementById('listaInjetoras');   if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarInjetorasLista(); }
+function carregarCategorias()     { const el=document.getElementById('painelCategorias'); if(el) el.innerHTML='<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>'; _carregarCategoriasLista(); }
 
+// ==========================================
+// 🗂️ JOBS / MOLDES
+// ==========================================
 async function _carregarJobs() {
   try {
     const res = await db._get('jobs','order=nome.asc','*');
     const el = document.getElementById('listaJobsAdmin');
     if (!el) return;
-    if (!res || !res.length) { el.innerHTML='<div class="empty-msg">Nenhum job cadastrado.</div>'; return; }
     const filtroTipo = document.getElementById('filtroTipoJob')?.value || 'todos';
-    const busca = (document.getElementById('buscaJobAdmin')?.value || '').toUpperCase();
-    const filtrado = res.filter(j => {
-      const sv = j.nome.toUpperCase().startsWith('SV') || j.nome.toUpperCase().startsWith('S/');
+    const busca = (document.getElementById('buscaJobAdmin')?.value||'').toUpperCase();
+    const filtrado = (res||[]).filter(j => {
+      const sv = j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/');
       if (filtroTipo==='molde' && sv) return false;
       if (filtroTipo==='servico' && !sv) return false;
       if (busca && !j.nome.toUpperCase().includes(busca)) return false;
       return true;
     });
-    el.innerHTML = filtrado.map(j => `
-      <div class="lista-item">
-        <div class="lista-item-info">
-          <div class="lista-item-nome">${j.nome}</div>
-          <div class="lista-item-sub">${j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/')?'Serviço':'Molde'}</div>
-        </div>
-        <div class="lista-item-acoes">
-          <span class="${j.ativo?'badge-ativo':'badge-inativo'}">${j.ativo?'ATIVO':'INATIVO'}</span>
-          <button class="btn-icon danger" onclick="excluirJob(${j.id})">🗑️</button>
-        </div>
-      </div>`).join('');
+    el.innerHTML = filtrado.map(j => `<div class="lista-item">
+      <div class="lista-item-info">
+        <div class="lista-item-nome">${j.nome}</div>
+        <div class="lista-item-sub">${j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/')?'Serviço':'Molde'}</div>
+      </div>
+      <div class="lista-item-acoes">
+        <span class="${j.ativo?'badge-ativo':'badge-inativo'}">${j.ativo?'ATIVO':'INATIVO'}</span>
+        <button class="btn-icon danger" onclick="excluirJob(${j.id})">🗑️</button>
+      </div>
+    </div>`).join('') || '<div class="empty-msg">Nenhum job.</div>';
   } catch(e) { toast('Erro ao carregar jobs.','erro'); }
 }
-
 function filtrarJobsAdmin() { _carregarJobs(); }
-
 async function abrirFormJob() {
-  const nome = prompt('Nome do Molde / Job ou Serviço (ex: MOL-001 ou SV-001):');
-  if (!nome || !nome.trim()) return;
+  const nome = prompt('Nome do Molde / Job (ex: MOL-001 ou SV-001):');
+  if (!nome||!nome.trim()) return;
   try {
-    await db._post('jobs', { nome: nome.trim(), ativo: true });
+    await db._post('jobs',{nome:nome.trim(),ativo:true});
     toast('Adicionado!','sucesso');
-    if (_listas) _listas.jobs = (_listas.jobs||[]).concat(nome.trim());
-    inicializarAutocompletes();
-    carregarJobsAdmin();
-  } catch(e) { toast('Erro ao adicionar.','erro'); }
+    if (_listas) _listas.jobs=(_listas.jobs||[]).concat(nome.trim());
+    inicializarAutocompletes(); carregarJobsAdmin();
+  } catch(e) { toast('Erro.','erro'); }
 }
-
 async function excluirJob(id) {
-  confirmarExclusao('Remover este job/molde?', async () => {
+  confirmarExclusao('Remover este job?', async()=>{
     try { await db._patch('jobs','id=eq.'+id,{ativo:false}); toast('Removido!','sucesso'); carregarJobsAdmin(); }
-    catch(e) { toast('Erro.','erro'); }
+    catch(e){ toast('Erro.','erro'); }
   });
 }
 
+// ==========================================
+// 🤖 MÁQUINAS
+// ==========================================
 async function _carregarMaquinasLista() {
   try {
     const res = await db.listarMaquinas();
     const el = document.getElementById('listaMaquinas');
     if (!el) return;
-    el.innerHTML = (res||[]).map(m => `
-      <div class="lista-item">
-        <div class="lista-item-info">
-          <div class="lista-item-nome">${m.nome}</div>
-          <div class="lista-item-sub">Turno: ${m.turno||'ADM'} | Cap: ${m.cap_liquida||508} min/dia</div>
-        </div>
-        <div class="lista-item-acoes">
-          <span class="${m.ativo?'badge-ativo':'badge-inativo'}">${m.ativo?'ATIVO':'INATIVO'}</span>
-          <button class="btn-icon danger" onclick="excluirMaquinaAdmin(${m.id})">🗑️</button>
-        </div>
-      </div>`).join('') || '<div class="empty-msg">Nenhuma máquina.</div>';
-  } catch(e) { toast('Erro ao carregar.','erro'); }
+    el.innerHTML = (res||[]).map(m=>`<div class="lista-item">
+      <div class="lista-item-info">
+        <div class="lista-item-nome">${m.nome}</div>
+        <div class="lista-item-sub">Turno: ${m.turno||'ADM'} | Cap: ${m.cap_liquida||508} min/dia</div>
+      </div>
+      <div class="lista-item-acoes">
+        <span class="${m.ativo?'badge-ativo':'badge-inativo'}">${m.ativo?'ATIVO':'INATIVO'}</span>
+        <button class="btn-icon danger" onclick="excluirMaquinaAdmin(${m.id})">🗑️</button>
+      </div>
+    </div>`).join('')||'<div class="empty-msg">Nenhuma máquina.</div>';
+  } catch(e) { toast('Erro.','erro'); }
 }
-
 async function abrirFormMaquina() {
   const nome = prompt('Nome da Máquina:');
   if (!nome||!nome.trim()) return;
   try { await db.salvarMaquina({nome:nome.trim(),turno:'ADM',ativo:true}); toast('Adicionada!','sucesso'); carregarMaquinasAdmin(); }
-  catch(e) { toast('Erro.','erro'); }
+  catch(e){ toast('Erro.','erro'); }
 }
-
 async function excluirMaquinaAdmin(id) {
-  confirmarExclusao('Remover esta máquina?', async()=>{ try { await db.excluirMaquina(id); toast('Removida!','sucesso'); carregarMaquinasAdmin(); } catch(e){toast('Erro.','erro');} });
+  confirmarExclusao('Remover esta máquina?', async()=>{
+    try { await db.excluirMaquina(id); toast('Removida!','sucesso'); carregarMaquinasAdmin(); }
+    catch(e){ toast('Erro.','erro'); }
+  });
 }
 
+// ==========================================
+// 🏭 INJETORAS
+// ==========================================
 async function _carregarInjetorasLista() {
   try {
     const res = await db.listarProdInjetoras();
     const el = document.getElementById('listaInjetoras');
     if (!el) return;
-    el.innerHTML = (res||[]).map(i => `
-      <div class="lista-item">
-        <div class="lista-item-info">
-          <div class="lista-item-nome">${i.nome}</div>
-          <div class="lista-item-sub">${i.tonelagem?i.tonelagem+' ton':'—'} | ${i.fabricante||'—'}</div>
-        </div>
-        <div class="lista-item-acoes">
-          <span class="badge-ativo">ATIVO</span>
-          <button class="btn-icon danger" onclick="excluirInjetoraAdmin(${i.id})">🗑️</button>
-        </div>
-      </div>`).join('') || '<div class="empty-msg">Nenhuma injetora.</div>';
-  } catch(e) { toast('Erro ao carregar.','erro'); }
+    el.innerHTML = (res||[]).map(i=>`<div class="lista-item">
+      <div class="lista-item-info">
+        <div class="lista-item-nome">${i.nome}</div>
+        <div class="lista-item-sub">${i.tonelagem?i.tonelagem+' ton':'—'} | ${i.fabricante||'—'}</div>
+      </div>
+      <div class="lista-item-acoes">
+        <span class="badge-ativo">ATIVO</span>
+        <button class="btn-icon danger" onclick="excluirInjetoraAdmin(${i.id})">🗑️</button>
+      </div>
+    </div>`).join('')||'<div class="empty-msg">Nenhuma injetora.</div>';
+  } catch(e){ toast('Erro.','erro'); }
 }
-
 async function abrirFormInjetora() {
   const nome = prompt('Nome da Injetora (ex: 160-01):');
   if (!nome||!nome.trim()) return;
-  const ton  = prompt('Tonelagem (opcional):');
-  const fab  = prompt('Fabricante (opcional):');
+  const ton = prompt('Tonelagem (opcional):');
+  const fab = prompt('Fabricante (opcional):');
   try { await db.salvarProdInjetora({nome:nome.trim(),tonelagem:ton?parseInt(ton):null,fabricante:fab||null}); toast('Adicionada!','sucesso'); carregarInjetoras(); }
-  catch(e) { toast('Erro.','erro'); }
+  catch(e){ toast('Erro.','erro'); }
+}
+async function excluirInjetoraAdmin(id) {
+  confirmarExclusao('Remover esta injetora?', async()=>{
+    try { await db.excluirProdInjetora(id); toast('Removida!','sucesso'); carregarInjetoras(); }
+    catch(e){ toast('Erro.','erro'); }
+  });
 }
 
-async function excluirInjetoraAdmin(id) {
-  confirmarExclusao('Remover esta injetora?', async()=>{ try { await db.excluirProdInjetora(id); toast('Removida!','sucesso'); carregarInjetoras(); } catch(e){toast('Erro.','erro');} });
-}
+// ==========================================
+// 🏷️ CATEGORIAS — Lista Mestra por Setor
+// ==========================================
+const _SETORES_CAT = ['Usinagem','Bancada','Projeto','Producao'];
+const _CORES_CAT = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', Producao:'#10b981' };
+const _ICOS_CAT  = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐', Producao:'🏭' };
+var _abaSetorAtiva = 'Usinagem';
 
 async function _carregarCategoriasLista() {
   try {
-    const res = await db.listarProdCategorias();
+    const todas = await db.listarProdCategorias();
     const el = document.getElementById('painelCategorias');
     if (!el) return;
-    const grupos = {};
-    (res||[]).forEach(c => { if (!grupos[c.tipo]) grupos[c.tipo]=[]; grupos[c.tipo].push(c); });
-    const cores = { Setup:'#0056b3', Preventiva:'#10b981', Corretiva:'#ef4444', 'Inspeção':'#f59e0b' };
-    el.innerHTML = '<div class="cards-row" style="flex-wrap:wrap;align-items:flex-start">' +
-      Object.entries(grupos).map(([tipo,cats]) => `
-        <div class="card" style="flex:1;min-width:240px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-            <span style="background:${cores[tipo]||'#64748b'}20;color:${cores[tipo]||'#64748b'};padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">${tipo} (${cats.length})</span>
-            <button class="btn-primary" style="padding:5px 12px;font-size:11px" onclick="adicionarCategoria('${tipo}')">+ Adicionar</button>
+
+    // Agrupa por setor → tipo → atividades
+    const porSetor = {};
+    _SETORES_CAT.forEach(s => porSetor[s] = {});
+    (todas||[]).forEach(c => {
+      const s = c.setor || 'Producao';
+      if (!porSetor[s]) porSetor[s] = {};
+      if (!porSetor[s][c.tipo]) porSetor[s][c.tipo] = [];
+      porSetor[s][c.tipo].push(c);
+    });
+
+    const cor = _CORES_CAT[_abaSetorAtiva];
+    const grupos = porSetor[_abaSetorAtiva] || {};
+    const total  = Object.values(grupos).flat().length;
+
+    // Abas de setor
+    let html = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+      ${_SETORES_CAT.map(s => {
+        const t = Object.values(porSetor[s]||{}).flat().length;
+        const ativo = s === _abaSetorAtiva;
+        const c = _CORES_CAT[s];
+        return `<button onclick="_mudarAbaCategoria('${s}')"
+          style="padding:8px 18px;border-radius:20px;border:2px solid ${ativo?c:'#e2e8f0'};
+          background:${ativo?c:'#fff'};color:${ativo?'#fff':c};font-weight:700;font-size:13px;
+          cursor:pointer;transition:all 0.2s">
+          ${_ICOS_CAT[s]} ${s}
+          <span style="background:${ativo?'rgba(255,255,255,0.3)':'#f1f5f9'};padding:2px 7px;border-radius:10px;font-size:11px">${t}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+
+    // Cabeçalho do setor ativo
+    html += `<div class="card" style="border-left:4px solid ${cor};margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#1e3a5f">${_ICOS_CAT[_abaSetorAtiva]} ${_abaSetorAtiva}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">${total} tipo(s) cadastrado(s) — lista mestra de todos os módulos</div>
+        </div>
+        <button class="btn-primary" onclick="abrirModalCategoria()">+ Nova Categoria</button>
+      </div>
+    </div>`;
+
+    // Grid de grupos
+    if (!Object.keys(grupos).length) {
+      html += `<div class="empty-state">
+        <div style="font-size:40px">${_ICOS_CAT[_abaSetorAtiva]}</div>
+        <div>Nenhuma categoria para ${_abaSetorAtiva}.</div>
+        <div style="margin-top:12px"><button class="btn-primary" onclick="abrirModalCategoria()">+ Adicionar primeira categoria</button></div>
+      </div>`;
+    } else {
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">`;
+      Object.entries(grupos).forEach(([tipo, cats]) => {
+        const tipoEsc = tipo.replace(/'/g,"\\'");
+        html += `<div class="card" style="border-top:3px solid ${cor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--borda)">
+            <span style="background:${cor}15;color:${cor};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${tipo} (${cats.length})</span>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="abrirModalCategoria('${tipoEsc}')">+ Atividade</button>
           </div>
-          ${cats.map(c => `<div class="lista-item" style="padding:8px 0">
-            <div class="lista-item-nome" style="font-size:13px">${c.atividade}</div>
-            <button class="btn-icon danger" onclick="excluirCategoria(${c.id})">🗑️</button>
-          </div>`).join('')}
-        </div>`).join('') + '</div>';
-  } catch(e) { toast('Erro ao carregar.','erro'); }
+          ${cats.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed #f1f5f9">
+              <span style="font-size:13px;color:#334155">• ${c.atividade}</span>
+              <div style="display:flex;gap:4px">
+                <button class="btn-icon" onclick="editarCategoria(${c.id},'${c.atividade.replace(/'/g,"\\'")}')">✏️</button>
+                <button class="btn-icon danger" onclick="excluirCategoria(${c.id})">🗑️</button>
+              </div>
+            </div>`).join('')}
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `<div id="modalCatWrap"></div>`;
+    el.innerHTML = html;
+  } catch(e) { toast('Erro ao carregar categorias.','erro'); console.error(e); }
 }
 
-async function adicionarCategoria(tipo) {
-  const ativ = prompt('Nome da nova atividade para ' + tipo + ':');
-  if (!ativ||!ativ.trim()) return;
-  try { await db.salvarProdCategoria({tipo,atividade:ativ.trim(),ativo:true}); toast('Adicionada!','sucesso'); carregarCategorias(); }
-  catch(e) { toast('Erro.','erro'); }
+function _mudarAbaCategoria(setor) {
+  _abaSetorAtiva = setor;
+  carregarCategorias();
+}
+
+function abrirModalCategoria(tipoPre) {
+  const cor = _CORES_CAT[_abaSetorAtiva];
+  // Monta lista de tipos existentes no setor ativo
+  const tiposExistentes = _listas?.todasCategorias
+    ? [...new Set(_listas.todasCategorias.filter(c=>c.setor===_abaSetorAtiva).map(c=>c.tipo))]
+    : [];
+
+  document.getElementById('modalCatWrap').innerHTML = `
+  <div class="modal-overlay" onclick="fecharModalCategoria()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:460px">
+    <div class="modal-header">
+      <h3>+ Nova Categoria — ${_ICOS_CAT[_abaSetorAtiva]} ${_abaSetorAtiva}</h3>
+      <button onclick="fecharModalCategoria()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Grupo / Tipo *</label>
+        <select id="catTipoSel" onchange="
+          const v=this.value;
+          document.getElementById('catTipoNovoWrap').style.display=v==='__novo'?'block':'none';
+          if(v!=='__novo') document.getElementById('catTipoInput').value=v;
+        ">
+          <option value="">— Selecione grupo existente —</option>
+          ${tiposExistentes.map(t=>`<option value="${t}" ${t===tipoPre?'selected':''}>${t}</option>`).join('')}
+          <option value="__novo">+ Criar novo grupo...</option>
+        </select>
+        <div id="catTipoNovoWrap" style="display:${tipoPre&&!tiposExistentes.includes(tipoPre)?'block':'none'};margin-top:8px">
+          <input type="text" id="catTipoInput" placeholder="Nome do novo grupo..." value="${tipoPre||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Atividade / Serviço *</label>
+        <input type="text" id="catAtivInput" placeholder="Ex: Troca de copo, Retífica plana...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarCategoria()">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharModalCategoria()">Cancelar</button>
+    </div>
+  </div>`;
+
+  // Pré-seleciona grupo se vier com tipo
+  if (tipoPre && tiposExistentes.includes(tipoPre)) {
+    const sel = document.getElementById('catTipoSel');
+    for (let i=0;i<sel.options.length;i++) if(sel.options[i].value===tipoPre){sel.selectedIndex=i;break;}
+    document.getElementById('catTipoInput').value = tipoPre;
+  }
+}
+
+function fecharModalCategoria() {
+  const w = document.getElementById('modalCatWrap');
+  if (w) w.innerHTML = '';
+}
+
+async function salvarCategoria() {
+  const sel  = document.getElementById('catTipoSel');
+  const isNovo = sel?.value === '__novo';
+  const tipo = isNovo
+    ? document.getElementById('catTipoInput')?.value?.trim()
+    : (document.getElementById('catTipoInput')?.value?.trim() || sel?.value);
+  const ativ = document.getElementById('catAtivInput')?.value?.trim();
+  if (!tipo) return toast('Informe o grupo/tipo.','erro');
+  if (!ativ) return toast('Informe a atividade.','erro');
+  try {
+    await db.salvarProdCategoria({ tipo, atividade:ativ, setor:_abaSetorAtiva, ativo:true });
+    toast('Categoria adicionada!','sucesso');
+    fecharModalCategoria();
+    // Atualiza listas globais
+    const cats = await db.listarProdCategorias();
+    if (_listas) {
+      _listas.todasCategorias = cats;
+      _listas.tipos        = [...new Set(cats.filter(c=>c.setor==='Usinagem').map(c=>c.atividade))];
+      _listas.tiposBancada = [...new Set(cats.filter(c=>c.setor==='Bancada').map(c=>c.atividade))];
+      _listas.areasProj    = [...new Set(cats.filter(c=>c.setor==='Projeto').map(c=>c.tipo))];
+      _listas.categoriasProj=[...new Set(cats.filter(c=>c.setor==='Projeto').map(c=>c.atividade))];
+      _listas.mapaBancada  = {};
+      cats.filter(c=>c.setor==='Bancada').forEach(c=>{_listas.mapaBancada[c.atividade]=c.tipo||c.atividade;});
+      inicializarAutocompletes();
+    }
+    carregarCategorias();
+  } catch(e) { toast('Erro ao salvar.','erro'); console.error(e); }
+}
+
+async function editarCategoria(id, ativAtual) {
+  const ativ = prompt('Renomear atividade:', ativAtual);
+  if (!ativ||!ativ.trim()||ativ.trim()===ativAtual) return;
+  try {
+    await db._patch('prod_categorias','id=eq.'+id,{atividade:ativ.trim()});
+    toast('Atualizado!','sucesso'); carregarCategorias();
+  } catch(e){ toast('Erro.','erro'); }
 }
 
 async function excluirCategoria(id) {
-  confirmarExclusao('Remover esta categoria?', async()=>{ try { await db.excluirProdCategoria(id); toast('Removida!','sucesso'); carregarCategorias(); } catch(e){toast('Erro.','erro');} });
+  confirmarExclusao('Remover esta categoria?', async()=>{
+    try { await db.excluirProdCategoria(id); toast('Removida!','sucesso'); carregarCategorias(); }
+    catch(e){ toast('Erro.','erro'); }
+  });
 }
+
+// Compat com código legado
+async function adicionarCategoria(tipo) { abrirModalCategoria(tipo); }
+async function criarNovoGrupoCategoria() { abrirModalCategoria(); }
