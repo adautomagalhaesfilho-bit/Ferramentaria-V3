@@ -161,7 +161,9 @@ const db = {
       hora_inicio: dados.horaInicio || null, hora_fim: dados.horaFim || null,
       minutos: mins, maquina: dados.maquina || null,
       tempo_auto: dados.tempoAuto || null,
-      desconto_almoco: !!dados.descontaAlmoco, turno: dados.turno || null
+      desconto_almoco: !!dados.descontaAlmoco, turno: dados.turno || null,
+      troca_copo: !!dados.trocaCopo,
+      tipo_copo:  dados.tipoCopo || null
     };
     const res = await db._post('lancamentos', reg);
     if (dados.job && dados.status) await db.salvarStatusJob(dados.job, dados.status, dados.descricao || '');
@@ -177,7 +179,9 @@ const db = {
       hora_inicio: dados.horaInicio || null, hora_fim: dados.horaFim || null,
       minutos: mins, maquina: dados.maquina || null,
       tempo_auto: dados.tempoAuto || null,
-      desconto_almoco: !!dados.descontaAlmoco
+      desconto_almoco: !!dados.descontaAlmoco,
+      troca_copo: !!dados.trocaCopo,
+      tipo_copo:  dados.tipoCopo || null
     });
   },
 
@@ -311,8 +315,13 @@ const db = {
     return await db._get('usuarios', '', '*');
   },
   salvarUsuario: async function(dados) {
-    if (dados.id) return await db._patch('usuarios', 'id=eq.' + dados.id, dados);
-    return await db._post('usuarios', dados);
+    // Garante que permissoes seja objeto (não string)
+    const payload = { ...dados };
+    if (payload.permissoes && typeof payload.permissoes === 'string') {
+      try { payload.permissoes = JSON.parse(payload.permissoes); } catch(e) {}
+    }
+    if (payload.id) return await db._patch('usuarios', 'id=eq.' + payload.id, payload);
+    return await db._post('usuarios', payload);
   },
   excluirUsuario: async function(id) {
     return await db._delete('usuarios', 'id=eq.' + id);
@@ -420,7 +429,9 @@ const db = {
       maquina:     l.maquina,
       tempoAuto:   l.tempo_auto,
       turno:       l.turno,
-      descontaAlmoco: l.desconto_almoco
+      descontaAlmoco: l.desconto_almoco,
+      trocaCopo:     l.troca_copo || false,
+      tipoCopo:      l.tipo_copo  || null
     };
   },
 
