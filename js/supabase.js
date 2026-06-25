@@ -435,6 +435,37 @@ const db = {
     };
   },
 
+  // ==========================================
+  // 🗂️ PCM — LOCALIZAÇÃO DE MOLDES
+  // ==========================================
+  listarLocalizacoes: async function() {
+    return await db._get('molde_localizacao', 'order=job.asc', '*');
+  },
+
+  salvarLocalizacao: async function(dados) {
+    // Tenta upsert pelo campo job (único)
+    const existe = await db._get('molde_localizacao', 'job=eq.' + encodeURIComponent(dados.job), 'id');
+    const payload = {
+      job:           dados.job,
+      localizacao:   dados.localizacao,
+      maquina:       dados.maquina    || null,
+      pendencias:    dados.pendencias || null,
+      observacao:    dados.observacao || null,
+      atualizado_em: new Date().toISOString(),
+      atualizado_por:dados.atualizado_por || null
+    };
+    if (existe && existe.length > 0) {
+      return await db._patch('molde_localizacao', 'job=eq.' + encodeURIComponent(dados.job), payload);
+    } else {
+      return await db._post('molde_localizacao', payload);
+    }
+  },
+
+  buscarLocalizacao: async function(job) {
+    const res = await db._get('molde_localizacao', 'job=eq.' + encodeURIComponent(job), '*');
+    return res && res.length > 0 ? res[0] : null;
+  },
+
   _calcularMinutos: function(ini, fim, almoco) {
     if (!ini || !fim) return 0;
     const toMin = h => { const p = h.split(':'); return parseInt(p[0])*60 + parseInt(p[1]); };
