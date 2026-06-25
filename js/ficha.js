@@ -218,7 +218,7 @@ function renderizarFicha(job, res) {
     });
   }, 100);
 
-  renderizarTimeline(hist, lancs);
+  renderizarTimeline(hist, lancs, res.pendencias || [], res.localizacao || null);
   renderizarTabelaFicha(lancs);
 }
 
