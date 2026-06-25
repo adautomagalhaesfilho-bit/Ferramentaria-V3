@@ -463,6 +463,36 @@
         </div>
         <input type="hidden" id="formTipoBancada">
       </div>
+      <div id="grupoCopo" style="display:none">
+  <div class="modal-form-section" style="background:#fefce8;border-color:#fde68a">
+    <div class="modal-form-section-title" style="color:#92400e">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>
+      Troca de Copo
+    </div>
+    <div class="form-group" style="margin-bottom:8px">
+      <label class="checkbox-label">
+        <input type="checkbox" id="formTrocaCopo" onchange="toggleTrocaCopo()">
+        🔄 Foi realizada troca de copo neste lançamento?
+      </label>
+    </div>
+    <div id="grupoTipoCopo" style="display:none;margin-top:12px">
+      <label>Tipo do Copo *</label>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <label class="checkbox-label" style="flex:1;background:#d1fae5;border:2px solid #10b981;border-radius:8px;padding:10px 14px;cursor:pointer">
+          <input type="radio" name="tipoCopo" id="formTipoCopoNovo" value="Novo"
+            onchange="document.getElementById('formTipoCopo').value='Novo'">
+          🆕 Copo Novo
+        </label>
+        <label class="checkbox-label" style="flex:1;background:#e0f2fe;border:2px solid #0891b2;border-radius:8px;padding:10px 14px;cursor:pointer">
+          <input type="radio" name="tipoCopo" id="formTipoCopoEmb" value="Embuchado"
+            onchange="document.getElementById('formTipoCopo').value='Embuchado'">
+          🔧 Embuchado
+        </label>
+      </div>
+      <input type="hidden" id="formTipoCopo">
+    </div>
+  </div>
+</div>
       <div id="grupoArea" style="display:none" class="form-row">
         <div class="form-group"><label>Área *</label><select id="formArea"><option value="">Selecione...</option></select></div>
         <div class="form-group"><label>Categoria *</label><select id="formCategoria"><option value="">Selecione...</option></select></div>
