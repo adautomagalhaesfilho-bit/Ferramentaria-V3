@@ -247,71 +247,96 @@ function limparFiltrosFicha() {
 // ==========================================
 // LINHA DO TEMPO
 // ==========================================
-function renderizarTimeline(hist, lancs) {
+function renderizarTimeline(hist, lancs, pendencias, localizacao) {
   const el = document.getElementById('fichaTimeline');
   if (!el) return;
 
-  if (!hist.length) {
-    // Sem histórico de status → agrupa por data
-    const porData = {};
-    lancs.forEach(l => {
-      if (!porData[l.data]) porData[l.data]={ setores:{}, count:0, copos:[] };
-      if (!porData[l.data].setores[l.setor]) porData[l.data].setores[l.setor]=0;
-      porData[l.data].setores[l.setor]++;
-      porData[l.data].count++;
-      // Registra troca de copo
-      if (l.trocaCopo===true||l.trocaCopo==='true') {
-        porData[l.data].copos.push({ func:l.funcionario, tipo:l.tipoCopo||'—', job:l.job||'—' });
-      }
-    });
-    const cors = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
-    const datas = Object.keys(porData).sort();
-    el.innerHTML = '<div style="position:relative;padding-left:32px">' +
-      datas.map((dt,i) => `
-        <div style="position:relative;margin-bottom:16px">
-          ${i<datas.length-1?'<div style="position:absolute;left:-22px;top:20px;width:2px;height:calc(100%+8px);background:#e2e8f0"></div>':''}
-          <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#10b981;border:2px solid #fff;box-shadow:0 0 0 2px #10b981"></div>
-          <div style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;border-left:3px solid #10b981;padding:12px 16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <b style="color:#1e3a5f">📅 ${dt.split('-').reverse().join('/')}</b>
-              <span style="font-size:11px;color:#94a3b8">${porData[dt].count} lançamento(s)</span>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              ${Object.entries(porData[dt].setores).map(([s,n])=>`
-                <span style="background:#f1f5f9;color:${cors[s]||'#64748b'};font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600">${s}: ${n}</span>
-              `).join('')}
-              ${porData[dt].copos.map(c=>`
-                <span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700">🔄 Troca de Copo: ${c.tipo} (${c.func})</span>
-              `).join('')}
-            </div>
+  const locMap = {
+    'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
+    'Na Ferramentaria':{ ico:'🔧', cor:'#0056b3', bg:'#dbeafe' },
+    'Sala de Molde':   { ico:'📦', cor:'#8b5cf6', bg:'#ede9fe' },
+    'Desativado/LOG':  { ico:'🔴', cor:'#ef4444', bg:'#fee2e2' },
+  };
+  const locInfo = localizacao ? locMap[localizacao.localizacao] : null;
+  const abertas    = (pendencias||[]).filter(p => !p.concluido);
+  const concluidas = (pendencias||[]).filter(p =>  p.concluido);
+
+  let html = '<div style="position:relative;padding-left:32px">';
+
+  // 1. Localização atual (PCM)
+  if (localizacao) {
+    const li = locInfo || { ico:'📍', cor:'#64748b', bg:'#f1f5f9' };
+    html += `<div style="position:relative;margin-bottom:20px">
+      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:${li.cor};border:2px solid #fff;box-shadow:0 0 0 2px ${li.cor}"></div>
+      <div style="background:${li.bg};border-radius:10px;border:1px solid ${li.cor}40;border-left:3px solid ${li.cor};padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div>
+            <span style="font-size:13px;font-weight:700;color:${li.cor}">${li.ico} ${localizacao.localizacao}</span>
+            ${localizacao.maquina?`<span style="font-size:12px;color:#64748b;margin-left:8px">⚙️ ${localizacao.maquina}</span>`:''}
           </div>
-        </div>`).join('') + '</div>';
-    return;
+          <span style="font-size:11px;color:#94a3b8">📅 ${localizacao.atualizado_em?new Date(localizacao.atualizado_em).toLocaleDateString('pt-BR'):'—'} · 👤 ${localizacao.atualizado_por||'—'}</span>
+        </div>
+        ${localizacao.observacao?`<div style="font-size:12px;color:#64748b;margin-top:8px">📝 ${localizacao.observacao}</div>`:''}
+      </div>
+    </div>`;
   }
 
-  // Com histórico de status → mostra intervenções
-  el.innerHTML = '<div style="position:relative;padding-left:32px">' +
-    hist.map((h,i) => {
-      const cor = corStatus(h.status);
-      const bg  = h.status==='Finalizado'?'#d1fae5':h.status==='Pausado'?'#fef3c7':'#fff7ed';
-      const periodo = h.data_inicio
-        ? h.data_inicio.split('-').reverse().join('/') + (h.data_fim?' → '+h.data_fim.split('-').reverse().join('/'):'')
-        : '';
-      return `<div style="position:relative;margin-bottom:20px">
-        ${i<hist.length-1?'<div style="position:absolute;left:-22px;top:20px;width:2px;height:calc(100%+8px);background:#e2e8f0"></div>':''}
-        <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:${cor};border:2px solid #fff;box-shadow:0 0 0 2px ${cor}"></div>
-        <div style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;border-left:3px solid ${cor};padding:14px 16px">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-            <div>
-              <b style="color:#1e3a5f">Intervenção ${h.intervencao}</b>&nbsp;&nbsp;
-              <span style="background:${bg};color:${cor};font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600">${icoStatus(h.status)} ${h.status}</span>
-            </div>
-            <span style="font-size:11px;color:#94a3b8">${periodo}</span>
-          </div>
-          ${h.descricao?`<div style="font-size:12px;color:#64748b;line-height:1.5">📝 ${h.descricao}</div>`:''}
+  // 2. Checklist de pendências
+  if (pendencias && pendencias.length) {
+    html += `<div style="position:relative;margin-bottom:20px">
+      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 0 0 2px #f59e0b"></div>
+      <div style="background:#fffbeb;border-radius:10px;border:1px solid #fde68a;border-left:3px solid #f59e0b;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:12px">
+          ✅ Pendências
+          ${abertas.length?`<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${abertas.length} abertas</span>`:'<span style="background:#10b981;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">Todas concluídas</span>'}
         </div>
-      </div>`;
-    }).join('') + '</div>';
+        ${abertas.map(p=>`
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fde68a">
+            <span style="color:#f59e0b;font-size:14px;margin-top:1px">○</span>
+            <div style="flex:1">
+              <div style="font-size:13px;color:#1e3a5f">${p.texto}</div>
+              <div style="font-size:10px;color:#94a3b8">👤 ${p.criado_por||'—'} · 📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'}</div>
+            </div>
+          </div>`).join('')}
+        ${concluidas.length?`
+          <div style="margin-top:10px;font-size:11px;color:#94a3b8;font-weight:700;letter-spacing:1px">CONCLUÍDAS</div>
+          ${concluidas.map(p=>`
+            <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;opacity:0.6">
+              <span style="color:#10b981;font-size:14px;margin-top:1px">✓</span>
+              <div style="flex:1">
+                <div style="font-size:12px;color:#64748b;text-decoration:line-through">${p.texto}</div>
+                <div style="font-size:10px;color:#94a3b8">✅ ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</div>
+              </div>
+            </div>`).join('')}
+        `:''}
+      </div>
+    </div>`;
+  } else {
+    html += `<div style="position:relative;margin-bottom:16px">
+      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#e2e8f0;border:2px solid #fff"></div>
+      <div style="color:#94a3b8;font-size:13px;padding:8px 0">Nenhuma pendência registrada pelo PCM.</div>
+    </div>`;
+  }
+
+  // 3. Trocas de copo
+  const copos = lancs.filter(l => l.trocaCopo===true||l.trocaCopo==='true');
+  if (copos.length) {
+    html += `<div style="position:relative;margin-bottom:20px">
+      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#0891b2;border:2px solid #fff;box-shadow:0 0 0 2px #0891b2"></div>
+      <div style="background:#e0f2fe;border-radius:10px;border:1px solid #bae6fd;border-left:3px solid #0891b2;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:10px">🔄 Histórico de Troca de Copo</div>
+        ${copos.map(l=>`
+          <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed #bae6fd;font-size:12px">
+            <span style="color:#0369a1;font-weight:600">${l.data?l.data.split('-').reverse().join('/'):'—'}</span>
+            <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
+            <span style="color:#64748b">👤 ${l.funcionario||'—'}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 // ==========================================
