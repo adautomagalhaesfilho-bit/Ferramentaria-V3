@@ -183,6 +183,11 @@ function _criarCardPCM(m, info) {
           : ''}
       </div>
       <div style="display:flex;gap:6px">
+        <button onclick="abrirModalPendencias('${jobEsc}')"
+          style="background:#fefce8;border:1px solid #fde68a;color:#92400e;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;position:relative"
+          title="Pendências">
+          ✅ <span data-job-badge="${jobEsc}" style="background:#ef4444;color:#fff;border-radius:10px;font-size:10px;padding:1px 5px;font-weight:700"></span>
+        </button>
         <button onclick="gerarQRCode('${jobEsc}')"
           style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
           title="Gerar QR Code">📱</button>
@@ -414,4 +419,141 @@ function verificarQRCodeURL() {
       setTimeout(() => buscarFicha(), 200);
     }, 800);
   }
+}
+
+// ==========================================
+// ✅ CHECKLIST DE PENDÊNCIAS — PCM
+// ==========================================
+
+async function carregarPendencias(job) {
+  return await db._get('molde_pendencias',
+    'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*');
+}
+
+async function adicionarPendencia(job) {
+  const texto = document.getElementById('novaPendenciaInput')?.value?.trim();
+  if (!texto) return toast('Digite o texto da pendência.', 'erro');
+  try {
+    await db._post('molde_pendencias', {
+      job, texto,
+      concluido: false,
+      criado_por: _sessao?.nome || null
+    });
+    document.getElementById('novaPendenciaInput').value = '';
+    await renderizarChecklist(job);
+    toast('Pendência adicionada!', 'sucesso');
+  } catch(e) { toast('Erro ao adicionar.', 'erro'); }
+}
+
+async function togglePendencia(id, job, concluido) {
+  try {
+    const payload = {
+      concluido: !concluido,
+      data_conclusao: !concluido ? new Date().toISOString().split('T')[0] : null
+    };
+    await db._patch('molde_pendencias', 'id=eq.' + id, payload);
+    await renderizarChecklist(job);
+  } catch(e) { toast('Erro ao atualizar.', 'erro'); }
+}
+
+async function excluirPendencia(id, job) {
+  try {
+    await db._delete('molde_pendencias', 'id=eq.' + id);
+    await renderizarChecklist(job);
+  } catch(e) { toast('Erro ao excluir.', 'erro'); }
+}
+
+async function renderizarChecklist(job) {
+  const el = document.getElementById('checklistPendencias');
+  if (!el) return;
+  const pends = await carregarPendencias(job);
+  const abertas    = (pends||[]).filter(p => !p.concluido);
+  const concluidas = (pends||[]).filter(p =>  p.concluido);
+
+  let html = '';
+
+  if (!pends.length) {
+    html = `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">
+      ✅ Nenhuma pendência registrada
+    </div>`;
+  } else {
+    // Itens abertos
+    html += abertas.map(p => `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px dashed #f1f5f9">
+        <input type="checkbox" style="margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:#10b981"
+          onchange="togglePendencia(${p.id},'${job.replace(/'/g,"\\'")}',false)">
+        <div style="flex:1">
+          <div style="font-size:13px;color:#1e3a5f;font-weight:500">${p.texto}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+            👤 ${p.criado_por||'—'} · 📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'}
+          </div>
+        </div>
+        <button onclick="excluirPendencia(${p.id},'${job.replace(/'/g,"\\'")}')"
+          style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0" title="Excluir">🗑️</button>
+      </div>`).join('');
+
+    // Itens concluídos
+    if (concluidas.length) {
+      html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:12px 0 8px;text-transform:uppercase">
+        ✅ Concluídas (${concluidas.length})
+      </div>`;
+      html += concluidas.map(p => `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed #f1f5f9;opacity:0.6">
+          <input type="checkbox" checked style="margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:#10b981"
+            onchange="togglePendencia(${p.id},'${job.replace(/'/g,"\\'")}',true)">
+          <div style="flex:1">
+            <div style="font-size:13px;color:#64748b;text-decoration:line-through">${p.texto}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+              ✅ Concluída em ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}
+              · 👤 ${p.criado_por||'—'}
+            </div>
+          </div>
+          <button onclick="excluirPendencia(${p.id},'${job.replace(/'/g,"\\'")}')"
+            style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0">🗑️</button>
+        </div>`).join('');
+    }
+  }
+
+  el.innerHTML = html;
+
+  // Atualiza badge de pendências no card do PCM
+  const badge = document.querySelector(`[data-job-badge="${job}"]`);
+  if (badge) badge.innerText = abertas.length || '';
+}
+
+// Modal de checklist — abre ao clicar em "Pendências" no card PCM
+async function abrirModalPendencias(job) {
+  const div = document.createElement('div');
+  div.id = 'modalPendWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharModalPendencias()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:520px">
+    <div class="modal-header">
+      <h3>✅ Pendências — ${job}</h3>
+      <button onclick="fecharModalPendencias()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Input nova pendência -->
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="novaPendenciaInput" placeholder="Descreva a pendência..."
+          style="flex:1" onkeydown="if(event.key==='Enter') adicionarPendencia('${job.replace(/'/g,"\\'")}')" >
+        <button class="btn-primary" style="white-space:nowrap" onclick="adicionarPendencia('${job.replace(/'/g,"\\'")}')">+ Adicionar</button>
+      </div>
+      <!-- Lista de pendências -->
+      <div id="checklistPendencias">
+        <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fecharModalPendencias()">Fechar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  await renderizarChecklist(job);
+}
+
+function fecharModalPendencias() {
+  document.getElementById('modalPendWrap')?.remove();
+  // Recarrega PCM para atualizar badges
+  carregarPCM();
 }
