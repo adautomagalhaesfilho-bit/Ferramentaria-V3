@@ -281,13 +281,17 @@ const db = {
   // 📄 FICHA DO MOLDE
   // ==========================================
   buscarFicha: async function(job) {
-    const [lancamentos, statusHistory] = await Promise.all([
+    const [lancamentos, statusHistory, pendencias, localizacao] = await Promise.all([
       db._get('lancamentos', 'job=eq.' + encodeURIComponent(job) + '&order=data.asc', '*'),
-      db.historicoStatusJob(job)
+      db.historicoStatusJob(job),
+      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*'),
+      db.buscarLocalizacao(job)
     ]);
     return {
       lancamentos:   (lancamentos || []).map(db._formatarLancamento),
-      statusHistory: statusHistory || []
+      statusHistory: statusHistory || [],
+      pendencias:    pendencias || [],
+      localizacao:   localizacao || null
     };
   },
 
