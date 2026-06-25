@@ -1,5 +1,5 @@
 // ==========================================
-// 📋 APONTAMENTOS.JS — Modal V3
+// 📋 APONTAMENTOS.JS — Modal V3 + Troca de Copo
 // ==========================================
 
 var _setorAtivo = 'Usinagem';
@@ -63,7 +63,7 @@ function renderizarApontamentos() {
 
   const cabs = {
     Usinagem:'<tr><th>Job</th><th>Máquina</th><th>Técnico</th><th>Horários</th><th>Tipo</th><th>Descrição</th><th>Status</th><th>Ações</th></tr>',
-    Bancada: '<tr><th>Job</th><th>Atividade</th><th>Técnico</th><th>Horários</th><th>Prod.</th><th>Descrição</th><th>Status</th><th>Ações</th></tr>',
+    Bancada: '<tr><th>Job</th><th>Atividade</th><th>Técnico</th><th>Horários</th><th>Prod.</th><th>Troca Copo</th><th>Descrição</th><th>Ações</th></tr>',
     Projeto: '<tr><th>Job</th><th>Área</th><th>Técnico</th><th>Categoria</th><th>Descrição</th><th>Status</th><th></th><th>Ações</th></tr>'
   };
   if (thead) thead.innerHTML = cabs[_setorAtivo];
@@ -86,10 +86,23 @@ function renderizarApontamentos() {
     const job = item.job ? `<b>${item.job}</b>` : '<span style="color:#aaa">—</span>';
     const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '<span style="color:#f59e0b">⏳</span>');
 
+    // Badge troca de copo (só Bancada)
+    let badgeCopo = '';
+    if (_setorAtivo==='Bancada') {
+      if (item.trocaCopo === true || item.trocaCopo === 'true') {
+        const tipoCopo = item.tipoCopo || '—';
+        const cor = tipoCopo==='Novo' ? '#059669' : '#0891b2';
+        const bg  = tipoCopo==='Novo' ? '#d1fae5' : '#e0f2fe';
+        badgeCopo = `<span style="background:${bg};color:${cor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700">🔄 ${tipoCopo}</span>`;
+      } else {
+        badgeCopo = '<span style="color:#94a3b8;font-size:11px">—</span>';
+      }
+    }
+
     if (_setorAtivo==='Usinagem')
       return `<tr><td>${job}</td><td>${item.maquina||'—'}</td><td>${item.funcionario||'—'}</td><td style="font-size:12px">${hr}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
     if (_setorAtivo==='Bancada')
-      return `<tr><td>${job}</td><td>${item.tipo||'—'}</td><td>${item.funcionario||'—'}</td><td style="font-size:12px">${hr}</td><td style="color:#10b981;font-weight:bold">${item.hrProd||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
+      return `<tr><td>${job}</td><td>${item.tipo||'—'}</td><td>${item.funcionario||'—'}</td><td style="font-size:12px">${hr}</td><td style="color:#10b981;font-weight:bold">${item.hrProd||'—'}</td><td>${badgeCopo}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${acoes}</td></tr>`;
     return `<tr><td>${job}</td><td>${item.area||'—'}</td><td>${item.funcionario||'—'}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td></td><td>${acoes}</td></tr>`;
   }).join('');
 
@@ -126,15 +139,21 @@ async function editarApontamento(idx) {
   if (_setorAtivo==='Usinagem') {
     setSelect('formMaq', item.maquina);
     setSelect('formTipoUsina', item.tipo);
-    document.getElementById('formHrIni').value    = item.horaInicio || '';
-    document.getElementById('formHrFim').value    = item.horaFim    || '';
-    document.getElementById('formTempoAuto').value = item.tempoAuto || '';
+    document.getElementById('formHrIni').value     = item.horaInicio || '';
+    document.getElementById('formHrFim').value     = item.horaFim    || '';
+    document.getElementById('formTempoAuto').value = item.tempoAuto  || '';
     document.getElementById('formAlmoco').checked  = !!item.descontaAlmoco;
   } else if (_setorAtivo==='Bancada') {
     document.getElementById('formTipoBancadaInput').value = item.tipo || '';
     document.getElementById('formTipoBancada').value      = item.tipo || '';
     document.getElementById('formHrIni').value = item.horaInicio || '';
     document.getElementById('formHrFim').value = item.horaFim    || '';
+    // Troca de copo
+    const chkCopo = document.getElementById('formTrocaCopo');
+    const grpCopo = document.getElementById('grupoTipoCopo');
+    if (chkCopo) chkCopo.checked = !!(item.trocaCopo === true || item.trocaCopo === 'true');
+    if (grpCopo) grpCopo.style.display = chkCopo?.checked ? '' : 'none';
+    setSelect('formTipoCopo', item.tipoCopo || '');
   } else {
     setSelect('formArea', item.area);
     setSelect('formCategoria', item.tipo);
@@ -142,12 +161,23 @@ async function editarApontamento(idx) {
   document.getElementById('formJob').value  = item.job       || '';
   document.getElementById('formDesc').value = item.descricao || '';
   atualizarBotoesStatus();
-  document.getElementById('tituloForm').innerText = 'Editar Lançamento — ' + _setorAtivo;
+  document.getElementById('tituloForm').innerText    = 'Editar Lançamento — ' + _setorAtivo;
   document.getElementById('btnSalvarForm').innerText = '💾 Atualizar Lançamento';
   abrirModalForm();
 }
 
 function cancelarForm() { fecharModalForm(); }
+
+// Toggle visibilidade do tipo de copo
+function toggleTrocaCopo() {
+  const chk  = document.getElementById('formTrocaCopo');
+  const grp  = document.getElementById('grupoTipoCopo');
+  if (grp) grp.style.display = chk?.checked ? '' : 'none';
+  if (!chk?.checked) {
+    const sel = document.getElementById('formTipoCopo');
+    if (sel) sel.selectedIndex = 0;
+  }
+}
 
 // ==========================================
 // 💾 SALVAR
@@ -177,7 +207,7 @@ async function salvarForm() {
       toast('Lançamento atualizado!','sucesso');
       fecharModalForm();
     }
-    const dt  = document.getElementById('apontData')?.value;
+    const dt   = document.getElementById('apontData')?.value;
     const maqF = document.getElementById('apontMaq')?.value || 'Todas';
     _dadosApontamentos = await db.buscarLancamentosDia(setor, dt, maqF);
     renderizarApontamentos();
@@ -194,37 +224,50 @@ async function excluirApontamento(id) {
 }
 
 function coletarDadosForm(setor) {
-  const data       = document.getElementById('formData').value;
+  const data        = document.getElementById('formData').value;
   const funcionario = document.getElementById('formFunc').value;
-  const job        = document.getElementById('formJob').value;
-  const descricao  = document.getElementById('formDesc').value;
-  const status     = _statusForm || 'Em andamento';
-  if (!data)        { toast('Informe a data.','erro'); return null; }
-  if (!funcionario) { toast('Selecione o funcionário.','erro'); return null; }
-  if (!descricao)   { toast('Preencha a descrição.','erro'); return null; }
+  const job         = document.getElementById('formJob').value;
+  const descricao   = document.getElementById('formDesc').value;
+  const status      = _statusForm || 'Em andamento';
+  if (!data)        { toast('Informe a data.','erro');            return null; }
+  if (!funcionario) { toast('Selecione o funcionário.','erro');   return null; }
+  if (!descricao)   { toast('Preencha a descrição.','erro');      return null; }
   const dados = { data, setor, funcionario, job, descricao, status };
+
   if (setor==='Usinagem') {
     const maquina = document.getElementById('formMaq')?.value;
     const tipo    = document.getElementById('formTipoUsina')?.value;
     const hrIni   = document.getElementById('formHrIni')?.value;
     const hrFim   = document.getElementById('formHrFim')?.value;
-    if (!maquina) { toast('Selecione a máquina.','erro'); return null; }
+    if (!maquina) { toast('Selecione a máquina.','erro');         return null; }
     if (!tipo)    { toast('Selecione o tipo de serviço.','erro'); return null; }
-    if (!hrIni)   { toast('Informe a hora de início.','erro'); return null; }
-    Object.assign(dados, { maquina, tipo, horaInicio:hrIni, horaFim:hrFim, descontaAlmoco:document.getElementById('formAlmoco')?.checked, tempoAuto:document.getElementById('formTempoAuto')?.value });
+    if (!hrIni)   { toast('Informe a hora de início.','erro');    return null; }
+    Object.assign(dados, {
+      maquina, tipo, horaInicio:hrIni, horaFim:hrFim,
+      descontaAlmoco: document.getElementById('formAlmoco')?.checked,
+      tempoAuto:      document.getElementById('formTempoAuto')?.value
+    });
   } else if (setor==='Bancada') {
     const tipo  = document.getElementById('formTipoBancada')?.value;
     const hrIni = document.getElementById('formHrIni')?.value;
     const hrFim = document.getElementById('formHrFim')?.value;
-    if (!tipo)  { toast('Selecione a atividade.','erro'); return null; }
-    if (!hrIni) { toast('Informe a hora de início.','erro'); return null; }
-    if (!hrFim) { toast('Informe a hora de fim.','erro'); return null; }
-    Object.assign(dados, { tipo, horaInicio:hrIni, horaFim:hrFim, descontaAlmoco:document.getElementById('formAlmoco')?.checked });
+    if (!tipo)  { toast('Selecione a atividade.','erro');      return null; }
+    if (!hrIni) { toast('Informe a hora de início.','erro');   return null; }
+    if (!hrFim) { toast('Informe a hora de fim.','erro');      return null; }
+    // Troca de copo
+    const trocaCopo = document.getElementById('formTrocaCopo')?.checked || false;
+    const tipoCopo  = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
+    if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo (Novo ou Embuchado).','erro'); return null; }
+    Object.assign(dados, {
+      tipo, horaInicio:hrIni, horaFim:hrFim,
+      descontaAlmoco: document.getElementById('formAlmoco')?.checked,
+      trocaCopo, tipoCopo
+    });
   } else {
     const area      = document.getElementById('formArea')?.value;
     const categoria = document.getElementById('formCategoria')?.value;
-    if (!area)      { toast('Selecione a área.','erro'); return null; }
-    if (!categoria) { toast('Selecione a categoria.','erro'); return null; }
+    if (!area)      { toast('Selecione a área.','erro');       return null; }
+    if (!categoria) { toast('Selecione a categoria.','erro');  return null; }
     Object.assign(dados, { area, tipo:categoria });
   }
   return dados;
@@ -238,6 +281,7 @@ function configurarCamposForm(setor) {
     grupoMaquina:     setor==='Usinagem',
     grupoTipoUsina:   setor==='Usinagem',
     grupoTipoBancada: setor==='Bancada',
+    grupoCopo:        setor==='Bancada',   // <-- NOVO
     grupoArea:        setor==='Projeto',
     grupoHrIni:       setor!=='Projeto',
     grupoHrFim:       setor!=='Projeto',
@@ -248,6 +292,12 @@ function configurarCamposForm(setor) {
     const el = document.getElementById(id);
     if (el) el.style.display = v ? '' : 'none';
   });
+  // Garante que tipo de copo começa oculto
+  const grpCopo = document.getElementById('grupoTipoCopo');
+  if (grpCopo) grpCopo.style.display = 'none';
+  const chkCopo = document.getElementById('formTrocaCopo');
+  if (chkCopo) chkCopo.checked = false;
+
   if (!_listas) return;
   if (setor==='Usinagem') {
     montarSelect('formMaq', _listas.maquinas||[]);
@@ -291,7 +341,7 @@ async function carregarFuncionariosForm(setor) {
 function selecionarStatus(status) { _statusForm=status; atualizarBotoesStatus(); }
 
 function atualizarBotoesStatus() {
-  const mapa   = { 'Em andamento':'btnAndamento','Pausado':'btnPausado','Finalizado':'btnFinalizado' };
+  const mapa    = { 'Em andamento':'btnAndamento','Pausado':'btnPausado','Finalizado':'btnFinalizado' };
   const classes = { 'Em andamento':'ativo-and','Pausado':'ativo-paus','Finalizado':'ativo-fin' };
   Object.values(mapa).forEach(id => { const b=document.getElementById(id); if(b) b.className='btn-status'; });
   if (_statusForm && mapa[_statusForm]) {
@@ -302,9 +352,11 @@ function atualizarBotoesStatus() {
 
 function resetarForm() {
   ['formData','formFunc','formMaq','formTipoUsina','formMotivo','formTipoBancadaInput',
-   'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim','formTempoAuto']
+   'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim','formTempoAuto','formTipoCopo']
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
-  const alm=document.getElementById('formAlmoco'); if(alm) alm.checked=false;
+  const alm = document.getElementById('formAlmoco');   if(alm) alm.checked=false;
+  const cop = document.getElementById('formTrocaCopo'); if(cop) cop.checked=false;
+  const grp = document.getElementById('grupoTipoCopo'); if(grp) grp.style.display='none';
   document.getElementById('btnSalvarForm').innerText='💾 Salvar Lançamento';
 }
 
@@ -313,12 +365,12 @@ function resetarForm() {
 // ==========================================
 async function enviarWhatsapp() {
   if (!_dadosApontamentos.length) return toast('Nenhum dado para enviar.','erro');
-  const obs  = document.getElementById('wppObs')?.value?.trim();
-  const dtArr = document.getElementById('apontData')?.value?.split('-');
+  const obs    = document.getElementById('wppObs')?.value?.trim();
+  const dtArr  = document.getElementById('apontData')?.value?.split('-');
   const dataBR = dtArr ? dtArr[2]+'/'+dtArr[1]+'/'+dtArr[0] : '—';
-  const dias = ['DOMINGO','SEGUNDA-FEIRA','TERÇA-FEIRA','QUARTA-FEIRA','QUINTA-FEIRA','SEXTA-FEIRA','SÁBADO'];
+  const dias   = ['DOMINGO','SEGUNDA-FEIRA','TERÇA-FEIRA','QUARTA-FEIRA','QUINTA-FEIRA','SEXTA-FEIRA','SÁBADO'];
   const diaSem = dias[new Date((document.getElementById('apontData')?.value||'')+'T12:00:00').getDay()];
-  const sep = '─────────────────────────';
+  const sep    = '─────────────────────────';
   let t = '';
 
   if (_setorAtivo==='Usinagem') {
@@ -350,7 +402,12 @@ async function enviarWhatsapp() {
       t+=sep+'\n📍 *'+mestra.toUpperCase()+'*\n\n';
       Object.keys(grupos[mestra]).forEach(tipo => {
         t+='→ '+tipo.toUpperCase()+'\n';
-        grupos[mestra][tipo].forEach(i => { t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ${icoStatus(i.status)} ${i.status||''}\n  👤 ${i.funcionario||'—'}\n`; });
+        grupos[mestra][tipo].forEach(i => {
+          t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ${icoStatus(i.status)} ${i.status||''}\n  👤 ${i.funcionario||'—'}`;
+          // Troca de copo no relatório WhatsApp
+          if (i.trocaCopo===true||i.trocaCopo==='true') t+=`\n  🔄 *Troca de Copo:* ${i.tipoCopo||'—'}`;
+          t+='\n';
+        });
         t+='\n';
       });
     });
