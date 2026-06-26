@@ -64,8 +64,6 @@ function filtrarFuncionarios() {
       </div>
       <div class="lista-item-acoes">
         <span class="${f.ativo?'badge-ativo':'badge-inativo'}">${f.ativo?'ATIVO':'INATIVO'}</span>
-        <button class="btn-icon" onclick="event.stopPropagation();abrirFichaFuncionario(${f.id},'${f._origem}')">👁️</button>
-        <button class="btn-icon danger" onclick="event.stopPropagation();excluirFuncConfirm(${f.id},'${f._origem}')">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -232,8 +230,12 @@ async function abrirFichaFuncionario(id, origem) {
             <span class="${f.ativo?'badge-ativo':'badge-inativo'}">${f.ativo?'ATIVO':'INATIVO'}</span>
           </div>
         </div>
-        ${editando ? `<button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>` : ''}
-      </div>
+${editando ? `
+  <div style="display:flex;gap:8px">
+    <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>
+    <button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}')">🗑️ Excluir</button>
+  </div>` : ''}  
+  </div>
     </div>
 
     <!-- DADOS -->
