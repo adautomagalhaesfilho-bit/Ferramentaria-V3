@@ -269,14 +269,15 @@ function coletarDadosForm(setor) {
     if (!tipo)  { toast('Selecione a atividade.','erro');     return null; }
     if (!hrIni) { toast('Informe a hora de início.','erro');  return null; }
     if (!hrFim) { toast('Informe a hora de fim.','erro');     return null; }
-    const trocaCopo = document.getElementById('formTrocaCopo')?.checked || false;
-    const tipoCopo  = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
-    if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo (Novo ou Embuchado).','erro'); return null; }
-    Object.assign(dados, {
+   const trocaCopo   = document.getElementById('formTrocaCopo')?.checked || false;
+    const tipoCopo    = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
+    const descCopo    = trocaCopo ? (document.getElementById('formDescCopo')?.value?.trim() || null) : null;
+      if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo (Novo ou Embuchado).','erro'); return null; }
+      Object.assign(dados, {
       tipo, horaInicio:hrIni, horaFim:hrFim,
       descontaAlmoco: document.getElementById('formAlmoco')?.checked,
-      trocaCopo, tipoCopo
-    });
+      trocaCopo, tipoCopo, descricaoCopo: descCopo
+});
   } else {
     const area      = document.getElementById('formArea')?.value;
     const categoria = document.getElementById('formCategoria')?.value;
