@@ -22,7 +22,15 @@ async function buscarFicha() {
   elConteudo.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando ficha...</span></div>';
   elConteudo.style.display = 'block';
   try {
-    const res = await db.buscarFicha(job);
+    const [res, localizacao, pendencias, histLoc] = await Promise.all([
+      db.buscarFicha(job),
+      db.buscarLocalizacao(job),
+      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*'),
+      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*')
+    ]);
+    res.localizacao = localizacao;
+    res.pendencias  = pendencias || [];
+    res.histLoc     = histLoc   || [];
     _dadosFicha = res;
     _lancsFicha = res.lancamentos || [];
     if (!_lancsFicha.length) {
@@ -42,9 +50,16 @@ function renderizarFicha(job, res) {
   const lancs   = res.lancamentos || [];
   const hist    = res.statusHistory || [];
   const el      = document.getElementById('fichaConteudo');
-  const status  = hist.length ? hist[hist.length-1].status : (lancs[lancs.length-1]?.status || 'Em andamento');
-  const corS    = corStatus(status);
-  const bgS     = status==='Finalizado'?'#d1fae5':status==='Pausado'?'#fef3c7':'#fff7ed';
+  const locAtual = res.localizacao;
+  const _locMap = {
+    'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
+    'Na Ferramentaria':{ ico:'🔧', cor:'#0056b3', bg:'#dbeafe' },
+    'Sala de Molde':   { ico:'📦', cor:'#8b5cf6', bg:'#ede9fe' },
+    'Desativado/LOG':  { ico:'🔴', cor:'#ef4444', bg:'#fee2e2' },
+  };
+  const locInfo = locAtual ? (_locMap[locAtual.localizacao]||{ico:'📍',cor:'#64748b',bg:'#f1f5f9'}) : null;
+  const corS    = locInfo?.cor || '#64748b';
+  const bgS     = locInfo?.bg  || '#f1f5f9';
   const totalMins = lancs.reduce((a,l)=>a+(l.minutos||0),0);
 
   const porSetor = {};
@@ -69,7 +84,13 @@ function renderizarFicha(job, res) {
       <div>
         <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:1px;margin-bottom:6px">FICHA DO MOLDE</div>
         <div style="font-size:24px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${job}</div>
-        <span style="display:inline-flex;align-items:center;gap:6px;background:${bgS};color:${corS};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid ${corS}">${icoStatus(status)} ${status}</span>
+        ${locInfo
+          ? `<span style="display:inline-flex;align-items:center;gap:6px;background:${bgS};color:${corS};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid ${corS}">
+              ${locInfo.ico} ${locAtual.localizacao}
+              ${locAtual.maquina?'<span style="font-size:11px;opacity:0.8">· '+locAtual.maquina+'</span>':''}
+             </span>`
+          : '<span style="background:#f1f5f9;color:#64748b;padding:4px 12px;border-radius:20px;font-size:12px">📍 Localização não registrada</span>'
+        }
       </div>
       <div style="text-align:right;font-size:12px;color:#64748b">
         <div>📅 Primeiro: <b>${lancs[0].data.split('-').reverse().join('/')}</b></div>
@@ -218,7 +239,7 @@ function renderizarFicha(job, res) {
     });
   }, 100);
 
-  renderizarTimeline(hist, lancs, res.pendencias || [], res.localizacao || null);
+  renderizarTimeline(hist, lancs, res.pendencias || [], res.localizacao || null, res.histLoc || []);
   renderizarTabelaFicha(lancs);
 }
 
@@ -247,7 +268,7 @@ function limparFiltrosFicha() {
 // ==========================================
 // LINHA DO TEMPO
 // ==========================================
-function renderizarTimeline(hist, lancs, pendencias, localizacao) {
+function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
   const el = document.getElementById('fichaTimeline');
   if (!el) return;
 
@@ -331,6 +352,31 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao) {
             <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
             <span style="color:#64748b">👤 ${l.funcionario||'—'}</span>
           </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // 4. Histórico de movimentação (PCM)
+  if (histLoc && histLoc.length) {
+    const locMapH = {
+      'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
+      'Na Ferramentaria':{ ico:'🔧', cor:'#0056b3', bg:'#dbeafe' },
+      'Sala de Molde':   { ico:'📦', cor:'#8b5cf6', bg:'#ede9fe' },
+      'Desativado/LOG':  { ico:'🔴', cor:'#ef4444', bg:'#fee2e2' },
+    };
+    html += `<div style="position:relative;margin-bottom:20px">
+      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#475569;border:2px solid #fff;box-shadow:0 0 0 2px #475569"></div>
+      <div style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;border-left:3px solid #475569;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:12px">🗺️ Histórico de Movimentação</div>
+        ${histLoc.map(h => {
+          const li = locMapH[h.localizacao] || { ico:'📍', cor:'#64748b', bg:'#f1f5f9' };
+          const dt = h.movido_em ? new Date(h.movido_em).toLocaleDateString('pt-BR') : '—';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed #e2e8f0">
+            <span style="background:${li.bg};color:${li.cor};font-size:11px;padding:2px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${li.ico} ${h.localizacao}</span>
+            ${h.maquina?`<span style="font-size:11px;color:#64748b">🏭 ${h.maquina}</span>`:''}
+            <span style="font-size:11px;color:#94a3b8;margin-left:auto;white-space:nowrap">📅 ${dt} · 👤 ${h.movido_por||'—'}</span>
+          </div>`;
+        }).join('')}
       </div>
     </div>`;
   }
