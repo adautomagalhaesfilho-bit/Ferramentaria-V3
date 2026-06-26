@@ -81,19 +81,18 @@ function renderizarApontamentos() {
     const stTxt = `<span style="color:${cor};font-weight:600;font-size:12px">${ico} ${item.status||'Em andamento'}</span>`;
     const acoes = podeEditar()
       ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarApontamento(${origIdx})">✏️</button>
-        <button class="btn-danger"  style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${item.id})">🗑️</button>
-: '';
+         <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${item.id})">🗑️</button>`
+      : '';
     const job = item.job ? `<b>${item.job}</b>` : '<span style="color:#aaa">—</span>';
     const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '<span style="color:#f59e0b">⏳</span>');
 
-    // Badge troca de copo (só Bancada)
     let badgeCopo = '';
     if (_setorAtivo==='Bancada') {
       if (item.trocaCopo === true || item.trocaCopo === 'true') {
         const tipoCopo = item.tipoCopo || '—';
-        const cor = tipoCopo==='Novo' ? '#059669' : '#0891b2';
-        const bg  = tipoCopo==='Novo' ? '#d1fae5' : '#e0f2fe';
-        badgeCopo = `<span style="background:${bg};color:${cor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700">🔄 ${tipoCopo}</span>`;
+        const corC = tipoCopo==='Novo' ? '#059669' : '#0891b2';
+        const bg   = tipoCopo==='Novo' ? '#d1fae5' : '#e0f2fe';
+        badgeCopo = `<span style="background:${bg};color:${corC};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700">🔄 ${tipoCopo}</span>`;
       } else {
         badgeCopo = '<span style="color:#94a3b8;font-size:11px">—</span>';
       }
@@ -134,9 +133,9 @@ async function editarApontamento(idx) {
   resetarForm();
   configurarCamposForm(_setorAtivo);
   await carregarFuncionariosForm(_setorAtivo);
-document.getElementById('formData').value = item.data || '';
-await new Promise(r => setTimeout(r, 50));
-setSelect('formFunc', item.funcionario);
+  document.getElementById('formData').value = item.data || '';
+  await new Promise(r => setTimeout(r, 50));
+  setSelect('formFunc', item.funcionario);
   if (_setorAtivo==='Usinagem') {
     setSelect('formMaq', item.maquina);
     setSelect('formTipoUsina', item.tipo);
@@ -149,21 +148,17 @@ setSelect('formFunc', item.funcionario);
     document.getElementById('formTipoBancada').value      = item.tipo || '';
     document.getElementById('formHrIni').value = item.horaInicio || '';
     document.getElementById('formHrFim').value = item.horaFim    || '';
-    // Troca de copo
     const chkCopo = document.getElementById('formTrocaCopo');
     const grpCopo = document.getElementById('grupoTipoCopo');
     if (chkCopo) chkCopo.checked = !!(item.trocaCopo === true || item.trocaCopo === 'true');
     if (grpCopo) grpCopo.style.display = chkCopo?.checked ? '' : 'none';
     const elTipoCopo = document.getElementById('formTipoCopo');
-if (elTipoCopo) elTipoCopo.value = item.tipoCopo || '';
-// Marca o radio correto
-if (item.tipoCopo === 'Novo') {
-  const r = document.getElementById('formTipoCopoNovo');
-  if (r) r.checked = true;
-} else if (item.tipoCopo === 'Embuchado') {
-  const r = document.getElementById('formTipoCopoEmb');
-  if (r) r.checked = true;
-}
+    if (elTipoCopo) elTipoCopo.value = item.tipoCopo || '';
+    if (item.tipoCopo === 'Novo') {
+      const r = document.getElementById('formTipoCopoNovo'); if (r) r.checked = true;
+    } else if (item.tipoCopo === 'Embuchado') {
+      const r = document.getElementById('formTipoCopoEmb'); if (r) r.checked = true;
+    }
   } else {
     setSelect('formArea', item.area);
     setSelect('formCategoria', item.tipo);
@@ -178,14 +173,15 @@ if (item.tipoCopo === 'Novo') {
 
 function cancelarForm() { fecharModalForm(); }
 
-// Toggle visibilidade do tipo de copo
 function toggleTrocaCopo() {
-  const chk  = document.getElementById('formTrocaCopo');
-  const grp  = document.getElementById('grupoTipoCopo');
+  const chk = document.getElementById('formTrocaCopo');
+  const grp = document.getElementById('grupoTipoCopo');
   if (grp) grp.style.display = chk?.checked ? '' : 'none';
   if (!chk?.checked) {
-    const sel = document.getElementById('formTipoCopo');
-    if (sel) sel.selectedIndex = 0;
+    const elTipoCopo = document.getElementById('formTipoCopo');
+    if (elTipoCopo) elTipoCopo.value = '';
+    const r1 = document.getElementById('formTipoCopoNovo'); if (r1) r1.checked = false;
+    const r2 = document.getElementById('formTipoCopoEmb');  if (r2) r2.checked = false;
   }
 }
 
@@ -229,8 +225,17 @@ async function salvarForm() {
 }
 
 async function excluirApontamento(id) {
-  try { await db.excluirLancamento(id); toast('Lançamento excluído!','sucesso'); await buscarApontamentos(); }
-  catch(e) { toast('Erro ao excluir.','erro'); }
+  try {
+    await db.excluirLancamento(id);
+    toast('Lançamento excluído!','sucesso');
+    await buscarApontamentos();
+  } catch(e) { toast('Erro ao excluir.','erro'); }
+}
+
+function excluirApontamentoConfirm(id) {
+  confirmarExclusao('Excluir este lançamento?', function() {
+    excluirApontamento(id);
+  });
 }
 
 function coletarDadosForm(setor) {
@@ -239,9 +244,9 @@ function coletarDadosForm(setor) {
   const job         = document.getElementById('formJob').value;
   const descricao   = document.getElementById('formDesc').value;
   const status      = _statusForm || 'Em andamento';
-  if (!data)        { toast('Informe a data.','erro');            return null; }
-  if (!funcionario) { toast('Selecione o funcionário.','erro');   return null; }
-  if (!descricao)   { toast('Preencha a descrição.','erro');      return null; }
+  if (!data)        { toast('Informe a data.','erro');           return null; }
+  if (!funcionario) { toast('Selecione o funcionário.','erro');  return null; }
+  if (!descricao)   { toast('Preencha a descrição.','erro');     return null; }
   const dados = { data, setor, funcionario, job, descricao, status };
 
   if (setor==='Usinagem') {
@@ -261,10 +266,9 @@ function coletarDadosForm(setor) {
     const tipo  = document.getElementById('formTipoBancada')?.value;
     const hrIni = document.getElementById('formHrIni')?.value;
     const hrFim = document.getElementById('formHrFim')?.value;
-    if (!tipo)  { toast('Selecione a atividade.','erro');      return null; }
-    if (!hrIni) { toast('Informe a hora de início.','erro');   return null; }
-    if (!hrFim) { toast('Informe a hora de fim.','erro');      return null; }
-    // Troca de copo
+    if (!tipo)  { toast('Selecione a atividade.','erro');     return null; }
+    if (!hrIni) { toast('Informe a hora de início.','erro');  return null; }
+    if (!hrFim) { toast('Informe a hora de fim.','erro');     return null; }
     const trocaCopo = document.getElementById('formTrocaCopo')?.checked || false;
     const tipoCopo  = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
     if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo (Novo ou Embuchado).','erro'); return null; }
@@ -276,8 +280,8 @@ function coletarDadosForm(setor) {
   } else {
     const area      = document.getElementById('formArea')?.value;
     const categoria = document.getElementById('formCategoria')?.value;
-    if (!area)      { toast('Selecione a área.','erro');       return null; }
-    if (!categoria) { toast('Selecione a categoria.','erro');  return null; }
+    if (!area)      { toast('Selecione a área.','erro');      return null; }
+    if (!categoria) { toast('Selecione a categoria.','erro'); return null; }
     Object.assign(dados, { area, tipo:categoria });
   }
   return dados;
@@ -291,7 +295,7 @@ function configurarCamposForm(setor) {
     grupoMaquina:     setor==='Usinagem',
     grupoTipoUsina:   setor==='Usinagem',
     grupoTipoBancada: setor==='Bancada',
-    grupoCopo:        setor==='Bancada',   // <-- NOVO
+    grupoCopo:        setor==='Bancada',
     grupoArea:        setor==='Projeto',
     grupoHrIni:       setor!=='Projeto',
     grupoHrFim:       setor!=='Projeto',
@@ -302,7 +306,6 @@ function configurarCamposForm(setor) {
     const el = document.getElementById(id);
     if (el) el.style.display = v ? '' : 'none';
   });
-  // Garante que tipo de copo começa oculto
   const grpCopo = document.getElementById('grupoTipoCopo');
   if (grpCopo) grpCopo.style.display = 'none';
   const chkCopo = document.getElementById('formTrocaCopo');
@@ -367,6 +370,8 @@ function resetarForm() {
   const alm = document.getElementById('formAlmoco');   if(alm) alm.checked=false;
   const cop = document.getElementById('formTrocaCopo'); if(cop) cop.checked=false;
   const grp = document.getElementById('grupoTipoCopo'); if(grp) grp.style.display='none';
+  const r1  = document.getElementById('formTipoCopoNovo'); if(r1) r1.checked=false;
+  const r2  = document.getElementById('formTipoCopoEmb');  if(r2) r2.checked=false;
   document.getElementById('btnSalvarForm').innerText='💾 Salvar Lançamento';
 }
 
@@ -414,7 +419,6 @@ async function enviarWhatsapp() {
         t+='→ '+tipo.toUpperCase()+'\n';
         grupos[mestra][tipo].forEach(i => {
           t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ${icoStatus(i.status)} ${i.status||''}\n  👤 ${i.funcionario||'—'}`;
-          // Troca de copo no relatório WhatsApp
           if (i.trocaCopo===true||i.trocaCopo==='true') t+=`\n  🔄 *Troca de Copo:* ${i.tipoCopo||'—'}`;
           t+='\n';
         });
@@ -449,17 +453,12 @@ function montarSelect(id, arr, padrao) {
   const sel=document.getElementById(id); if(!sel) return;
   sel.innerHTML=`<option value="">${padrao||'Selecione...'}</option>`+arr.map(i=>`<option value="${i}">${i}</option>`).join('');
 }
+
 function setSelect(id, val) {
   const sel = document.getElementById(id);
   if (!sel || !val) return;
-  // Se for input (hidden, text), seta o value diretamente
   if (sel.tagName !== 'SELECT') { sel.value = val; return; }
   for (let i = 0; i < sel.options.length; i++) {
     if (sel.options[i].value === val) { sel.selectedIndex = i; return; }
   }
-}
-function excluirApontamentoConfirm(id) {
-  confirmarExclusao('Excluir este lançamento?', function() {
-    excluirApontamento(id);
-  });
 }
