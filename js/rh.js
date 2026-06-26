@@ -215,7 +215,7 @@ async function abrirFichaFuncionario(id, origem) {
       Produção:'#10b981', Supervisão:'#f59e0b' }[f.setor] || '#64748b';
 
     const fmtDt = d => d ? d.split('-').reverse().join('/') : '—';
-    const editando = f._origem === 'Ferramentaria';
+    const editando = true;
 
     document.getElementById('fichaFuncCorpo').innerHTML = `
     <!-- CABEÇALHO -->
