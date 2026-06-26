@@ -284,25 +284,7 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
 
   let html = '<div style="position:relative;padding-left:32px">';
 
-  // 1. Localização atual (PCM)
-  if (localizacao) {
-    const li = locInfo || { ico:'📍', cor:'#64748b', bg:'#f1f5f9' };
-    html += `<div style="position:relative;margin-bottom:20px">
-      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:${li.cor};border:2px solid #fff;box-shadow:0 0 0 2px ${li.cor}"></div>
-      <div style="background:${li.bg};border-radius:10px;border:1px solid ${li.cor}40;border-left:3px solid ${li.cor};padding:14px 16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <div>
-            <span style="font-size:13px;font-weight:700;color:${li.cor}">${li.ico} ${localizacao.localizacao}</span>
-            ${localizacao.maquina?`<span style="font-size:12px;color:#64748b;margin-left:8px">⚙️ ${localizacao.maquina}</span>`:''}
-          </div>
-          <span style="font-size:11px;color:#94a3b8">📅 ${localizacao.atualizado_em?new Date(localizacao.atualizado_em).toLocaleDateString('pt-BR'):'—'} · 👤 ${localizacao.atualizado_por||'—'}</span>
-        </div>
-        ${localizacao.observacao?`<div style="font-size:12px;color:#64748b;margin-top:8px">📝 ${localizacao.observacao}</div>`:''}
-      </div>
-    </div>`;
-  }
-
-  // 2. Checklist de pendências
+   // 2. Checklist de pendências
   if (pendencias && pendencias.length) {
     html += `<div style="position:relative;margin-bottom:20px">
       <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 0 0 2px #f59e0b"></div>
@@ -350,7 +332,6 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
           <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed #bae6fd;font-size:12px">
             <span style="color:#0369a1;font-weight:600">${l.data?l.data.split('-').reverse().join('/'):'—'}</span>
             <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
-            <span style="color:#64748b">👤 ${l.funcionario||'—'}</span>
           </div>`).join('')}
       </div>
     </div>`;
