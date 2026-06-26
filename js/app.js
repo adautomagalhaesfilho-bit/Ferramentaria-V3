@@ -223,8 +223,9 @@ function fecharModalConf() {
   _excluirCallback = null;
 }
 function executarExclusao() {
+  const cb = _excluirCallback;
   fecharModalConf();
-  if (_excluirCallback) { _excluirCallback(); _excluirCallback = null; }
+  if (cb) cb();
 }
 
 // ==========================================
