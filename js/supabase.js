@@ -78,13 +78,14 @@ const db = {
   // 📋 LISTAS GLOBAIS
   // ==========================================
   obterListas: async function() {
-    const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
-      db._get('funcionarios', 'ativo=eq.true', 'nome,setor,turno'),
-      db._get('maquinas', 'ativo=eq.true', 'nome,turno,cap_liquida'),
-      db._get('jobs', 'ativo=eq.true', 'nome'),
-      db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
-      db._get('motivos_parada', 'ativo=eq.true', 'nome')
-    ]);
+   const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
+  db._get('funcionarios', 'ativo=eq.true', 'nome,setor,turno'),
+  db._get('maquinas', 'ativo=eq.true', 'nome,turno,cap_liquida'),
+  db._get('jobs', 'ativo=eq.true', 'nome'),
+  db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
+  db._get('motivos_parada', 'ativo=eq.true', 'nome'),
+  db._get('prod_injetoras', 'desativacao=is.null', 'nome')
+]);
 
     const funcUsina   = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome);
     const funcBancada = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome);
@@ -132,7 +133,8 @@ const db = {
       catsProjMap:    catsProjMap,
       catsProdMap:    catsProdMap,
       // Dados completos para a tela de categorias
-      todasCategorias: categorias
+      todasCategorias: categorias,
+injetoras:       (injetoras||[]).map(i => i.nome),
     };
   },
 
