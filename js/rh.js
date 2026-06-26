@@ -1,12 +1,16 @@
 // ==========================================
-// 👥 RH.JS — Funcionários + RH V3 + Upload Imagem
+// 👥 RH.JS — Funcionários + RH V3
 // ==========================================
 
-// ==========================================
-// 👥 FUNCIONÁRIOS ADMIN (lista limpa unificada)
-// ==========================================
 var _todosFuncionarios = [];
+var _turnos = ['5x2','Turma A','Turma B','6x1','Estágio'];
+var _setores = ['Usinagem','Bancada','Projeto','Projeto / Desenvolvimento','Produção','Supervisão'];
+var _cargos  = ['Ferramenteiro','Técnico de Ferramentaria','Torneiro Mecânico','Fresador',
+                'Retificador','Operador de Injetora','Estagiário','Supervisor','Encarregado','Outros'];
 
+// ==========================================
+// 👥 LISTA DE FUNCIONÁRIOS
+// ==========================================
 async function carregarFuncionariosRH() {
   const el = document.getElementById('listaFuncionarios');
   if (!el) return;
@@ -18,7 +22,8 @@ async function carregarFuncionariosRH() {
     ]);
     _todosFuncionarios = [
       ...(ferr||[]).map(f => ({ ...f, _origem:'Ferramentaria' })),
-      ...(prod||[]).map(t => ({ id:t.id, nome:t.nome, setor:'Produção', turno:t.turno, supervisor:t.supervisor, ativo:t.ativo, _origem:'Producao' }))
+      ...(prod||[]).map(t => ({ id:t.id, nome:t.nome, setor:'Produção', turno:t.turno,
+        supervisor:t.supervisor, ativo:t.ativo, _origem:'Producao' }))
     ];
     filtrarFuncionarios();
   } catch(e) {
@@ -28,7 +33,7 @@ async function carregarFuncionariosRH() {
 }
 
 function filtrarFuncionarios() {
-  const el = document.getElementById('listaFuncionarios');
+  const el     = document.getElementById('listaFuncionarios');
   if (!el) return;
   const busca  = (document.getElementById('buscaFunc')?.value||'').toUpperCase();
   const setor  = document.getElementById('filtroSetorFunc')?.value||'Todos';
@@ -44,75 +49,442 @@ function filtrarFuncionarios() {
 
   if (!filtrado.length) { el.innerHTML='<div class="empty-msg">Nenhum funcionário encontrado.</div>'; return; }
 
-  const coresSe = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', Produção:'#10b981', 'Projeto / Desenvolvimento':'#8b5cf6' };
+  const coresSe = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6',
+    Produção:'#10b981', 'Projeto / Desenvolvimento':'#8b5cf6', Supervisão:'#f59e0b' };
+
   el.innerHTML = filtrado.map(f => {
-    const cor  = coresSe[f.setor]||'#64748b';
-    const acoes = f._origem==='Producao'
-      ? `<button class="btn-icon danger" onclick="excluirFuncAdmin(${f.id},'Producao')">🗑️</button>`
-      : `<button class="btn-icon" onclick="editarFuncAdmin(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️</button>
-         <button class="btn-icon danger" onclick="excluirFuncAdmin(${f.id},'Ferramentaria')">🗑️</button>`;
-    return `<div class="lista-item">
+    const cor = coresSe[f.setor]||'#64748b';
+    return `<div class="lista-item" style="cursor:pointer" onclick="abrirFichaFuncionario(${f.id},'${f._origem}')">
       <div class="lista-item-info">
-        <div class="lista-item-nome">${f.nome}</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:3px">
+        <div class="lista-item-nome">${f.nome} ${f.matricula?`<span style="font-size:11px;color:#94a3b8;font-weight:400">#${f.matricula}</span>`:''}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap">
           <span style="background:${cor}15;color:${cor};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${f.setor||'—'}</span>
-          <span style="font-size:11px;color:#94a3b8">${f.turno||''} ${f.supervisor?'| Sup: '+f.supervisor:''}</span>
+          <span style="font-size:11px;color:#94a3b8">${f.turno||''} ${f.cargo?'· '+f.cargo:''} ${f.supervisor?'· Sup: '+f.supervisor:''}</span>
         </div>
       </div>
       <div class="lista-item-acoes">
         <span class="${f.ativo?'badge-ativo':'badge-inativo'}">${f.ativo?'ATIVO':'INATIVO'}</span>
-        ${acoes}
+        <button class="btn-icon" onclick="event.stopPropagation();abrirFichaFuncionario(${f.id},'${f._origem}')">👁️</button>
+        <button class="btn-icon danger" onclick="event.stopPropagation();excluirFuncConfirm(${f.id},'${f._origem}')">🗑️</button>
       </div>
     </div>`;
   }).join('');
 }
 
+// ==========================================
+// ➕ NOVO FUNCIONÁRIO — Modal
+// ==========================================
 function abrirFormFuncionario() {
-  const origem = prompt('Origem:\n1 - Ferramentaria (Usinagem/Bancada/Projeto)\n2 - Produção\n\nDigite 1 ou 2:');
-  if (!origem) return;
-  if (origem.trim()==='2') {
-    const nome  = prompt('Nome do técnico:');
-    if (!nome||!nome.trim()) return;
-    const turno = prompt('Turno (5x2 / 6x1 / 2x2):') || '5x2';
-    const sup   = prompt('Supervisor (opcional):') || null;
-    db.salvarProdTecnico({ nome:nome.trim(), turno, supervisor:sup })
-      .then(()=>{ toast('Adicionado!','sucesso'); carregarFuncionariosRH(); })
-      .catch(()=>toast('Erro.','erro'));
-  } else {
-    const setores = ['Usinagem','Bancada','Projeto / Desenvolvimento','Produção','Supervisão'];
-    const turnos  = ['ADM','Turma A','Turma B','5x2','6x1','2x2'];
-    const nome    = prompt('Nome completo:');
-    if (!nome||!nome.trim()) return;
-    const setor   = prompt('Setor:\n'+setores.join('\n')) || 'Usinagem';
-    const turno   = prompt('Turno:\n'+turnos.join('\n'))  || 'ADM';
-    const admiss  = prompt('Data de admissão (AAAA-MM-DD):') || null;
-    db.salvarFuncionario({ nome:nome.trim(), setor, turno, admissao:admiss, ativo:true })
-      .then(()=>{ toast('Adicionado!','sucesso'); carregarFuncionariosRH(); })
-      .catch(()=>toast('Erro.','erro'));
+  const div = document.createElement('div');
+  div.id = 'modalFuncWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharModalFunc()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:560px">
+    <div class="modal-header">
+      <h3>👤 Novo Funcionário</h3>
+      <button onclick="fecharModalFunc()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Nome Completo *</label>
+          <input type="text" id="fnNome" placeholder="Nome do funcionário">
+        </div>
+        <div class="form-group">
+          <label>Matrícula</label>
+          <input type="text" id="fnMatricula" placeholder="Ex: 0042">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Setor *</label>
+          <select id="fnSetor">
+            ${_setores.map(s=>`<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Turno *</label>
+          <select id="fnTurno">
+            ${_turnos.map(t=>`<option value="${t}">${t}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cargo</label>
+          <select id="fnCargo">
+            <option value="">Selecione...</option>
+            ${_cargos.map(c=>`<option value="${c}">${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Supervisor</label>
+          <input type="text" id="fnSupervisor" placeholder="Nome do supervisor">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data de Admissão</label>
+          <input type="date" id="fnAdmissao">
+        </div>
+        <div class="form-group">
+          <label>Origem</label>
+          <select id="fnOrigem">
+            <option value="Ferramentaria">Ferramentaria</option>
+            <option value="Producao">Produção</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarNovoFuncionario()">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharModalFunc()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+async function salvarNovoFuncionario() {
+  const nome     = document.getElementById('fnNome')?.value?.trim();
+  const setor    = document.getElementById('fnSetor')?.value;
+  const turno    = document.getElementById('fnTurno')?.value;
+  const cargo    = document.getElementById('fnCargo')?.value || null;
+  const sup      = document.getElementById('fnSupervisor')?.value?.trim() || null;
+  const admissao = document.getElementById('fnAdmissao')?.value || null;
+  const matricula= document.getElementById('fnMatricula')?.value?.trim() || null;
+  const origem   = document.getElementById('fnOrigem')?.value;
+
+  if (!nome) return toast('Informe o nome.','erro');
+
+  try {
+    if (origem === 'Producao') {
+      await db.salvarProdTecnico({ nome, turno, supervisor:sup, ativo:true });
+    } else {
+      await db.salvarFuncionario({ nome, setor, turno, cargo, supervisor:sup,
+        matricula, admissao, ativo:true });
+    }
+    toast('Funcionário adicionado!','sucesso');
+    fecharModalFunc();
+    carregarFuncionariosRH();
+  } catch(e) { toast('Erro ao salvar.','erro'); console.error(e); }
+}
+
+function fecharModalFunc() {
+  document.getElementById('modalFuncWrap')?.remove();
+}
+
+// ==========================================
+// 👁️ FICHA DO FUNCIONÁRIO
+// ==========================================
+async function abrirFichaFuncionario(id, origem) {
+  const div = document.createElement('div');
+  div.id = 'modalFichaFuncWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharFichaFunc()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:620px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <h3>👤 Ficha do Funcionário</h3>
+      <button onclick="fecharFichaFunc()">✕</button>
+    </div>
+    <div class="modal-body" id="fichaFuncCorpo">
+      <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+
+  try {
+    let f;
+    if (origem === 'Producao') {
+      const todos = await db.listarProdTecnicos();
+      f = todos.find(t => t.id === id);
+      if (f) f = { ...f, setor:'Produção', _origem:'Producao' };
+    } else {
+      const todos = await db.listarFuncionarios();
+      f = todos.find(t => t.id === id);
+      if (f) f = { ...f, _origem:'Ferramentaria' };
+    }
+
+    if (!f) { document.getElementById('fichaFuncCorpo').innerHTML='<div class="empty-msg">Não encontrado.</div>'; return; }
+
+    // Busca histórico de turno
+    let histTurno = [];
+    try {
+      histTurno = await db._get('funcionario_turno_historico',
+        'funcionario_id=eq.' + id + '&order=data_inicio.desc', '*') || [];
+    } catch(e) {}
+
+    const cor = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6',
+      Produção:'#10b981', Supervisão:'#f59e0b' }[f.setor] || '#64748b';
+
+    const fmtDt = d => d ? d.split('-').reverse().join('/') : '—';
+    const editando = f._origem === 'Ferramentaria';
+
+    document.getElementById('fichaFuncCorpo').innerHTML = `
+    <!-- CABEÇALHO -->
+    <div style="background:linear-gradient(135deg,${cor}20,${cor}05);border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid ${cor}30">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:22px;font-weight:700;color:#1e3a5f">${f.nome}</div>
+          ${f.matricula?`<div style="font-size:13px;color:#64748b;margin-top:2px">Matrícula: <b>#${f.matricula}</b></div>`:''}
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <span style="background:${cor}20;color:${cor};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${f.setor||'—'}</span>
+            <span style="background:#f1f5f9;color:#475569;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600">⏰ ${f.turno||'—'}</span>
+            <span class="${f.ativo?'badge-ativo':'badge-inativo'}">${f.ativo?'ATIVO':'INATIVO'}</span>
+          </div>
+        </div>
+        ${editando ? `<button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>` : ''}
+      </div>
+    </div>
+
+    <!-- DADOS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div class="card" style="margin:0;padding:14px">
+        <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">INFORMAÇÕES</div>
+        <div style="font-size:13px;line-height:2">
+          <div>💼 <b>Cargo:</b> ${f.cargo||'—'}</div>
+          <div>👤 <b>Supervisor:</b> ${f.supervisor||'—'}</div>
+          <div>📅 <b>Admissão:</b> ${fmtDt(f.admissao)}</div>
+          ${f.demissao?`<div style="color:#ef4444">🚪 <b>Desligamento:</b> ${fmtDt(f.demissao)}</div>`:''}
+        </div>
+      </div>
+      <div class="card" style="margin:0;padding:14px">
+        <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">TURNO ATUAL</div>
+        <div style="font-size:24px;font-weight:700;color:#0056b3;margin-bottom:4px">${f.turno||'—'}</div>
+        <div style="font-size:12px;color:#64748b">
+          ${f.turno==='5x2'?'07:30 → 17:28 | Seg-Sex | 528 min':
+            f.turno==='Turma A'||f.turno==='Turma B'?'07:30 → 19:30 | Rodízio 2x2 | 660 min':
+            f.turno==='6x1'?'07:30 → 16:00 | Seg-Sab | 440 min':
+            f.turno==='Estágio'?'07:30 → 16:00 | Seg-Sex | 440 min':'—'}
+        </div>
+        ${editando ? `<button class="btn-secondary" style="margin-top:10px;font-size:11px;padding:5px 10px" onclick="abrirModalTrocaTurno(${id},'${f.turno||''}')">🔄 Registrar Mudança de Turno</button>` : ''}
+      </div>
+    </div>
+
+    <!-- HISTÓRICO DE TURNO -->
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:12px">📋 Histórico de Turno</div>
+      ${histTurno.length ? `
+        <div style="position:relative;padding-left:24px">
+          ${histTurno.map((h,i) => `
+            <div style="position:relative;margin-bottom:12px">
+              <div style="position:absolute;left:-24px;top:4px;width:12px;height:12px;border-radius:50%;background:#0056b3;border:2px solid #fff;box-shadow:0 0 0 2px #0056b3"></div>
+              <div style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;border-left:3px solid #0056b3;padding:10px 12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                  <span style="font-size:13px;font-weight:700;color:#0056b3">${h.turno}</span>
+                  <span style="font-size:11px;color:#94a3b8">
+                    ${fmtDt(h.data_inicio)} ${h.data_fim?' → '+fmtDt(h.data_fim):'→ atual'}
+                  </span>
+                </div>
+                ${h.motivo?`<div style="font-size:12px;color:#64748b;margin-top:4px">📝 ${h.motivo}</div>`:''}
+              </div>
+            </div>`).join('')}
+        </div>` :
+        '<div style="color:#94a3b8;font-size:13px">Nenhuma mudança de turno registrada.</div>'
+      }
+    </div>`;
+
+  } catch(e) {
+    document.getElementById('fichaFuncCorpo').innerHTML = '<div class="empty-msg">Erro ao carregar.</div>';
+    console.error(e);
   }
 }
 
-function editarFuncAdmin(f) {
-  const nome  = prompt('Nome:', f.nome);
-  if (!nome) return;
-  const setores = ['Usinagem','Bancada','Projeto / Desenvolvimento','Supervisão'];
-  const setor   = prompt('Setor:\n'+setores.join('\n'), f.setor)||f.setor;
-  const turno   = prompt('Turno (ADM / Turma A / Turma B):', f.turno)||f.turno;
-  const dem     = prompt('Data desligamento (AAAA-MM-DD, deixe vazio se ativo):', f.demissao||'');
-  db.salvarFuncionario({ id:f.id, nome:nome.trim(), setor, turno, admissao:f.admissao||null, demissao:dem||null, ativo:!dem })
-    .then(()=>{ toast('Atualizado!','sucesso'); carregarFuncionariosRH(); })
-    .catch(()=>toast('Erro.','erro'));
+function fecharFichaFunc() {
+  document.getElementById('modalFichaFuncWrap')?.remove();
 }
 
-async function excluirFuncAdmin(id, origem) {
+// ==========================================
+// ✏️ EDITAR FUNCIONÁRIO
+// ==========================================
+function abrirEdicaoFuncionario(f) {
+  const div = document.createElement('div');
+  div.id = 'modalEditFuncWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoFunc()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:560px">
+    <div class="modal-header">
+      <h3>✏️ Editar — ${f.nome}</h3>
+      <button onclick="fecharEdicaoFunc()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Nome Completo *</label>
+          <input type="text" id="efNome" value="${f.nome||''}">
+        </div>
+        <div class="form-group">
+          <label>Matrícula</label>
+          <input type="text" id="efMatricula" value="${f.matricula||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Setor *</label>
+          <select id="efSetor">
+            ${_setores.map(s=>`<option value="${s}" ${f.setor===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Turno *</label>
+          <select id="efTurno">
+            ${_turnos.map(t=>`<option value="${t}" ${f.turno===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cargo</label>
+          <select id="efCargo">
+            <option value="">Selecione...</option>
+            ${_cargos.map(c=>`<option value="${c}" ${f.cargo===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Supervisor</label>
+          <input type="text" id="efSupervisor" value="${f.supervisor||''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Admissão</label>
+          <input type="date" id="efAdmissao" value="${f.admissao||''}">
+        </div>
+        <div class="form-group">
+          <label>Desligamento</label>
+          <input type="date" id="efDemissao" value="${f.demissao||''}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="efAtivo" ${f.ativo!==false?'checked':''}> Funcionário Ativo
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoFuncionario(${f.id})">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoFunc()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+async function salvarEdicaoFuncionario(id) {
+  const nome      = document.getElementById('efNome')?.value?.trim();
+  const setor     = document.getElementById('efSetor')?.value;
+  const turno     = document.getElementById('efTurno')?.value;
+  const cargo     = document.getElementById('efCargo')?.value || null;
+  const sup       = document.getElementById('efSupervisor')?.value?.trim() || null;
+  const admissao  = document.getElementById('efAdmissao')?.value || null;
+  const demissao  = document.getElementById('efDemissao')?.value || null;
+  const matricula = document.getElementById('efMatricula')?.value?.trim() || null;
+  const ativo     = document.getElementById('efAtivo')?.checked ?? true;
+
+  if (!nome) return toast('Informe o nome.','erro');
+  try {
+    await db.salvarFuncionario({ id, nome, setor, turno, cargo, supervisor:sup,
+      matricula, admissao, demissao: demissao||null, ativo });
+    toast('Funcionário atualizado!','sucesso');
+    fecharEdicaoFunc();
+    fecharFichaFunc();
+    carregarFuncionariosRH();
+  } catch(e) { toast('Erro ao salvar.','erro'); console.error(e); }
+}
+
+function fecharEdicaoFunc() {
+  document.getElementById('modalEditFuncWrap')?.remove();
+}
+
+// ==========================================
+// 🔄 TROCA DE TURNO
+// ==========================================
+function abrirModalTrocaTurno(id, turnoAtual) {
+  const div = document.createElement('div');
+  div.id = 'modalTrocaTurnoWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharModalTrocaTurno()" style="display:block;z-index:9998"></div>
+  <div class="modal" style="display:block;max-width:420px;z-index:9999">
+    <div class="modal-header">
+      <h3>🔄 Registrar Mudança de Turno</h3>
+      <button onclick="fecharModalTrocaTurno()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Turno Atual</label>
+        <input type="text" value="${turnoAtual}" disabled style="background:#f1f5f9;color:#64748b">
+      </div>
+      <div class="form-group">
+        <label>Novo Turno *</label>
+        <select id="novoTurno">
+          ${_turnos.filter(t=>t!==turnoAtual).map(t=>`<option value="${t}">${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Data de Início *</label>
+        <input type="date" id="trocaTurnoData" value="${new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="form-group">
+        <label>Motivo</label>
+        <input type="text" id="trocaTurnoMotivo" placeholder="Ex: Promoção, transferência de setor...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarTrocaTurno(${id},'${turnoAtual}')">💾 Confirmar</button>
+      <button class="btn-secondary" onclick="fecharModalTrocaTurno()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+async function salvarTrocaTurno(id, turnoAnterior) {
+  const novoTurno = document.getElementById('novoTurno')?.value;
+  const data      = document.getElementById('trocaTurnoData')?.value;
+  const motivo    = document.getElementById('trocaTurnoMotivo')?.value?.trim() || null;
+
+  if (!novoTurno || !data) return toast('Preencha o novo turno e a data.','erro');
+
+  try {
+    // Fecha o histórico anterior
+    const hist = await db._get('funcionario_turno_historico',
+      'funcionario_id=eq.' + id + '&data_fim=is.null&order=data_inicio.desc&limit=1', '*');
+    if (hist && hist.length > 0) {
+      await db._patch('funcionario_turno_historico', 'id=eq.' + hist[0].id,
+        { data_fim: data });
+    }
+    // Cria novo registro
+    await db._post('funcionario_turno_historico', {
+      funcionario_id: id, turno: novoTurno,
+      data_inicio: data, motivo,
+      registrado_por: _sessao?.nome || null
+    });
+    // Atualiza turno no funcionário
+    await db.salvarFuncionario({ id, turno: novoTurno });
+
+    toast('Turno atualizado!','sucesso');
+    fecharModalTrocaTurno();
+    fecharFichaFunc();
+    // Reabre a ficha atualizada
+    setTimeout(() => abrirFichaFuncionario(id, 'Ferramentaria'), 300);
+  } catch(e) { toast('Erro ao registrar.','erro'); console.error(e); }
+}
+
+function fecharModalTrocaTurno() {
+  document.getElementById('modalTrocaTurnoWrap')?.remove();
+}
+
+async function excluirFuncConfirm(id, origem) {
   confirmarExclusao('Remover este funcionário?', async () => {
     try {
       if (origem==='Producao') await db.excluirProdTecnico(id);
       else await db.excluirFuncionario(id);
-      toast('Removido!','sucesso'); carregarFuncionariosRH();
+      toast('Removido!','sucesso');
+      carregarFuncionariosRH();
     } catch(e) { toast('Erro.','erro'); }
   });
 }
+
+// Mantém compatibilidade com chamada antiga
+function editarFuncAdmin(f) { abrirEdicaoFuncionario(f); }
+async function excluirFuncAdmin(id, origem) { excluirFuncConfirm(id, origem); }
 
 // ==========================================
 // 📅 RH (Feriados / Ausências / Atrasos)
@@ -128,7 +500,7 @@ function mudarTabRH(aba, elBtn) {
 }
 
 function carregarPainelRH(aba) {
-  if (aba==='feriados')  carregarFeriados();
+  if (aba==='feriados')       carregarFeriados();
   else if (aba==='ausencias') carregarFerias();
   else if (aba==='parciais')  carregarParciais();
 }
@@ -151,8 +523,11 @@ async function carregarFeriados() {
   try {
     const res = await db.listarFeriados();
     document.getElementById('tbodyFeriados').innerHTML = res.length
-      ? res.map(f=>`<tr><td><b>${f.data?f.data.split('-').reverse().join('/'):'—'}</b></td><td>${f.nome}</td>
-          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriado(${f.id})">X</button></td></tr>`).join('')
+      ? res.map(f=>`<tr>
+          <td><b>${f.data?f.data.split('-').reverse().join('/'):'—'}</b></td>
+          <td>${f.nome}</td>
+          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriadoConfirm(${f.id})">🗑️</button></td>
+        </tr>`).join('')
       : '<tr><td colspan="3" class="empty-msg">Nenhum feriado.</td></tr>';
   } catch(e) {}
 }
@@ -163,7 +538,8 @@ async function salvarFeriado() {
   try { await db.salvarFeriado(dt,nm); toast('Adicionado!','sucesso'); document.getElementById('ferNome').value=''; carregarFeriados(); }
   catch(e) { toast('Erro.','erro'); }
 }
-async function excluirFeriado(id) {
+
+function excluirFeriadoConfirm(id) {
   confirmarExclusao('Excluir este feriado?', async()=>{
     try { await db.excluirFeriado(id); toast('Removido!','sucesso'); carregarFeriados(); } catch(e){}
   });
@@ -175,7 +551,8 @@ async function excluirFeriado(id) {
 async function carregarFerias() {
   const el = document.getElementById('painelAusencias');
   if (!el) return;
-  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[]).concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
+  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
   const motivos = ['Atestado Médico','Falta Injustificada','Férias','Folga Compensatória','Licença / Outros'];
   el.innerHTML = `<div class="card">
     <div class="form-row">
@@ -196,7 +573,7 @@ async function carregarFerias() {
           <td>${f.inicio?f.inicio.split('-').reverse().join('/'):'—'}</td>
           <td>${f.fim?f.fim.split('-').reverse().join('/'):'—'}</td>
           <td style="color:${f.motivo?.includes('Falta')?'#ef4444':'#059669'};font-weight:600">${f.motivo}</td>
-          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFerias(${f.id})">X</button></td>
+          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriasConfirm(${f.id})">🗑️</button></td>
         </tr>`).join('')
       : '<tr><td colspan="5" class="empty-msg">Nenhum registro.</td></tr>';
   } catch(e) {}
@@ -209,19 +586,21 @@ async function salvarFerias() {
   try { await db.salvarFerias({funcionario:func,inicio:ini,fim,motivo}); toast('Registrado!','sucesso'); carregarFerias(); }
   catch(e) { toast('Erro.','erro'); }
 }
-async function excluirFerias(id) {
+
+function excluirFeriasConfirm(id) {
   confirmarExclusao('Excluir este registro?', async()=>{
     try { await db.excluirFerias(id); toast('Removido!','sucesso'); carregarFerias(); } catch(e){}
   });
 }
 
 // ==========================================
-// ⏱️ PARCIAIS / ATRASOS — com upload de imagem
+// ⏱️ PARCIAIS / ATRASOS
 // ==========================================
 async function carregarParciais() {
   const el = document.getElementById('painelParciais');
   if (!el) return;
-  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[]).concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
+  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
   const motivos = ['Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
 
   el.innerHTML = `
@@ -237,12 +616,10 @@ async function carregarParciais() {
       <div class="form-group"><label>Motivo *</label><select id="parcMotivo">${motivos.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
       <div class="form-group" style="flex:2"><label>Observação</label><input type="text" id="parcObs" placeholder="Detalhes adicionais..."></div>
     </div>
-
-    <!-- UPLOAD DE IMAGEM -->
     <div style="border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:16px;background:#fff">
       <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:10px">📎 Anexo / Comprovante (opcional)</div>
       <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
-        <label style="cursor:pointer;display:flex;align-items:center;gap:8px;background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;color:#64748b;transition:all 0.2s"
+        <label style="cursor:pointer;display:flex;align-items:center;gap:8px;background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;color:#64748b"
           onmouseover="this.style.borderColor='#0056b3';this.style.color='#0056b3'"
           onmouseout="this.style.borderColor='#cbd5e1';this.style.color='#64748b'">
           📷 Selecionar Imagem
@@ -250,15 +627,13 @@ async function carregarParciais() {
         </label>
         <div id="parcImagemPreview" style="display:none;position:relative">
           <img id="parcImagemImg" style="max-width:120px;max-height:90px;border-radius:8px;border:2px solid #e2e8f0;object-fit:cover">
-          <button onclick="removerImagemParcial()" style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+          <button onclick="removerImagemParcial()" style="position:absolute;top:-8px;right:-8px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer">×</button>
         </div>
         <div id="parcUploadStatus" style="font-size:12px;color:#64748b;align-self:center"></div>
       </div>
     </div>
-
-    <button class="btn-warning" onclick="salvarParcial()" style="margin-bottom:4px">+ Registrar Ocorrência</button>
+    <button class="btn-warning" onclick="salvarParcial()">+ Registrar Ocorrência</button>
   </div>
-
   <div class="card">
     <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:16px">📋 Registros</div>
     <div class="table-wrap">
@@ -286,30 +661,21 @@ async function _renderizarParciais() {
           <td style="color:${p.motivo?.includes('Injustificado')?'#ef4444':'#ca8a04'};font-weight:600">${p.motivo||'—'}</td>
           <td style="font-size:12px;color:#64748b">${p.obs||'—'}</td>
           <td>${p.imagem_url
-            ? `<a href="${p.imagem_url}" target="_blank">
-                <img src="${p.imagem_url}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer" title="Ver comprovante">
-               </a>`
-            : '<span style="color:#94a3b8;font-size:11px">—</span>'
-          }</td>
-          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcial(${p.id})">🗑️</button></td>
+            ? `<a href="${p.imagem_url}" target="_blank"><img src="${p.imagem_url}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer"></a>`
+            : '<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
+          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcialConfirm(${p.id})">🗑️</button></td>
         </tr>`).join('')
       : '<tr><td colspan="8" class="empty-msg">Nenhum registro.</td></tr>';
   } catch(e) {}
 }
 
-// Preview da imagem selecionada
 function previewImagemParcial(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const wrap  = document.getElementById('parcImagemPreview');
-  const img   = document.getElementById('parcImagemImg');
+  const file = input.files[0]; if (!file) return;
+  const wrap = document.getElementById('parcImagemPreview');
+  const img  = document.getElementById('parcImagemImg');
   const status = document.getElementById('parcUploadStatus');
   const reader = new FileReader();
-  reader.onload = e => {
-    img.src = e.target.result;
-    wrap.style.display = 'block';
-    status.innerText = `${file.name} (${(file.size/1024).toFixed(0)} KB)`;
-  };
+  reader.onload = e => { img.src=e.target.result; wrap.style.display='block'; status.innerText=`${file.name} (${(file.size/1024).toFixed(0)} KB)`; };
   reader.readAsDataURL(file);
 }
 
@@ -320,122 +686,77 @@ function removerImagemParcial() {
   document.getElementById('parcUploadStatus').innerText = '';
 }
 
-// Comprime a imagem via canvas antes de fazer upload
 async function _comprimirImagem(file, maxWidth=800, qualidade=0.72) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
       img.onload = () => {
-        // Calcula dimensões mantendo proporção
-        let w = img.width, h = img.height;
-        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-
-        canvas.toBlob(blob => {
-          if (!blob) return reject(new Error('Falha ao comprimir'));
-          resolve(blob);
-        }, 'image/jpeg', qualidade);
+        let w=img.width, h=img.height;
+        if (w>maxWidth) { h=Math.round(h*maxWidth/w); w=maxWidth; }
+        const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        canvas.toBlob(blob=>{ if(!blob) return reject(new Error('Falha')); resolve(blob); },'image/jpeg',qualidade);
       };
-      img.onerror = reject;
-      img.src = e.target.result;
+      img.onerror=reject; img.src=e.target.result;
     };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    reader.onerror=reject; reader.readAsDataURL(file);
   });
 }
 
-// Upload para Supabase Storage
 async function _uploadImagemParcial(file, funcionario, data) {
   const status = document.getElementById('parcUploadStatus');
-  if (status) status.innerText = 'Comprimindo imagem...';
-
-  // Comprime antes de enviar
+  if (status) status.innerText='Comprimindo imagem...';
   const blob = await _comprimirImagem(file);
-  const tamanhoKB = (blob.size / 1024).toFixed(0);
-  if (status) status.innerText = `Enviando... (${tamanhoKB} KB após compressão)`;
-
-  // Nome único para o arquivo
+  if (status) status.innerText=`Enviando... (${(blob.size/1024).toFixed(0)} KB)`;
   const ts   = Date.now();
   const nome = `parciais/${data}_${funcionario.replace(/\s/g,'_')}_${ts}.jpg`;
-
   const url  = `${SUPABASE_URL}/storage/v1/object/rh-anexos/${nome}`;
   const res  = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'apikey':        SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'Content-Type':  'image/jpeg',
-      'x-upsert':      'true'
-    },
+    method:'POST',
+    headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'image/jpeg', 'x-upsert':'true' },
     body: blob
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error('Upload falhou: ' + err);
-  }
-
-  // Retorna URL pública
+  if (!res.ok) throw new Error('Upload falhou: '+(await res.text()));
   return `${SUPABASE_URL}/storage/v1/object/public/rh-anexos/${nome}`;
 }
 
 async function salvarParcial() {
-  const func   = document.getElementById('parcFunc')?.value;
-  const dt     = document.getElementById('parcData')?.value;
-  const ini    = document.getElementById('parcIni')?.value;
-  const fim    = document.getElementById('parcFim')?.value;
-  const motivo = document.getElementById('parcMotivo')?.value;
+  const func=document.getElementById('parcFunc')?.value;
+  const dt=document.getElementById('parcData')?.value;
+  const ini=document.getElementById('parcIni')?.value;
+  const fim=document.getElementById('parcFim')?.value;
+  const motivo=document.getElementById('parcMotivo')?.value;
   if (!func||!dt||!motivo) return toast('Preencha funcionário, data e motivo.','erro');
 
-  const btn = document.querySelector('#painelParciais .btn-warning');
+  const btn=document.querySelector('#painelParciais .btn-warning');
   if (btn) { btn.disabled=true; btn.innerText='Salvando...'; }
 
   try {
-    let imagemUrl = null;
-    const fileInput = document.getElementById('parcImagem');
-    const file = fileInput?.files[0];
-
+    let imagemUrl=null;
+    const file=document.getElementById('parcImagem')?.files[0];
     if (file) {
-      try {
-        imagemUrl = await _uploadImagemParcial(file, func, dt);
-        const status = document.getElementById('parcUploadStatus');
-        if (status) status.innerText = '✅ Imagem enviada!';
-      } catch(e) {
-        console.error('Erro no upload:', e);
-        toast('Aviso: imagem não foi enviada, mas o registro foi salvo.','erro');
-      }
+      try { imagemUrl=await _uploadImagemParcial(file,func,dt); const s=document.getElementById('parcUploadStatus'); if(s) s.innerText='✅ Enviada!'; }
+      catch(e) { console.error(e); toast('Imagem não enviada, mas registro salvo.','erro'); }
     }
-
-    await db.salvarParcial({
-      funcionario: func, data:dt, inicio:ini||null, fim:fim||null,
-      motivo, obs: document.getElementById('parcObs')?.value||null,
-      imagem_url: imagemUrl
-    });
-
-    toast('Registrado com sucesso!','sucesso');
-
-    // Limpa formulário
-    ['parcFunc','parcData','parcIni','parcFim','parcObs'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; }
-    });
+    await db.salvarParcial({ funcionario:func, data:dt, inicio:ini||null, fim:fim||null,
+      motivo, obs:document.getElementById('parcObs')?.value||null, imagem_url:imagemUrl });
+    toast('Registrado!','sucesso');
+    ['parcFunc','parcData','parcIni','parcFim','parcObs'].forEach(id=>{ const el=document.getElementById(id); if(el){if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';} });
     removerImagemParcial();
     await _renderizarParciais();
-  } catch(e) {
-    toast('Erro ao registrar.','erro'); console.error(e);
-  }
-
+  } catch(e) { toast('Erro ao registrar.','erro'); console.error(e); }
   if (btn) { btn.disabled=false; btn.innerText='+ Registrar Ocorrência'; }
 }
 
-async function excluirParcial(id) {
+function excluirParcialConfirm(id) {
   confirmarExclusao('Excluir este registro?', async()=>{
     try { await db.excluirParcial(id); toast('Removido!','sucesso'); await _renderizarParciais(); }
     catch(e) { toast('Erro.','erro'); }
   });
 }
+
+// Compatibilidade
+async function excluirParcial(id) { excluirParcialConfirm(id); }
+async function excluirFeriado(id) { excluirFeriadoConfirm(id); }
+async function excluirFerias(id)  { excluirFeriasConfirm(id); }
