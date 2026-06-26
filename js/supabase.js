@@ -78,7 +78,7 @@ const db = {
   // 📋 LISTAS GLOBAIS
   // ==========================================
   obterListas: async function() {
-    const [funcionarios, maquinas, jobs, categorias, motivos] = await Promise.all([
+    const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
       db._get('funcionarios', 'ativo=eq.true', 'nome,setor,turno'),
       db._get('maquinas', 'ativo=eq.true', 'nome,turno,cap_liquida'),
       db._get('jobs', 'ativo=eq.true', 'nome'),
