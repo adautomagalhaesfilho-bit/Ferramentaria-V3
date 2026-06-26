@@ -5,6 +5,16 @@
 const SUPABASE_URL = 'https://iiaxqbswpqfsjxrsoiqd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpYXhxYnN3cHFmc2p4cnNvaXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzA2ODMsImV4cCI6MjA5NzgwNjY4M30.4jFGu-QoRQNqE4k_GkOxYxqqi0cGD9vsQ1UZkVQiLIc';
 
+// ==========================================
+// 🔒 HASH SHA-256
+// ==========================================
+async function hashSenha(senha) {
+  const encoder = new TextEncoder();
+  const data    = encoder.encode(senha);
+  const buffer  = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
 const db = {
 
   // ==========================================
@@ -27,7 +37,6 @@ const db = {
     return txt ? JSON.parse(txt) : null;
   },
 
-  // GET com filtros
   _get: async function(tabela, filtros = '', select = '*') {
     const temOrder = filtros && filtros.includes('order=');
     const order = temOrder ? '' : '&order=id.asc';
@@ -35,7 +44,6 @@ const db = {
     return await db._fetch(tabela + q);
   },
 
-  // POST — insert
   _post: async function(tabela, dados) {
     return await db._fetch(tabela, {
       method: 'POST',
@@ -44,7 +52,6 @@ const db = {
     });
   },
 
-  // PATCH — update
   _patch: async function(tabela, filtro, dados) {
     return await db._fetch(tabela + '?' + filtro, {
       method: 'PATCH',
@@ -53,20 +60,20 @@ const db = {
     });
   },
 
-  // DELETE
   _delete: async function(tabela, filtro) {
     return await db._fetch(tabela + '?' + filtro, { method: 'DELETE' });
   },
 
   // ==========================================
-  // 🔐 LOGIN
+  // 🔐 LOGIN — compara hash SHA-256
   // ==========================================
   login: async function(nome, senha) {
     const res = await db._get('usuarios',
       'nome=ilike.' + encodeURIComponent(nome) + '&ativo=eq.true'
     );
     if (!res || res.length === 0) return null;
-    const user = res.find(u => u.senha === senha);
+    const senhaHash = await hashSenha(senha);
+    const user = res.find(u => u.senha === senhaHash);
     if (!user) return null;
     return {
       id: user.id, nome: user.nome, perfil: user.perfil,
@@ -78,73 +85,65 @@ const db = {
   // 📋 LISTAS GLOBAIS
   // ==========================================
   obterListas: async function() {
-   const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
-  db._get('funcionarios', 'ativo=eq.true', 'nome,setor,turno'),
-  db._get('maquinas', 'ativo=eq.true', 'nome,turno,cap_liquida'),
-  db._get('jobs', 'ativo=eq.true', 'nome'),
-  db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
-  db._get('motivos_parada', 'ativo=eq.true', 'nome'),
-  db._get('prod_injetoras', 'ativo=eq.true', 'nome')
-]);
+    const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
+      db._get('funcionarios', 'ativo=eq.true', 'nome,setor,turno'),
+      db._get('maquinas', 'ativo=eq.true', 'nome,turno,cap_liquida'),
+      db._get('jobs', 'ativo=eq.true', 'nome'),
+      db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
+      db._get('motivos_parada', 'ativo=eq.true', 'nome'),
+      db._get('prod_injetoras', 'ativo=eq.true', 'nome')
+    ]);
 
-    const funcUsina   = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome);
-    const funcBancada = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome);
-    const funcProjeto = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome);
+    const funcUsina    = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome);
+    const funcBancada  = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome);
+    const funcProjeto  = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome);
     const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome);
 
-    // Tipos por setor vindos de prod_categorias (lista mestra)
     const catUsina   = categorias.filter(c => c.setor === 'Usinagem');
     const catBancada = categorias.filter(c => c.setor === 'Bancada');
     const catProjeto = categorias.filter(c => c.setor === 'Projeto');
     const catProd    = categorias.filter(c => c.setor === 'Producao');
 
-    // Tipos únicos por setor (campo tipo = categoria pai)
     const tiposUsina   = [...new Set(catUsina.map(c => c.atividade))];
     const tiposBancada = [...new Set(catBancada.map(c => c.atividade))];
 
-    // Para bancada: mapa atividade -> tipo (categoria pai)
     const mapaBancada = {};
     catBancada.forEach(c => { mapaBancada[c.atividade] = c.tipo || c.atividade; });
 
-    // Para projeto: áreas = tipos, categorias = atividades
-    const areasProj    = [...new Set(catProjeto.map(c => c.tipo))];
-    const catsProjMap  = {};
+    const areasProj   = [...new Set(catProjeto.map(c => c.tipo))];
+    const catsProjMap = {};
     catProjeto.forEach(c => { if (!catsProjMap[c.tipo]) catsProjMap[c.tipo]=[]; catsProjMap[c.tipo].push(c.atividade); });
 
-    // Para produção: tipos pai e atividades filhas
-    const tiposProd = [...new Set(catProd.map(c => c.tipo))];
+    const tiposProd   = [...new Set(catProd.map(c => c.tipo))];
     const catsProdMap = {};
     catProd.forEach(c => { if (!catsProdMap[c.tipo]) catsProdMap[c.tipo]=[]; catsProdMap[c.tipo].push(c.atividade); });
 
     return {
-      funcionarios:   funcUsina,
-      funcBancada:    funcBancada,
-      funcProjeto:    funcProjeto,
-      funcProducao:   funcProducao,
-      maquinas:       maquinas.map(m => m.nome),
-      jobs:           jobs.map(j => j.nome),
-      tipos:          tiposUsina,
-      tiposBancada:   tiposBancada,
-      tiposProd:      tiposProd,
-      motivos:        motivos.map(m => m.nome),
-      mapaBancada:    mapaBancada,
-      areasProj:      areasProj,
-      categoriasProj: catProjeto.map(c => c.atividade),
-      catsProjMap:    catsProjMap,
-      catsProdMap:    catsProdMap,
-      // Dados completos para a tela de categorias
+      funcionarios:    funcUsina,
+      funcBancada:     funcBancada,
+      funcProjeto:     funcProjeto,
+      funcProducao:    funcProducao,
+      maquinas:        maquinas.map(m => m.nome),
+      jobs:            jobs.map(j => j.nome),
+      tipos:           tiposUsina,
+      tiposBancada:    tiposBancada,
+      tiposProd:       tiposProd,
+      motivos:         motivos.map(m => m.nome),
+      mapaBancada:     mapaBancada,
+      areasProj:       areasProj,
+      categoriasProj:  catProjeto.map(c => c.atividade),
+      catsProjMap:     catsProjMap,
+      catsProdMap:     catsProdMap,
       todasCategorias: categorias,
-injetoras:       (injetoras||[]).map(i => i.nome),
+      injetoras:       (injetoras||[]).map(i => i.nome),
     };
   },
 
-  // Busca categorias por setor (para filtros dinâmicos)
   buscarCategoriasPorSetor: async function(setor) {
     return await db._get('prod_categorias',
       'ativo=eq.true&setor=eq.' + encodeURIComponent(setor) + '&order=tipo.asc,atividade.asc', '*');
   },
 
-  // Salvar categoria com setor
   salvarProdCategoria: async function(dados) {
     if (dados.id) return await db._patch('prod_categorias', 'id=eq.' + dados.id, dados);
     return await db._post('prod_categorias', dados);
@@ -184,10 +183,8 @@ injetoras:       (injetoras||[]).map(i => i.nome),
       db._get('maquinas', 'ativo=eq.true', '*'),
       db._get('prod_lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*')
     ]);
-
     const capMaquinas = {};
     (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno }; });
-
     return {
       lancamentos:         (lancamentos || []).map(db._formatarLancamento),
       feriados:            (feriados || []).map(f => f.data),
@@ -285,21 +282,19 @@ injetoras:       (injetoras||[]).map(i => i.nome),
   // 📄 FICHA DO MOLDE
   // ==========================================
   buscarFicha: async function(job) {
-    const [lancamentos, statusHistory, localizacao] = await Promise.all([
+    const [lancamentos, statusHistory, localizacao, pendencias, histLoc] = await Promise.all([
       db._get('lancamentos', 'job=eq.' + encodeURIComponent(job) + '&order=data.asc', '*'),
       db.historicoStatusJob(job),
-      db.buscarLocalizacao(job)
+      db.buscarLocalizacao(job),
+      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(() => []),
+      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(() => [])
     ]);
-    // Pendências em try/catch caso tabela ainda não exista
-    let pendencias = [];
-    try {
-      pendencias = await db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*') || [];
-    } catch(e) { console.warn('molde_pendencias não encontrada:', e); }
     return {
       lancamentos:   (lancamentos || []).map(db._formatarLancamento),
       statusHistory: statusHistory || [],
-      pendencias,
-      localizacao:   localizacao || null
+      pendencias:    pendencias   || [],
+      localizacao:   localizacao  || null,
+      histLoc:       histLoc      || []
     };
   },
 
@@ -364,20 +359,25 @@ injetoras:       (injetoras||[]).map(i => i.nome),
   },
 
   // ==========================================
-  // 👤 USUÁRIOS
+  // 👤 USUÁRIOS — senha sempre hasheada
   // ==========================================
   listarUsuarios: async function() {
-    return await db._get('usuarios', '', '*');
+    return await db._get('usuarios', '', 'id,nome,perfil,setor,ativo,permissoes');
   },
+
   salvarUsuario: async function(dados) {
-    // Garante que permissoes seja objeto (não string)
     const payload = { ...dados };
+    // Hash da senha se foi fornecida em texto puro (64 chars = já é hash)
+    if (payload.senha && payload.senha.length !== 64) {
+      payload.senha = await hashSenha(payload.senha);
+    }
     if (payload.permissoes && typeof payload.permissoes === 'string') {
       try { payload.permissoes = JSON.parse(payload.permissoes); } catch(e) {}
     }
     if (payload.id) return await db._patch('usuarios', 'id=eq.' + payload.id, payload);
     return await db._post('usuarios', payload);
   },
+
   excluirUsuario: async function(id) {
     return await db._delete('usuarios', 'id=eq.' + id);
   },
@@ -418,7 +418,7 @@ injetoras:       (injetoras||[]).map(i => i.nome),
     return await db._get('prod_lancamentos', filtro, '*');
   },
 
-  buscarProdPeriodo: async function(dataIni, dataFim, injetora, tipo, tecnico) {
+  buscarProdPeriodo: async function(dataIni, dataFim, injetora, tipo) {
     let filtro = 'data=gte.' + dataIni + '&data=lte.' + dataFim + '&order=data.desc,hora_inicio.asc';
     if (injetora && injetora !== 'Todas') filtro += '&injetora=eq.' + encodeURIComponent(injetora);
     if (tipo && tipo !== 'Todos') filtro += '&tipo=eq.' + encodeURIComponent(tipo);
@@ -456,34 +456,6 @@ injetoras:       (injetoras||[]).map(i => i.nome),
   },
 
   // ==========================================
-  // 🛠️ HELPERS INTERNOS
-  // ==========================================
-  _formatarLancamento: function(l) {
-    return {
-      id:          l.id,
-      linha:       l.id,
-      data:        l.data,
-      setor:       l.setor,
-      funcionario: l.funcionario,
-      job:         l.job,
-      tipo:        l.tipo,
-      area:        l.area,
-      descricao:   l.descricao,
-      status:      l.status || 'Em andamento',
-      horaInicio:  l.hora_inicio ? l.hora_inicio.substring(0,5) : '',
-      horaFim:     l.hora_fim    ? l.hora_fim.substring(0,5)    : '',
-      minutos:     l.minutos || 0,
-      hrProd:      db._fmtMin(l.minutos || 0),
-      maquina:     l.maquina,
-      tempoAuto:   l.tempo_auto,
-      turno:       l.turno,
-      descontaAlmoco: l.desconto_almoco,
-      trocaCopo:     l.troca_copo || false,
-      tipoCopo:      l.tipo_copo  || null
-    };
-  },
-
-  // ==========================================
   // 🗂️ PCM — LOCALIZAÇÃO DE MOLDES
   // ==========================================
   listarLocalizacoes: async function() {
@@ -491,16 +463,15 @@ injetoras:       (injetoras||[]).map(i => i.nome),
   },
 
   salvarLocalizacao: async function(dados) {
-    // Tenta upsert pelo campo job (único)
     const existe = await db._get('molde_localizacao', 'job=eq.' + encodeURIComponent(dados.job), 'id');
     const payload = {
-      job:           dados.job,
-      localizacao:   dados.localizacao,
-      maquina:       dados.maquina    || null,
-      pendencias:    dados.pendencias || null,
-      observacao:    dados.observacao || null,
-      atualizado_em: new Date().toISOString(),
-      atualizado_por:dados.atualizado_por || null
+      job:            dados.job,
+      localizacao:    dados.localizacao,
+      maquina:        dados.maquina     || null,
+      pendencias:     dados.pendencias  || null,
+      observacao:     dados.observacao  || null,
+      atualizado_em:  new Date().toISOString(),
+      atualizado_por: dados.atualizado_por || null
     };
     if (existe && existe.length > 0) {
       return await db._patch('molde_localizacao', 'job=eq.' + encodeURIComponent(dados.job), payload);
@@ -512,6 +483,34 @@ injetoras:       (injetoras||[]).map(i => i.nome),
   buscarLocalizacao: async function(job) {
     const res = await db._get('molde_localizacao', 'job=eq.' + encodeURIComponent(job), '*');
     return res && res.length > 0 ? res[0] : null;
+  },
+
+  // ==========================================
+  // 🛠️ HELPERS INTERNOS
+  // ==========================================
+  _formatarLancamento: function(l) {
+    return {
+      id:             l.id,
+      linha:          l.id,
+      data:           l.data,
+      setor:          l.setor,
+      funcionario:    l.funcionario,
+      job:            l.job,
+      tipo:           l.tipo,
+      area:           l.area,
+      descricao:      l.descricao,
+      status:         l.status || 'Em andamento',
+      horaInicio:     l.hora_inicio ? l.hora_inicio.substring(0,5) : '',
+      horaFim:        l.hora_fim    ? l.hora_fim.substring(0,5)    : '',
+      minutos:        l.minutos || 0,
+      hrProd:         db._fmtMin(l.minutos || 0),
+      maquina:        l.maquina,
+      tempoAuto:      l.tempo_auto,
+      turno:          l.turno,
+      descontaAlmoco: l.desconto_almoco,
+      trocaCopo:      l.troca_copo || false,
+      tipoCopo:       l.tipo_copo  || null
+    };
   },
 
   _calcularMinutos: function(ini, fim, almoco) {
