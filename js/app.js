@@ -59,7 +59,6 @@ var _mapaTelaEl = {
   bancada:      'telaApontamentos',
   projeto:      'telaApontamentos',
   producao:     'telaProducao',
-  moldes:       'telaMoldes',
   ficha:        'telaFicha',
   historico:    'telaHistorico',
   funcionarios: 'telaFuncionarios',
@@ -78,7 +77,6 @@ var _mapaTitulos = {
   bancada:      'Bancada',
   projeto:      'Projeto',
   producao:     'Produção / Setup',
-  moldes:       'Gestão de Moldes',
   ficha:        'Ficha do Molde',
   historico:    'Histórico',
   funcionarios: 'Funcionários',
@@ -111,7 +109,6 @@ function _irParaSemHistory(tela, elMenu) {
     if (['usinagem','bancada','projeto'].includes(tela)) { abrirSetor(tela); }
     else if (tela === 'producao')     { inicializarProducao(); }
     else if (tela === 'dashboard')    { carregarDashboard(); }
-    else if (tela === 'moldes')       { carregarMoldes(); }
     else if (tela === 'historico')    { inicializarHistorico(); }
     else if (tela === 'feriados')     { inicializarRH(); }
     else if (tela === 'usuarios')     { carregarUsuarios(); }
@@ -268,7 +265,6 @@ async function confirmarStatus() {
   try {
     await db.salvarStatusJob(job, status, desc, dataFim);
     toast('Status atualizado!','sucesso');
-    if (typeof carregarMoldes === 'function') await carregarMoldes();
   } catch(e) { toast('Erro ao salvar status.','erro'); }
   btn.disabled = false; btn.innerText = 'Confirmar';
 }
