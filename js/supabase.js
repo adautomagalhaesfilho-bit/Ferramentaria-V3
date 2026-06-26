@@ -84,7 +84,7 @@ const db = {
   db._get('jobs', 'ativo=eq.true', 'nome'),
   db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
   db._get('motivos_parada', 'ativo=eq.true', 'nome'),
-  db._get('prod_injetoras', 'desativacao=is.null', 'nome')
+  db._get('prod_injetoras', 'ativo=eq.true', 'nome')
 ]);
 
     const funcUsina   = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome);
