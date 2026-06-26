@@ -366,7 +366,7 @@ function atualizarBotoesStatus() {
 
 function resetarForm() {
   ['formData','formFunc','formMaq','formTipoUsina','formMotivo','formTipoBancadaInput',
-   'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim','formTempoAuto','formTipoCopo']
+   'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim','formTempoAuto','formTipoCopo','formDescCopo']
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
   const alm = document.getElementById('formAlmoco');   if(alm) alm.checked=false;
   const cop = document.getElementById('formTrocaCopo'); if(cop) cop.checked=false;
