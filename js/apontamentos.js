@@ -92,8 +92,8 @@ function renderizarApontamentos() {
         const tipoCopo = item.tipoCopo || '—';
         const corC = tipoCopo==='Novo' ? '#059669' : '#0891b2';
         const bg   = tipoCopo==='Novo' ? '#d1fae5' : '#e0f2fe';
-        badgeCopo = `<span style="background:${bg};color:${corC};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700">🔄 ${tipoCopo}</span>`;
-      } else {
+        badgeCopo = `<span style="background:${bg};color:${cor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700">🔄 ${tipoCopo}</span>
+          ${item.descricaoCopo?`<div style="font-size:11px;color:#64748b;margin-top:2px">${item.descricaoCopo}</div>`:''}`;      } else {
         badgeCopo = '<span style="color:#94a3b8;font-size:11px">—</span>';
       }
     }
