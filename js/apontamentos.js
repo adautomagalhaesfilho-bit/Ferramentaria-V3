@@ -154,7 +154,16 @@ setSelect('formFunc', item.funcionario);
     const grpCopo = document.getElementById('grupoTipoCopo');
     if (chkCopo) chkCopo.checked = !!(item.trocaCopo === true || item.trocaCopo === 'true');
     if (grpCopo) grpCopo.style.display = chkCopo?.checked ? '' : 'none';
-    setSelect('formTipoCopo', item.tipoCopo || '');
+    const elTipoCopo = document.getElementById('formTipoCopo');
+if (elTipoCopo) elTipoCopo.value = item.tipoCopo || '';
+// Marca o radio correto
+if (item.tipoCopo === 'Novo') {
+  const r = document.getElementById('formTipoCopoNovo');
+  if (r) r.checked = true;
+} else if (item.tipoCopo === 'Embuchado') {
+  const r = document.getElementById('formTipoCopoEmb');
+  if (r) r.checked = true;
+}
   } else {
     setSelect('formArea', item.area);
     setSelect('formCategoria', item.tipo);
