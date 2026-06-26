@@ -134,8 +134,9 @@ async function editarApontamento(idx) {
   resetarForm();
   configurarCamposForm(_setorAtivo);
   await carregarFuncionariosForm(_setorAtivo);
-  document.getElementById('formData').value = item.data || '';
-  setSelect('formFunc', item.funcionario);
+document.getElementById('formData').value = item.data || '';
+await new Promise(r => setTimeout(r, 50));
+setSelect('formFunc', item.funcionario);
   if (_setorAtivo==='Usinagem') {
     setSelect('formMaq', item.maquina);
     setSelect('formTipoUsina', item.tipo);
@@ -440,6 +441,9 @@ function montarSelect(id, arr, padrao) {
   sel.innerHTML=`<option value="">${padrao||'Selecione...'}</option>`+arr.map(i=>`<option value="${i}">${i}</option>`).join('');
 }
 function setSelect(id, val) {
-  const sel=document.getElementById(id); if(!sel) return;
-  for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===val){sel.selectedIndex=i;return;}
+  const sel = document.getElementById(id);
+  if (!sel || !val) return;
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === val) { sel.selectedIndex = i; return; }
+  }
 }
