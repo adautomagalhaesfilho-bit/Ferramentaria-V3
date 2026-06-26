@@ -452,6 +452,8 @@ function montarSelect(id, arr, padrao) {
 function setSelect(id, val) {
   const sel = document.getElementById(id);
   if (!sel || !val) return;
+  // Se for input (hidden, text), seta o value diretamente
+  if (sel.tagName !== 'SELECT') { sel.value = val; return; }
   for (let i = 0; i < sel.options.length; i++) {
     if (sel.options[i].value === val) { sel.selectedIndex = i; return; }
   }
