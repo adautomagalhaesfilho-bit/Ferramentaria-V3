@@ -5,9 +5,6 @@
 var _dadosPCM = [];
 var _filtroLocPCM = 'Todos';
 
-// ==========================================
-// 🏠 LOCALIZAÇÕES
-// ==========================================
 const _LOCALIZACOES = [
   { id:'Em Máquina',        ico:'🟢', cor:'#10b981', bg:'#d1fae5', desc:'Molde ativo em produção' },
   { id:'Na Ferramentaria',  ico:'🔧', cor:'#0056b3', bg:'#dbeafe', desc:'Em manutenção/reparo' },
@@ -25,7 +22,6 @@ function _infoLoc(loc) {
 async function inicializarPCM() {
   const el = document.getElementById('telaPCM');
   if (!el) return;
-
   el.innerHTML = `
   <div class="page-header">
     <h1>🗂️ PCM — Controle de Moldes</h1>
@@ -34,24 +30,15 @@ async function inicializarPCM() {
       <button class="btn-primary" onclick="abrirModalLocalizacao(null)">+ Registrar Localização</button>
     </div>
   </div>
-
-  <!-- CARDS DE RESUMO POR LOCALIZAÇÃO -->
   <div class="cards-row" id="pcmResumoCards"></div>
-
-  <!-- FILTROS DE LOCALIZAÇÃO -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="pcmFiltrosBtns">
-    <button class="btn-secondary" style="font-size:12px;padding:7px 14px" onclick="setPcmFiltro('Todos',this)"><b>Todos</b></button>
+    <button class="btn-secondary" style="font-size:12px;padding:7px 14px;font-weight:700" onclick="setPcmFiltro('Todos',this)">Todos</button>
     ${_LOCALIZACOES.map(l=>`
       <button class="btn-secondary" style="font-size:12px;padding:7px 14px;border-color:${l.cor};color:${l.cor}"
-        onclick="setPcmFiltro('${l.id}',this)">
-        ${l.ico} ${l.id}
-      </button>`).join('')}
+        onclick="setPcmFiltro('${l.id}',this)">${l.ico} ${l.id}</button>`).join('')}
   </div>
-
-  <!-- LISTA DE MOLDES -->
   <div id="pcmLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Carregando...</span></div>
   <div id="pcmLista"></div>`;
-
   await carregarPCM();
 }
 
@@ -59,41 +46,31 @@ async function carregarPCM() {
   const loader = document.getElementById('pcmLoader');
   if (loader) loader.style.display = 'flex';
   try {
-    // Carrega localizações + status dos jobs em paralelo
-    const [locs, statusJobs] = await Promise.all([
+    const [locs, statusJobs, todosJobs] = await Promise.all([
       db.listarLocalizacoes(),
-      db.listarStatusJobs()
+      db.listarStatusJobs(),
+      db._get('jobs', 'ativo=eq.true', 'nome')
     ]);
-
-    // Merge: jobs com localização registrada + jobs sem localização
     const mapaLoc = {};
     (locs||[]).forEach(l => mapaLoc[l.job] = l);
-
-    // Todos os jobs ativos
-    const todosJobs = await db._get('jobs', 'ativo=eq.true', 'nome');
-
     _dadosPCM = (todosJobs||[]).map(j => {
       const loc  = mapaLoc[j.nome];
       const stat = statusJobs.find(s => s.job === j.nome);
       return {
-        job:          j.nome,
-        localizacao:  loc?.localizacao   || 'Na Ferramentaria',
-        maquina:      loc?.maquina       || null,
-        observacao:   loc?.observacao    || null,
-        pendencias:   loc?.pendencias    || null,
-        atualizado:   loc?.atualizado_em || null,
-        atualizadoPor:loc?.atualizado_por|| null,
-        status:       stat?.status       || null,
-        intervencao:  stat?.intervencao  || 0,
-        temLoc:       !!loc
+        job:           j.nome,
+        localizacao:   loc?.localizacao    || 'Na Ferramentaria',
+        maquina:       loc?.maquina        || null,
+        observacao:    loc?.observacao     || null,
+        atualizado:    loc?.atualizado_em  || null,
+        atualizadoPor: loc?.atualizado_por || null,
+        status:        stat?.status        || null,
+        intervencao:   stat?.intervencao   || 0,
+        temLoc:        !!loc
       };
     });
-
     renderizarResumoPCM();
     filtrarPCM();
-  } catch(e) {
-    toast('Erro ao carregar PCM.','erro'); console.error(e);
-  }
+  } catch(e) { toast('Erro ao carregar PCM.','erro'); console.error(e); }
   if (loader) loader.style.display = 'none';
 }
 
@@ -104,8 +81,8 @@ function renderizarResumoPCM() {
   _LOCALIZACOES.forEach(l => contagem[l.id] = 0);
   _dadosPCM.forEach(m => { if (contagem[m.localizacao]!==undefined) contagem[m.localizacao]++; });
   el.innerHTML = _LOCALIZACOES.map(l => `
-    <div class="metric-card" style="border-left-color:${l.cor};cursor:pointer"
-      onclick="setPcmFiltro('${l.id}', null)"
+    <div class="metric-card" style="border-left-color:${l.cor};cursor:pointer;transition:transform 0.15s"
+      onclick="setPcmFiltro('${l.id}',null)"
       onmouseover="this.style.transform='translateY(-2px)'"
       onmouseout="this.style.transform=''">
       <div style="font-size:22px;margin-bottom:6px">${l.ico}</div>
@@ -117,14 +94,13 @@ function renderizarResumoPCM() {
 
 function setPcmFiltro(loc, btn) {
   _filtroLocPCM = loc;
-  // Destaca botão ativo
   document.querySelectorAll('#pcmFiltrosBtns button').forEach(b => b.style.fontWeight='');
   if (btn) btn.style.fontWeight = '700';
   filtrarPCM();
 }
 
 function filtrarPCM() {
-  const busca   = (document.getElementById('pcmBusca')?.value||'').toUpperCase();
+  const busca = (document.getElementById('pcmBusca')?.value||'').toUpperCase();
   const filtrado = _dadosPCM.filter(m => {
     if (_filtroLocPCM !== 'Todos' && m.localizacao !== _filtroLocPCM) return false;
     if (busca && !m.job.toUpperCase().includes(busca)) return false;
@@ -140,8 +116,6 @@ function renderizarListaPCM(lista) {
     el.innerHTML = '<div class="empty-state"><div style="font-size:48px">🗂️</div><div>Nenhum molde encontrado.</div></div>';
     return;
   }
-
-  // Agrupa por localização
   const grupos = {};
   _LOCALIZACOES.forEach(l => grupos[l.id] = []);
   lista.forEach(m => { if (grupos[m.localizacao]) grupos[m.localizacao].push(m); });
@@ -162,61 +136,44 @@ function renderizarListaPCM(lista) {
       </div>
     </div>`;
   });
-
   el.innerHTML = html;
 }
 
 function _criarCardPCM(m, info) {
   const jobEsc = m.job.replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const dt = m.atualizado ? new Date(m.atualizado).toLocaleDateString('pt-BR') : '—';
-  const corStatus = m.status ? corStatus_fn(m.status) : '#94a3b8';
-
   return `<div style="background:#f8fafc;border:1px solid var(--borda);border-left:4px solid ${info.cor};border-radius:10px;padding:14px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
       <div>
         <div style="font-size:14px;font-weight:700;color:#1e3a5f">${m.job}</div>
         ${m.localizacao==='Em Máquina'&&m.maquina
-          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px">⚙️ ${m.maquina}</div>`
-          : ''}
-        ${m.status
-          ? `<div style="font-size:11px;color:${corStatus};font-weight:600;margin-top:2px">${icoStatus(m.status)} ${m.status}</div>`
+          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px">🏭 ${m.maquina}</div>`
           : ''}
       </div>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button onclick="abrirModalPendencias('${jobEsc}')"
-          style="background:#fefce8;border:1px solid #fde68a;color:#92400e;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;position:relative"
-          title="Pendências">
-          ✅ <span data-job-badge="${jobEsc}" style="background:#ef4444;color:#fff;border-radius:10px;font-size:10px;padding:1px 5px;font-weight:700"></span>
-        </button>
-        <button onclick="gerarQRCode('${jobEsc}')"
+          style="background:#fefce8;border:1px solid #fde68a;color:#92400e;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
+          title="Pendências">✅ Pendências</button>
+        <button onclick="abrirModalHistoricoLoc('${jobEsc}')"
           style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
-          title="Gerar QR Code">📱</button>
+          title="Histórico de movimentação">📋 Histórico</button>
+        <button onclick="gerarQRCode('${jobEsc}')"
+          style="background:#f5f3ff;border:1px solid #ddd6fe;color:#7c3aed;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
+          title="QR Code">📱</button>
         <button onclick="abrirFichaDoMolde('${jobEsc}')"
           style="background:#f0fdf4;border:1px solid #bbf7d0;color:#059669;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
-          title="Ver Ficha">📋</button>
+          title="Ver Ficha">📄 Ficha</button>
         <button onclick="abrirModalLocalizacao('${jobEsc}')"
           style="background:#fff;border:1px solid var(--borda);color:#475569;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
           title="Editar localização">✏️</button>
       </div>
     </div>
-    ${m.pendencias
-      ? `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:#92400e">
-           ⚠️ <b>Pendências:</b> ${m.pendencias}
-         </div>`
-      : ''}
-    ${m.observacao
-      ? `<div style="font-size:11px;color:#64748b;margin-bottom:8px">📝 ${m.observacao}</div>`
-      : ''}
+    ${m.observacao ? `<div style="font-size:11px;color:#64748b;margin-bottom:8px">📝 ${m.observacao}</div>` : ''}
     <div style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9">
       <span>📅 ${dt}</span>
       ${m.atualizadoPor?`<span>👤 ${m.atualizadoPor}</span>`:''}
     </div>
   </div>`;
-}
-
-// Alias para evitar conflito de nome
-function corStatus_fn(s) {
-  return s==='Finalizado'?'#10b981':s==='Pausado'?'#f59e0b':'#f97316';
 }
 
 // ==========================================
@@ -228,12 +185,14 @@ function abrirModalLocalizacao(job) {
   _modalLocJob = job;
   const dados = job ? _dadosPCM.find(m=>m.job===job) : null;
 
-  // Monta opções de máquinas
-  const maquinas = _listas?.maquinas || [];
+  // ✅ CORRIGIDO: busca injetoras, não máquinas de usinagem
+  const injetoras = _listas?.injetoras || [];
 
-  const modalHtml = `
-  <div class="modal-overlay" id="pcmLocOverlay" onclick="fecharModalLocalizacao()" style="display:block"></div>
-  <div class="modal" id="pcmLocModal" style="display:block;max-width:500px">
+  const div = document.createElement('div');
+  div.id = 'pcmModalWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharModalLocalizacao()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:500px">
     <div class="modal-header">
       <h3>${job ? '📍 Localização: '+job : '📍 Registrar Localização'}</h3>
       <button onclick="fecharModalLocalizacao()">✕</button>
@@ -246,7 +205,6 @@ function abrirModalLocalizacao(job) {
           <div class="autocomplete-list" id="pcmLocJobList"></div>
         </div>
       </div>` : ''}
-
       <div class="form-group">
         <label>Localização *</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px" id="pcmLocBtns">
@@ -259,23 +217,20 @@ function abrirModalLocalizacao(job) {
         </div>
         <input type="hidden" id="pcmLocSelecionada" value="${dados?.localizacao||'Na Ferramentaria'}">
       </div>
-
       <div class="form-group" id="pcmGrupoMaquina" style="${dados?.localizacao==='Em Máquina'?'':'display:none'}">
-        <label>Máquina *</label>
+        <label>Injetora *</label>
         <select id="pcmLocMaquina">
           <option value="">Selecione...</option>
-          ${maquinas.map(m=>`<option value="${m}" ${dados?.maquina===m?'selected':''}>${m}</option>`).join('')}
+          ${injetoras.map(m=>`<option value="${m}" ${dados?.maquina===m?'selected':''}>${m}</option>`).join('')}
         </select>
       </div>
-
-      <div class="form-group">
-        <label>Pendências</label>
-        <textarea id="pcmLocPendencias" rows="2" placeholder="Ex: Trocar copo, ajustar cavidade 3...">${dados?.pendencias||''}</textarea>
-      </div>
-
       <div class="form-group">
         <label>Observação</label>
         <textarea id="pcmLocObs" rows="2" placeholder="Observações gerais...">${dados?.observacao||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Data da movimentação</label>
+        <input type="date" id="pcmLocData" value="${new Date().toISOString().split('T')[0]}">
       </div>
     </div>
     <div class="modal-footer">
@@ -283,23 +238,12 @@ function abrirModalLocalizacao(job) {
       <button class="btn-secondary" onclick="fecharModalLocalizacao()">Cancelar</button>
     </div>
   </div>`;
-
-  // Injeta modal no body
-  const div = document.createElement('div');
-  div.id = 'pcmModalWrap';
-  div.innerHTML = modalHtml;
   document.body.appendChild(div);
-
-  // Setup autocomplete do job (quando não tem job definido)
-  if (!job && _listas?.jobs) {
-    setupAC('pcmLocJob', 'pcmLocJobList', _listas.jobs);
-  }
+  if (!job && _listas?.jobs) setupAC('pcmLocJob', 'pcmLocJobList', _listas.jobs);
 }
 
 function selecionarLocalizacao(loc) {
   document.getElementById('pcmLocSelecionada').value = loc;
-  // Visual
-  const info = _infoLoc(loc);
   document.querySelectorAll('#pcmLocBtns label').forEach(lbl => {
     const val = lbl.querySelector('input')?.value;
     const i   = _infoLoc(val);
@@ -307,23 +251,32 @@ function selecionarLocalizacao(loc) {
     lbl.style.background  = val===loc ? i.bg  : '#fff';
     lbl.style.color       = val===loc ? i.cor  : '#64748b';
   });
-  // Mostra/oculta campo máquina
   const grpMaq = document.getElementById('pcmGrupoMaquina');
   if (grpMaq) grpMaq.style.display = loc==='Em Máquina' ? '' : 'none';
 }
 
 async function salvarLocalizacao() {
-  const job = _modalLocJob || document.getElementById('pcmLocJob')?.value?.trim();
+  const job  = _modalLocJob || document.getElementById('pcmLocJob')?.value?.trim();
   if (!job) return toast('Informe o job.','erro');
-  const loc   = document.getElementById('pcmLocSelecionada')?.value;
-  const maq   = document.getElementById('pcmLocMaquina')?.value || null;
-  const pend  = document.getElementById('pcmLocPendencias')?.value?.trim() || null;
-  const obs   = document.getElementById('pcmLocObs')?.value?.trim() || null;
+  const loc  = document.getElementById('pcmLocSelecionada')?.value;
+  const maq  = document.getElementById('pcmLocMaquina')?.value || null;
+  const obs  = document.getElementById('pcmLocObs')?.value?.trim() || null;
+  const data = document.getElementById('pcmLocData')?.value || new Date().toISOString().split('T')[0];
   if (!loc) return toast('Selecione a localização.','erro');
-  if (loc==='Em Máquina' && !maq) return toast('Selecione a máquina.','erro');
-
+  if (loc==='Em Máquina' && !maq) return toast('Selecione a injetora.','erro');
   try {
-    await db.salvarLocalizacao({ job, localizacao:loc, maquina:maq, pendencias:pend, observacao:obs, atualizado_por:_sessao?.nome || null });
+    // Salva localização atual
+    await db.salvarLocalizacao({
+      job, localizacao:loc, maquina:maq, observacao:obs,
+      atualizado_por: _sessao?.nome || null,
+      atualizado_em:  data + 'T00:00:00'
+    });
+    // Registra no histórico de movimentação
+    await db._post('molde_localizacao_historico', {
+      job, localizacao:loc, maquina:maq||null, observacao:obs||null,
+      movido_em:  data + 'T00:00:00',
+      movido_por: _sessao?.nome || null
+    });
     toast('Localização atualizada!','sucesso');
     fecharModalLocalizacao();
     await carregarPCM();
@@ -331,100 +284,75 @@ async function salvarLocalizacao() {
 }
 
 function fecharModalLocalizacao() {
-  const wrap = document.getElementById('pcmModalWrap');
-  if (wrap) wrap.remove();
+  document.getElementById('pcmModalWrap')?.remove();
   _modalLocJob = null;
 }
 
 // ==========================================
-// 📱 QR CODE
+// 📋 HISTÓRICO DE MOVIMENTAÇÃO
 // ==========================================
-async function gerarQRCode(job) {
-  // Monta a URL da ficha do molde
-  const baseUrl = window.location.origin + window.location.pathname.replace('app.html','') + 'app.html#ficha';
-  const url = baseUrl + '?job=' + encodeURIComponent(job);
-
-  // Usa API pública do QRServer
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}&margin=10&format=png`;
-
-  // Cria modal com QR Code
+async function abrirModalHistoricoLoc(job) {
   const div = document.createElement('div');
-  div.id = 'qrModalWrap';
+  div.id = 'modalHistLocWrap';
   div.innerHTML = `
-  <div class="modal-overlay" onclick="fecharQRCode()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:380px;text-align:center">
-    <div class="modal-header" style="justify-content:space-between">
-      <h3>📱 QR Code — ${job}</h3>
-      <button onclick="fecharQRCode()">✕</button>
+  <div class="modal-overlay" onclick="fecharModalHistoricoLoc()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:560px">
+    <div class="modal-header">
+      <h3>📋 Histórico de Movimentação — ${job}</h3>
+      <button onclick="fecharModalHistoricoLoc()">✕</button>
     </div>
-    <div class="modal-body" style="text-align:center;padding:24px">
-      <div style="background:#fff;border:2px solid var(--borda);border-radius:12px;padding:16px;display:inline-block;margin-bottom:16px">
-        <img src="${qrUrl}" width="240" height="240" alt="QR Code ${job}"
-          style="display:block;border-radius:4px">
-      </div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:16px;word-break:break-all">${url}</div>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <a href="${qrUrl}" download="QRCode_${job.replace(/\s/g,'_')}.png" class="btn-primary" style="text-decoration:none">
-          📥 Baixar PNG
-        </a>
-        <button class="btn-secondary" onclick="imprimirQRCode('${qrUrl}','${job.replace(/'/g,"\\'")}')">
-          🖨️ Imprimir
-        </button>
-        <button class="btn-secondary" onclick="fecharQRCode()">Fechar</button>
-      </div>
-      <div style="margin-top:16px;font-size:11px;color:#94a3b8">
-        Cole este QR Code no molde. Ao escanear, abre a ficha completa.
-      </div>
+    <div class="modal-body">
+      <div id="histLocConteudo"><div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fecharModalHistoricoLoc()">Fechar</button>
     </div>
   </div>`;
   document.body.appendChild(div);
-}
 
-function fecharQRCode() {
-  const wrap = document.getElementById('qrModalWrap');
-  if (wrap) wrap.remove();
-}
-
-function imprimirQRCode(qrUrl, job) {
-  const win = window.open('','_blank','width=400,height=500');
-  win.document.write(`<!DOCTYPE html><html><head><title>QR Code — ${job}</title>
-  <style>body{font-family:Inter,sans-serif;text-align:center;padding:30px}
-  h2{color:#1e3a5f;margin-bottom:8px}
-  p{color:#64748b;font-size:12px;margin-bottom:20px}
-  img{border:2px solid #e2e8f0;border-radius:8px;padding:10px}
-  </style></head><body>
-  <h2>${job}</h2>
-  <p>Escaneie para ver a Ficha do Molde</p>
-  <img src="${qrUrl}" width="240" height="240">
-  <p style="margin-top:16px;font-size:10px;color:#94a3b8">Ferramentaria V3 — BX</p>
-  <script>window.onload=()=>window.print()</script>
-  </body></html>`);
-  win.document.close();
-}
-
-// ==========================================
-// 🔗 SUPORTE A QR CODE NA FICHA
-// (abre ficha automaticamente se vier ?job= na URL)
-// ==========================================
-function verificarQRCodeURL() {
-  const params = new URLSearchParams(window.location.search);
-  const job    = params.get('job');
-  if (job) {
-    // Remove o parâmetro da URL sem recarregar
-    history.replaceState({}, '', window.location.pathname + '#ficha');
-    // Abre a ficha
-    setTimeout(() => {
-      document.getElementById('fichaJobInput').value = job;
-      irPara('ficha', document.getElementById('menuFicha'));
-      setTimeout(() => buscarFicha(), 200);
-    }, 800);
+  try {
+    const hist = await db._get('molde_localizacao_historico',
+      'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*');
+    const el = document.getElementById('histLocConteudo');
+    if (!hist || !hist.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:20px">Nenhuma movimentação registrada.</div>';
+      return;
+    }
+    const locMap = {
+      'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
+      'Na Ferramentaria':{ ico:'🔧', cor:'#0056b3', bg:'#dbeafe' },
+      'Sala de Molde':   { ico:'📦', cor:'#8b5cf6', bg:'#ede9fe' },
+      'Desativado/LOG':  { ico:'🔴', cor:'#ef4444', bg:'#fee2e2' },
+    };
+    el.innerHTML = `<div style="position:relative;padding-left:28px">` +
+      hist.map((h,i) => {
+        const info = locMap[h.localizacao] || { ico:'📍', cor:'#64748b', bg:'#f1f5f9' };
+        const dt = h.movido_em ? new Date(h.movido_em).toLocaleDateString('pt-BR') : '—';
+        return `<div style="position:relative;margin-bottom:16px">
+          ${i<hist.length-1?'<div style="position:absolute;left:-20px;top:20px;width:2px;height:calc(100% + 8px);background:#e2e8f0"></div>':''}
+          <div style="position:absolute;left:-28px;top:4px;width:16px;height:16px;border-radius:50%;background:${info.cor};border:2px solid #fff;box-shadow:0 0 0 2px ${info.cor}"></div>
+          <div style="background:${info.bg};border-radius:10px;border:1px solid ${info.cor}40;border-left:3px solid ${info.cor};padding:12px 14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+              <span style="font-size:13px;font-weight:700;color:${info.cor}">${info.ico} ${h.localizacao}</span>
+              <span style="font-size:11px;color:#94a3b8">📅 ${dt} · 👤 ${h.movido_por||'—'}</span>
+            </div>
+            ${h.maquina?`<div style="font-size:12px;color:#64748b;margin-top:4px">🏭 ${h.maquina}</div>`:''}
+            ${h.observacao?`<div style="font-size:12px;color:#64748b;margin-top:4px">📝 ${h.observacao}</div>`:''}
+          </div>
+        </div>`;
+      }).join('') + '</div>';
+  } catch(e) {
+    document.getElementById('histLocConteudo').innerHTML = '<div class="empty-state">Erro ao carregar.</div>';
   }
 }
 
-// ==========================================
-// ✅ CHECKLIST DE PENDÊNCIAS — PCM
-// ==========================================
+function fecharModalHistoricoLoc() {
+  document.getElementById('modalHistLocWrap')?.remove();
+}
 
+// ==========================================
+// ✅ CHECKLIST DE PENDÊNCIAS
+// ==========================================
 async function carregarPendencias(job) {
   return await db._get('molde_pendencias',
     'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*');
@@ -432,114 +360,172 @@ async function carregarPendencias(job) {
 
 async function adicionarPendencia(job) {
   const texto = document.getElementById('novaPendenciaInput')?.value?.trim();
-  if (!texto) return toast('Digite o texto da pendência.', 'erro');
+  if (!texto) return toast('Digite o texto da pendência.','erro');
+  const dataCriacao = document.getElementById('novaPendenciaData')?.value ||
+    new Date().toISOString().split('T')[0];
   try {
     await db._post('molde_pendencias', {
-      job, texto,
-      concluido: false,
-      criado_por: _sessao?.nome || null
+      job, texto, concluido: false,
+      criado_por: _sessao?.nome || null,
+      criado_em:  dataCriacao + 'T00:00:00'
     });
     document.getElementById('novaPendenciaInput').value = '';
     await renderizarChecklist(job);
-    toast('Pendência adicionada!', 'sucesso');
-  } catch(e) { toast('Erro ao adicionar.', 'erro'); }
+    toast('Pendência adicionada!','sucesso');
+  } catch(e) { toast('Erro ao adicionar.','erro'); }
 }
 
 async function togglePendencia(id, job, concluido) {
+  // Se está concluindo, pede a data
+  if (!concluido) {
+    const dataConclusao = await _pedirData('Data de conclusão:', new Date().toISOString().split('T')[0]);
+    if (dataConclusao === null) return; // cancelou
+    try {
+      await db._patch('molde_pendencias', 'id=eq.' + id, {
+        concluido: true,
+        data_conclusao: dataConclusao
+      });
+      await renderizarChecklist(job);
+    } catch(e) { toast('Erro ao atualizar.','erro'); }
+  } else {
+    // Reabre a pendência
+    try {
+      await db._patch('molde_pendencias', 'id=eq.' + id, {
+        concluido: false, data_conclusao: null
+      });
+      await renderizarChecklist(job);
+    } catch(e) { toast('Erro ao atualizar.','erro'); }
+  }
+}
+
+async function editarDataPendencia(id, job, campo, valorAtual) {
+  const novaData = await _pedirData(
+    campo === 'criado_em' ? 'Data de criação:' : 'Data de conclusão:',
+    valorAtual ? valorAtual.split('T')[0] : new Date().toISOString().split('T')[0]
+  );
+  if (novaData === null) return;
   try {
-    const payload = {
-      concluido: !concluido,
-      data_conclusao: !concluido ? new Date().toISOString().split('T')[0] : null
-    };
+    const payload = {};
+    payload[campo] = novaData + 'T00:00:00';
     await db._patch('molde_pendencias', 'id=eq.' + id, payload);
     await renderizarChecklist(job);
-  } catch(e) { toast('Erro ao atualizar.', 'erro'); }
+    toast('Data atualizada!','sucesso');
+  } catch(e) { toast('Erro ao atualizar.','erro'); }
+}
+
+// Mini modal para pedir data
+function _pedirData(label, valorDefault) {
+  return new Promise(resolve => {
+    const div = document.createElement('div');
+    div.id = 'modalDataWrap';
+    div.innerHTML = `
+    <div class="modal-overlay" style="display:block;z-index:9999"></div>
+    <div class="modal" style="display:block;max-width:340px;z-index:10000">
+      <div class="modal-header"><h3>${label}</h3></div>
+      <div class="modal-body">
+        <input type="date" id="modalDataInput" value="${valorDefault}" style="width:100%">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="
+          const v=document.getElementById('modalDataInput').value;
+          document.getElementById('modalDataWrap').remove();
+          window._resolveData(v||null);">✓ Confirmar</button>
+        <button class="btn-secondary" onclick="
+          document.getElementById('modalDataWrap').remove();
+          window._resolveData(null);">Cancelar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(div);
+    window._resolveData = resolve;
+  });
 }
 
 async function excluirPendencia(id, job) {
   try {
     await db._delete('molde_pendencias', 'id=eq.' + id);
     await renderizarChecklist(job);
-  } catch(e) { toast('Erro ao excluir.', 'erro'); }
+  } catch(e) { toast('Erro ao excluir.','erro'); }
 }
 
 async function renderizarChecklist(job) {
   const el = document.getElementById('checklistPendencias');
   if (!el) return;
-  const pends = await carregarPendencias(job);
-  const abertas    = (pends||[]).filter(p => !p.concluido);
-  const concluidas = (pends||[]).filter(p =>  p.concluido);
+  const pends    = await carregarPendencias(job);
+  const abertas  = (pends||[]).filter(p => !p.concluido);
+  const concluidas = (pends||[]).filter(p => p.concluido);
+  const jobEsc   = job.replace(/'/g,"\\'");
 
   let html = '';
-
   if (!pends.length) {
-    html = `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">
-      ✅ Nenhuma pendência registrada
-    </div>`;
+    html = `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">✅ Nenhuma pendência registrada</div>`;
   } else {
-    // Itens abertos
     html += abertas.map(p => `
       <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px dashed #f1f5f9">
-        <input type="checkbox" style="margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:#10b981"
-          onchange="togglePendencia(${p.id},'${job.replace(/'/g,"\\'")}',false)">
-        <div style="flex:1">
+        <input type="checkbox" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
+          onchange="togglePendencia(${p.id},'${jobEsc}',false)">
+        <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:#1e3a5f;font-weight:500">${p.texto}</div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:2px">
-            👤 ${p.criado_por||'—'} · 📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'}
+          <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
+            <span>👤 ${p.criado_por||'—'}</span>
+            <span style="cursor:pointer;text-decoration:underline;color:#0369a1"
+              onclick="editarDataPendencia(${p.id},'${jobEsc}','criado_em','${p.criado_em||''}')">
+              📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'} ✏️
+            </span>
           </div>
         </div>
-        <button onclick="excluirPendencia(${p.id},'${job.replace(/'/g,"\\'")}')"
-          style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0" title="Excluir">🗑️</button>
+        <button onclick="excluirPendencia(${p.id},'${jobEsc}')"
+          style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;flex-shrink:0">🗑️</button>
       </div>`).join('');
 
-    // Itens concluídos
     if (concluidas.length) {
-      html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:12px 0 8px;text-transform:uppercase">
-        ✅ Concluídas (${concluidas.length})
-      </div>`;
+      html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:14px 0 8px;text-transform:uppercase">
+        ✅ Concluídas (${concluidas.length})</div>`;
       html += concluidas.map(p => `
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed #f1f5f9;opacity:0.6">
-          <input type="checkbox" checked style="margin-top:2px;width:16px;height:16px;cursor:pointer;accent-color:#10b981"
-            onchange="togglePendencia(${p.id},'${job.replace(/'/g,"\\'")}',true)">
-          <div style="flex:1">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed #f1f5f9;opacity:0.65">
+          <input type="checkbox" checked style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
+            onchange="togglePendencia(${p.id},'${jobEsc}',true)">
+          <div style="flex:1;min-width:0">
             <div style="font-size:13px;color:#64748b;text-decoration:line-through">${p.texto}</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px">
-              ✅ Concluída em ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}
-              · 👤 ${p.criado_por||'—'}
+            <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
+              <span>👤 ${p.criado_por||'—'}</span>
+              <span style="cursor:pointer;text-decoration:underline;color:#059669"
+                onclick="editarDataPendencia(${p.id},'${jobEsc}','data_conclusao','${p.data_conclusao||''}')">
+                ✅ ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'} ✏️
+              </span>
             </div>
           </div>
-          <button onclick="excluirPendencia(${p.id},'${job.replace(/'/g,"\\'")}')"
-            style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0">🗑️</button>
+          <button onclick="excluirPendencia(${p.id},'${jobEsc}')"
+            style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;flex-shrink:0">🗑️</button>
         </div>`).join('');
     }
   }
-
   el.innerHTML = html;
-
-  // Atualiza badge de pendências no card do PCM
-  const badge = document.querySelector(`[data-job-badge="${job}"]`);
-  if (badge) badge.innerText = abertas.length || '';
 }
 
-// Modal de checklist — abre ao clicar em "Pendências" no card PCM
 async function abrirModalPendencias(job) {
   const div = document.createElement('div');
   div.id = 'modalPendWrap';
+  const jobEsc = job.replace(/'/g,"\\'");
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalPendencias()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:520px">
+  <div class="modal" style="display:block;max-width:540px">
     <div class="modal-header">
       <h3>✅ Pendências — ${job}</h3>
       <button onclick="fecharModalPendencias()">✕</button>
     </div>
     <div class="modal-body">
-      <!-- Input nova pendência -->
-      <div style="display:flex;gap:8px;margin-bottom:16px">
-        <input type="text" id="novaPendenciaInput" placeholder="Descreva a pendência..."
-          style="flex:1" onkeydown="if(event.key==='Enter') adicionarPendencia('${job.replace(/'/g,"\\'")}')" >
-        <button class="btn-primary" style="white-space:nowrap" onclick="adicionarPendencia('${job.replace(/'/g,"\\'")}')">+ Adicionar</button>
+      <div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid var(--borda)">
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px">+ NOVA PENDÊNCIA</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="novaPendenciaInput" placeholder="Descreva a pendência..." style="flex:1"
+            onkeydown="if(event.key==='Enter') adicionarPendencia('${jobEsc}')">
+          <button class="btn-primary" style="white-space:nowrap" onclick="adicionarPendencia('${jobEsc}')">+ Add</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;color:#64748b">Data:</label>
+          <input type="date" id="novaPendenciaData" value="${new Date().toISOString().split('T')[0]}" style="width:auto">
+        </div>
       </div>
-      <!-- Lista de pendências -->
       <div id="checklistPendencias">
         <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>
       </div>
@@ -554,6 +540,68 @@ async function abrirModalPendencias(job) {
 
 function fecharModalPendencias() {
   document.getElementById('modalPendWrap')?.remove();
-  // Recarrega PCM para atualizar badges
   carregarPCM();
+}
+
+// ==========================================
+// 📱 QR CODE
+// ==========================================
+async function gerarQRCode(job) {
+  const baseUrl = window.location.origin + window.location.pathname + '#ficha';
+  const url     = baseUrl + '?job=' + encodeURIComponent(job);
+  const qrUrl   = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}&margin=10&format=png`;
+  const div = document.createElement('div');
+  div.id = 'qrModalWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharQRCode()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:380px;text-align:center">
+    <div class="modal-header"><h3>📱 QR Code — ${job}</h3><button onclick="fecharQRCode()">✕</button></div>
+    <div class="modal-body" style="text-align:center;padding:24px">
+      <div style="background:#fff;border:2px solid var(--borda);border-radius:12px;padding:16px;display:inline-block;margin-bottom:16px">
+        <img src="${qrUrl}" width="240" height="240" alt="QR Code ${job}" style="display:block;border-radius:4px">
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:16px;word-break:break-all">${url}</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <a href="${qrUrl}" download="QRCode_${job.replace(/\s/g,'_')}.png" class="btn-primary" style="text-decoration:none">📥 Baixar PNG</a>
+        <button class="btn-secondary" onclick="imprimirQRCode('${qrUrl}','${job.replace(/'/g,"\\'")}')">🖨️ Imprimir</button>
+        <button class="btn-secondary" onclick="fecharQRCode()">Fechar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function fecharQRCode() { document.getElementById('qrModalWrap')?.remove(); }
+
+function imprimirQRCode(qrUrl, job) {
+  const win = window.open('','_blank','width=400,height=500');
+  win.document.write(`<!DOCTYPE html><html><head><title>QR Code — ${job}</title>
+  <style>body{font-family:Inter,sans-serif;text-align:center;padding:30px}h2{color:#1e3a5f}img{border:2px solid #e2e8f0;border-radius:8px;padding:10px}</style>
+  </head><body><h2>${job}</h2><p style="color:#64748b;font-size:12px">Escaneie para ver a Ficha do Molde</p>
+  <img src="${qrUrl}" width="240" height="240">
+  <p style="margin-top:16px;font-size:10px;color:#94a3b8">Ferramentaria V3 — BX</p>
+  <script>window.onload=()=>window.print()<\/script></body></html>`);
+  win.document.close();
+}
+
+// ==========================================
+// 🔗 QR CODE NA URL
+// ==========================================
+function verificarQRCodeURL() {
+  const params = new URLSearchParams(window.location.search);
+  const job    = params.get('job');
+  if (job) {
+    history.replaceState({}, '', window.location.pathname + '#ficha');
+    setTimeout(() => {
+      document.getElementById('fichaJobInput').value = job;
+      irPara('ficha', document.getElementById('menuFicha'));
+      setTimeout(() => buscarFicha(), 200);
+    }, 800);
+  }
+}
+
+function abrirFichaDoMolde(job) {
+  document.getElementById('fichaJobInput').value = job;
+  irPara('ficha', document.getElementById('menuFicha'));
+  setTimeout(() => buscarFicha(), 100);
 }
