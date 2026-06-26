@@ -265,9 +265,16 @@ async function salvarForm() {
     if (!id) {
       // Para Bancada com múltiplos técnicos — cria um lançamento por técnico
       if (setor === 'Bancada' && _tecnicosSelecionados.length > 1) {
-        for (const tecnico of _tecnicosSelecionados) {
-          await db.salvarLancamento({ ...dados, funcionario: tecnico });
-        }
+  for (let i = 0; i < _tecnicosSelecionados.length; i++) {
+    const dadosTecnico = { ...dados, funcionario: _tecnicosSelecionados[i] };
+    // Troca de copo só no primeiro técnico
+    if (i > 0) {
+      dadosTecnico.trocaCopo = false;
+      dadosTecnico.tipoCopo = null;
+      dadosTecnico.descricaoCopo = null;
+    }
+    await db.salvarLancamento(dadosTecnico);
+  }
         toast(`${_tecnicosSelecionados.length} lançamentos salvos!`, 'sucesso');
       } else {
         await db.salvarLancamento(dados);
