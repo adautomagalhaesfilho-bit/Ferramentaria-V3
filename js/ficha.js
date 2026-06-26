@@ -25,8 +25,8 @@ async function buscarFicha() {
     const [res, localizacao, pendencias, histLoc] = await Promise.all([
       db.buscarFicha(job),
       db.buscarLocalizacao(job),
-      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*'),
-      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*')
+      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(()=>[]),
+      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(()=>[])
     ]);
     res.localizacao = localizacao;
     res.pendencias  = pendencias || [];
@@ -43,42 +43,38 @@ async function buscarFicha() {
   } catch(e) {
     elConteudo.innerHTML = '<div class="empty-state">Erro ao carregar ficha.</div>';
     toast('Erro ao carregar ficha.', 'erro');
+    console.error(e);
   }
 }
 
 function renderizarFicha(job, res) {
-  const lancs   = res.lancamentos || [];
-  const hist    = res.statusHistory || [];
-  const el      = document.getElementById('fichaConteudo');
+  const lancs    = res.lancamentos || [];
+  const hist     = res.statusHistory || [];
+  const el       = document.getElementById('fichaConteudo');
   const locAtual = res.localizacao;
-  const _locMap = {
+  const _locMap  = {
     'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
     'Na Ferramentaria':{ ico:'🔧', cor:'#0056b3', bg:'#dbeafe' },
     'Sala de Molde':   { ico:'📦', cor:'#8b5cf6', bg:'#ede9fe' },
     'Desativado/LOG':  { ico:'🔴', cor:'#ef4444', bg:'#fee2e2' },
   };
-  const locInfo = locAtual ? (_locMap[locAtual.localizacao]||{ico:'📍',cor:'#64748b',bg:'#f1f5f9'}) : null;
-  const corS    = locInfo?.cor || '#64748b';
-  const bgS     = locInfo?.bg  || '#f1f5f9';
+  const locInfo   = locAtual ? (_locMap[locAtual.localizacao]||{ico:'📍',cor:'#64748b',bg:'#f1f5f9'}) : null;
+  const corS      = locInfo?.cor || '#64748b';
+  const bgS       = locInfo?.bg  || '#f1f5f9';
   const totalMins = lancs.reduce((a,l)=>a+(l.minutos||0),0);
 
   const porSetor = {};
   lancs.forEach(l => { const s=l.setor||'Outros'; if (!porSetor[s]) porSetor[s]=0; porSetor[s]+=l.minutos||0; });
 
-  // Horas por tipo de atividade (todos os setores)
   const porTipo = {};
-  lancs.forEach(l => {
-    const t = l.tipo || 'Sem tipo';
-    if (!porTipo[t]) porTipo[t]=0; porTipo[t]+=l.minutos||0;
-  });
+  lancs.forEach(l => { const t=l.tipo||'Sem tipo'; if (!porTipo[t]) porTipo[t]=0; porTipo[t]+=l.minutos||0; });
   const topTipos = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
-  const cors = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
-  const icos = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐' };
+  const cors   = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
+  const icos   = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐' };
   const paleta = ['#0056b3','#0891b2','#8b5cf6','#10b981','#f59e0b','#ef4444','#6366f1','#ec4899','#14b8a6','#84cc16'];
 
   let html = `
-  <!-- CABEÇALHO -->
   <div class="card" style="border-left:4px solid ${corS}">
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px">
       <div>
@@ -100,7 +96,6 @@ function renderizarFicha(job, res) {
     </div>
   </div>
 
-  <!-- MÉTRICAS — cards de setor clicáveis -->
   <div class="cards-row">
     <div class="metric-card" style="border-left-color:#10b981">
       <div class="metric-icon">⏱️</div>
@@ -124,7 +119,6 @@ function renderizarFicha(job, res) {
     </div>
   </div>
 
-  <!-- GRÁFICOS: Setor + Técnico + Tipo de Atividade -->
   <div class="graficos-2col">
     <div class="grafico-card">
       <div class="grafico-titulo">🗂️ Horas por Setor</div>
@@ -140,13 +134,11 @@ function renderizarFicha(job, res) {
     <div style="height:280px"><canvas id="chartFichaTipos"></canvas></div>
   </div>
 
-  <!-- LINHA DO TEMPO -->
   <div class="card">
     <div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:16px">📅 Linha do Tempo</div>
     <div id="fichaTimeline"></div>
   </div>
 
-  <!-- HISTÓRICO COMPLETO COM FILTROS -->
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">☷ Histórico Completo</div>
@@ -181,11 +173,7 @@ function renderizarFicha(job, res) {
 
   el.innerHTML = html;
 
-  // ==========================================
-  // GRÁFICOS
-  // ==========================================
   setTimeout(() => {
-    // 1. Donut — Setores
     const setorEnt = Object.entries(porSetor);
     if (_chartsFicha['setores']) _chartsFicha['setores'].destroy();
     const ctx1 = document.getElementById('chartFichaSetores');
@@ -200,7 +188,6 @@ function renderizarFicha(job, res) {
       }
     });
 
-    // 2. Barras — Técnicos
     const porFunc = {};
     lancs.forEach(l => { const f=l.funcionario||'-'; if (!porFunc[f]) porFunc[f]=0; porFunc[f]+=l.minutos||0; });
     const funcEnt = Object.entries(porFunc).sort((a,b)=>b[1]-a[1]).slice(0,10);
@@ -215,25 +202,13 @@ function renderizarFicha(job, res) {
       }
     });
 
-    // 3. Barras horizontais — Tipos de Atividade (NOVO)
     if (_chartsFicha['tipos']) _chartsFicha['tipos'].destroy();
     const ctx3 = document.getElementById('chartFichaTipos');
     if (ctx3 && topTipos.length) _chartsFicha['tipos'] = new Chart(ctx3, {
       type:'bar',
-      data:{
-        labels: topTipos.map(e=>e[0]),
-        datasets:[{
-          data: topTipos.map(e=>Math.round(e[1]/60*10)/10),
-          backgroundColor: topTipos.map((_,i)=>paleta[i%paleta.length]),
-          borderRadius: 6
-        }]
-      },
-      options:{
-        responsive:true, maintainAspectRatio:false, indexAxis:'y',
-        plugins:{
-          legend:{display:false},
-          datalabels:{anchor:'end',align:'end',color:'#1e3a5f',font:{weight:'bold'},formatter:v=>v+'h'}
-        },
+      data:{ labels:topTipos.map(e=>e[0]), datasets:[{ data:topTipos.map(e=>Math.round(e[1]/60*10)/10), backgroundColor:topTipos.map((_,i)=>paleta[i%paleta.length]), borderRadius:6 }] },
+      options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+        plugins:{ legend:{display:false}, datalabels:{anchor:'end',align:'end',color:'#1e3a5f',font:{weight:'bold'},formatter:v=>v+'h'} },
         scales:{ x:{beginAtZero:true, title:{display:true,text:'Horas'}} }
       }
     });
@@ -243,18 +218,10 @@ function renderizarFicha(job, res) {
   renderizarTabelaFicha(lancs);
 }
 
-// ==========================================
-// FILTRO POR SETOR — chamado pelo clique no card ou no gráfico
-// ==========================================
 function filtrarFichaSetor(setor) {
-  // Atualiza o select de setor
   const sel = document.getElementById('fichaFiltroSetor');
   if (sel) sel.value = setor;
-
-  // Mostra/esconde filtros secundários
   filtrarFicha();
-
-  // Scroll suave até a tabela
   const tabela = document.querySelector('.card:last-of-type');
   if (tabela) tabela.scrollIntoView({ behavior:'smooth', block:'start' });
 }
@@ -272,26 +239,21 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
   const el = document.getElementById('fichaTimeline');
   if (!el) return;
 
-  const locMap = {
-    'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
-    'Na Ferramentaria':{ ico:'🔧', cor:'#0056b3', bg:'#dbeafe' },
-    'Sala de Molde':   { ico:'📦', cor:'#8b5cf6', bg:'#ede9fe' },
-    'Desativado/LOG':  { ico:'🔴', cor:'#ef4444', bg:'#fee2e2' },
-  };
-  const locInfo = localizacao ? locMap[localizacao.localizacao] : null;
   const abertas    = (pendencias||[]).filter(p => !p.concluido);
   const concluidas = (pendencias||[]).filter(p =>  p.concluido);
 
   let html = '<div style="position:relative;padding-left:32px">';
 
-   // 2. Checklist de pendências
+  // 1. Checklist de pendências
   if (pendencias && pendencias.length) {
     html += `<div style="position:relative;margin-bottom:20px">
       <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 0 0 2px #f59e0b"></div>
       <div style="background:#fffbeb;border-radius:10px;border:1px solid #fde68a;border-left:3px solid #f59e0b;padding:14px 16px">
         <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:12px">
           ✅ Pendências
-          ${abertas.length?`<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${abertas.length} abertas</span>`:'<span style="background:#10b981;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">Todas concluídas</span>'}
+          ${abertas.length
+            ? `<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${abertas.length} abertas</span>`
+            : '<span style="background:#10b981;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">Todas concluídas</span>'}
         </div>
         ${abertas.map(p=>`
           <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fde68a">
@@ -301,7 +263,7 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
               <div style="font-size:10px;color:#94a3b8">👤 ${p.criado_por||'—'} · 📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'}</div>
             </div>
           </div>`).join('')}
-        ${concluidas.length?`
+        ${concluidas.length ? `
           <div style="margin-top:10px;font-size:11px;color:#94a3b8;font-weight:700;letter-spacing:1px">CONCLUÍDAS</div>
           ${concluidas.map(p=>`
             <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;opacity:0.6">
@@ -311,7 +273,7 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
                 <div style="font-size:10px;color:#94a3b8">✅ ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</div>
               </div>
             </div>`).join('')}
-        `:''}
+        ` : ''}
       </div>
     </div>`;
   } else {
@@ -321,26 +283,24 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
     </div>`;
   }
 
-  // 3. Trocas de copo
-  const copos = lancs.filter(l => l.trocaCopo===true||l.trocaCopo==='true');
+  // 2. Histórico de troca de copo
+  const copos = lancs.filter(l => l.trocaCopo===true || l.trocaCopo==='true');
   if (copos.length) {
     html += `<div style="position:relative;margin-bottom:20px">
       <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#0891b2;border:2px solid #fff;box-shadow:0 0 0 2px #0891b2"></div>
       <div style="background:#e0f2fe;border-radius:10px;border:1px solid #bae6fd;border-left:3px solid #0891b2;padding:14px 16px">
         <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:10px">🔄 Histórico de Troca de Copo</div>
         ${copos.map(l=>`
-          <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed #bae6fd;font-size:12px;flex-wrap:wrap">
+          <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed #bae6fd;font-size:12px;flex-wrap:wrap;align-items:center">
             <span style="color:#0369a1;font-weight:600">${l.data?l.data.split('-').reverse().join('/'):'—'}</span>
             <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
             ${l.descricaoCopo?`<span style="color:#64748b">📝 ${l.descricaoCopo}</span>`:''}
-          </div>`).join('')}</span>
-            <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
           </div>`).join('')}
       </div>
     </div>`;
   }
 
-  // 4. Histórico de movimentação (PCM)
+  // 3. Histórico de movimentação (PCM)
   if (histLoc && histLoc.length) {
     const locMapH = {
       'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
@@ -447,9 +407,7 @@ function aplicarFiltrosFicha() {
   if (elRes) {
     const temFiltro = setor !== 'Todos';
     elRes.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:13px;font-weight:600;color:#1e3a5f">
-        ${temFiltro ? '🔍 Filtro: <b>'+setor+'</b>' : '📊 Resultado:'}
-      </span>
+      <span style="font-size:13px;font-weight:600;color:#1e3a5f">${temFiltro?'🔍 Filtro: <b>'+setor+'</b>':'📊 Resultado:'}</span>
       <span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">📋 <b>${filtrado.length} lançamentos</b></span>
       ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bae6fd;font-size:13px;color:#0369a1">⏱️ <b>${fmtMin(totalMins)}</b></span>`:''}
     </div>`;
