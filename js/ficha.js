@@ -329,8 +329,11 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
       <div style="background:#e0f2fe;border-radius:10px;border:1px solid #bae6fd;border-left:3px solid #0891b2;padding:14px 16px">
         <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:10px">🔄 Histórico de Troca de Copo</div>
         ${copos.map(l=>`
-          <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed #bae6fd;font-size:12px">
+          <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed #bae6fd;font-size:12px;flex-wrap:wrap">
             <span style="color:#0369a1;font-weight:600">${l.data?l.data.split('-').reverse().join('/'):'—'}</span>
+            <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
+            ${l.descricaoCopo?`<span style="color:#64748b">📝 ${l.descricaoCopo}</span>`:''}
+          </div>`).join('')}</span>
             <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
           </div>`).join('')}
       </div>
