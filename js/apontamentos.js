@@ -81,7 +81,7 @@ function renderizarApontamentos() {
     const stTxt = `<span style="color:${cor};font-weight:600;font-size:12px">${ico} ${item.status||'Em andamento'}</span>`;
     const acoes = podeEditar()
       ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarApontamento(${origIdx})">✏️</button>
-         <button class="btn-danger"  style="padding:4px 8px;font-size:11px" onclick="confirmarExclusao('Excluir este lançamento?',()=>excluirApontamento(${item.id}))">🗑️</button>`
+         <button class="btn-danger"  style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${item.id})">🗑️</button>`
       : '';
     const job = item.job ? `<b>${item.job}</b>` : '<span style="color:#aaa">—</span>';
     const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '<span style="color:#f59e0b">⏳</span>');
@@ -457,4 +457,9 @@ function setSelect(id, val) {
   for (let i = 0; i < sel.options.length; i++) {
     if (sel.options[i].value === val) { sel.selectedIndex = i; return; }
   }
+}
+function excluirApontamentoConfirm(id) {
+  confirmarExclusao('Excluir este lançamento?', function() {
+    excluirApontamento(id);
+  });
 }
