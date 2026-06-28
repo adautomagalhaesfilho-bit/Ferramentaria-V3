@@ -462,69 +462,58 @@ tbody tr:hover { background:#f8fafc; }
 }
 
 /* ==========================================
-   MODAL FORMULÁRIO — CAMPOS PROPORCIONAIS
+   MODAL FORM — ROLAGEM APENAS NO BODY
    ========================================== */
-
-/* Garante que o modal não ultrapasse a tela */
 .modal-form {
-  max-width: 560px !important;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+.modal-form-body {
   overflow-y: auto !important;
   overflow-x: hidden !important;
+  flex: 1;
+  padding: 20px 24px;
 }
+.modal-form-body::-webkit-scrollbar { width: 5px; }
+.modal-form-body::-webkit-scrollbar-track { background: transparent; }
+.modal-form-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.modal-form-body::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Seção do modal sem padding excessivo */
-.modal-form-body {
-  padding: 20px 24px !important;
-}
-
-/* form-group dentro do modal — sem min-width forçado */
+/* ==========================================
+   MODAL FORM — CAMPOS PROPORCIONAIS
+   ========================================== */
 .modal-form-body .form-group {
   min-width: 0 !important;
   margin-bottom: 14px;
 }
-
-/* form-row dentro do modal — proporcional */
 .modal-form-body .form-row {
   display: flex;
   gap: 12px;
   flex-wrap: nowrap;
   margin-bottom: 0;
 }
-
-/* Em mobile, empilha */
-@media (max-width: 600px) {
-  .modal-form-body .form-row {
-    flex-wrap: wrap;
-  }
+@media (max-width: 540px) {
+  .modal-form-body .form-row { flex-wrap: wrap; }
 }
-
-/* Inputs e selects dentro do modal — altura e fonte uniforme */
 .modal-form-body input[type="text"],
 .modal-form-body input[type="date"],
 .modal-form-body input[type="time"],
 .modal-form-body input[type="number"],
-.modal-form-body select,
-.modal-form-body textarea {
-  padding: 9px 12px;
-  font-size: 13px;
-  border-radius: 8px;
+.modal-form-body select {
   height: 40px;
+  padding: 8px 12px;
+  font-size: 13px;
   width: 100%;
   box-sizing: border-box;
 }
-
 .modal-form-body textarea {
-  height: auto;
-  min-height: 80px;
+  width: 100%;
+  font-size: 13px;
+  padding: 8px 12px;
+  box-sizing: border-box;
 }
-
-/* Seção interna do modal — espaçamento menor */
-.modal-form-body .modal-form-section {
-  padding: 14px;
-  margin-bottom: 14px;
-}
-
-/* Label dentro do modal */
 .modal-form-body label {
   font-size: 12px;
   font-weight: 600;
@@ -532,37 +521,14 @@ tbody tr:hover { background:#f8fafc; }
   margin-bottom: 4px;
   display: block;
 }
-
-/* Grupo de data + hora — proporcional */
-.modal-form-body #grupoHrIni,
-.modal-form-body #grupoHrFim {
-  flex: 1;
-  min-width: 0;
-}
-
-.modal-form-body .form-row > .form-group:first-child {
-  flex: 1.2;
-}
-.modal-form-body .form-row > .form-group:not(:first-child) {
-  flex: 1;
-}
-
-/* Grupo de máquina + tipo — mesma altura */
-.modal-form-body #grupoMaquina,
-.modal-form-body #grupoTipoUsina {
+.modal-form-body .modal-form-section {
+  padding: 14px;
   margin-bottom: 14px;
 }
-
-/* Botão de salvar no modal */
 .modal-form-body .btn-full {
   margin-top: 6px;
   height: 46px;
   font-size: 14px;
-}
-
-/* Status buttons — distribuição igual */
-.modal-form-body .status-btns {
-  gap: 6px;
 }
 .modal-form-body .btn-status {
   flex: 1;
@@ -570,15 +536,7 @@ tbody tr:hover { background:#f8fafc; }
   font-size: 11px;
   white-space: nowrap;
 }
-
-/* Checkbox alinhado */
 .modal-form-body .checkbox-label {
   font-size: 12px;
   gap: 6px;
-  margin-top: 2px;
-}
-
-/* Autocomplete dentro do modal */
-.modal-form-body .autocomplete-wrap input {
-  height: 40px;
 }
