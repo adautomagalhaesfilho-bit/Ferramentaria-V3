@@ -1,11 +1,11 @@
 // ==========================================
-// 📋 APONTAMENTOS.JS — Modal V3 + Troca de Copo + Múltiplos Técnicos
+// 📋 APONTAMENTOS.JS — V3 com Auto-preenchimento
 // ==========================================
 
 var _setorAtivo = 'Usinagem';
 var _dadosApontamentos = [];
 var _statusForm = null;
-var _tecnicosSelecionados = []; // Para Bancada — múltiplos técnicos
+var _tecnicosSelecionados = [];
 
 function abrirSetor(tela) {
   const mapa = { usinagem:'Usinagem', bancada:'Bancada', projeto:'Projeto' };
@@ -75,8 +75,7 @@ function renderizarApontamentos() {
     return;
   }
 
-  // Para Bancada, agrupa lançamentos do mesmo grupo (mesmo job+tipo+horário)
-  // para exibir técnicos juntos na mesma linha visual
+  // Agrupa Bancada por job+tipo+horário
   let linhas = dados;
   if (_setorAtivo === 'Bancada') {
     const grupos = {};
@@ -85,7 +84,6 @@ function renderizarApontamentos() {
       if (!grupos[chave]) grupos[chave] = { ...item, _tecnicos:[item.funcionario], _ids:[item.id], _idxs:[] };
       else { grupos[chave]._tecnicos.push(item.funcionario); grupos[chave]._ids.push(item.id); }
     });
-    // Mapeia índices originais
     dados.forEach((item, idx) => {
       const chave = `${item.job||''}|${item.tipo||''}|${item.horaInicio||''}|${item.horaFim||''}|${item.descricao||''}`;
       grupos[chave]._idxs.push(idx);
@@ -98,8 +96,6 @@ function renderizarApontamentos() {
     const cor = corStatus(item.status);
     const ico = icoStatus(item.status);
     const stTxt = `<span style="color:${cor};font-weight:600;font-size:12px">${ico} ${item.status||'Em andamento'}</span>`;
-
-    // Ações — para Bancada com múltiplos técnicos, edita só o primeiro
     const acoes = podeEditar()
       ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarApontamento(${origIdx})">✏️</button>
          <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${_setorAtivo==='Bancada'?JSON.stringify(item._ids||[item.id]).replace(/"/g,"'"):item.id})">🗑️</button>`
@@ -108,7 +104,6 @@ function renderizarApontamentos() {
     const job = item.job ? `<b>${item.job}</b>` : '<span style="color:#aaa">—</span>';
     const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '<span style="color:#f59e0b">⏳</span>');
 
-    // Badge troca de copo
     let badgeCopo = '';
     if (_setorAtivo==='Bancada') {
       if (item.trocaCopo === true || item.trocaCopo === 'true') {
@@ -122,7 +117,6 @@ function renderizarApontamentos() {
       }
     }
 
-    // Técnicos (Bancada pode ter vários)
     const tecnico = _setorAtivo==='Bancada' && item._tecnicos
       ? item._tecnicos.map(t=>`<span style="display:inline-block;background:#f1f5f9;padding:1px 7px;border-radius:8px;font-size:11px;margin:1px">${t}</span>`).join('')
       : (item.funcionario||'—');
@@ -138,7 +132,7 @@ function renderizarApontamentos() {
 }
 
 // ==========================================
-// ➕ NOVO / EDITAR — via MODAL
+// ➕ NOVO / EDITAR
 // ==========================================
 function abrirNovoApontamento() {
   document.getElementById('formId').value = '';
@@ -179,7 +173,6 @@ async function editarApontamento(idx) {
     document.getElementById('formTipoBancada').value      = item.tipo || '';
     document.getElementById('formHrIni').value = item.horaInicio || '';
     document.getElementById('formHrFim').value = item.horaFim    || '';
-    // Troca de copo
     const chkCopo = document.getElementById('formTrocaCopo');
     const grpCopo = document.getElementById('grupoTipoCopo');
     if (chkCopo) chkCopo.checked = !!(item.trocaCopo === true || item.trocaCopo === 'true');
@@ -190,7 +183,6 @@ async function editarApontamento(idx) {
     else if (item.tipoCopo === 'Embuchado') { const r=document.getElementById('formTipoCopoEmb'); if(r) r.checked=true; }
     const elDescCopo = document.getElementById('formDescCopo');
     if (elDescCopo) elDescCopo.value = item.descricaoCopo || '';
-    // Técnicos selecionados
     _tecnicosSelecionados = [item.funcionario];
     _renderizarTecnicosSelecionados();
   } else {
@@ -263,18 +255,12 @@ async function salvarForm() {
   btn.disabled = true; btn.innerText = 'Salvando...';
   try {
     if (!id) {
-      // Para Bancada com múltiplos técnicos — cria um lançamento por técnico
       if (setor === 'Bancada' && _tecnicosSelecionados.length > 1) {
-  for (let i = 0; i < _tecnicosSelecionados.length; i++) {
-    const dadosTecnico = { ...dados, funcionario: _tecnicosSelecionados[i] };
-    // Troca de copo só no primeiro técnico
-    if (i > 0) {
-      dadosTecnico.trocaCopo = false;
-      dadosTecnico.tipoCopo = null;
-      dadosTecnico.descricaoCopo = null;
-    }
-    await db.salvarLancamento(dadosTecnico);
-  }
+        for (let i = 0; i < _tecnicosSelecionados.length; i++) {
+          const dadosTecnico = { ...dados, funcionario: _tecnicosSelecionados[i] };
+          if (i > 0) { dadosTecnico.trocaCopo=false; dadosTecnico.tipoCopo=null; dadosTecnico.descricaoCopo=null; }
+          await db.salvarLancamento(dadosTecnico);
+        }
         toast(`${_tecnicosSelecionados.length} lançamentos salvos!`, 'sucesso');
       } else {
         await db.salvarLancamento(dados);
@@ -310,7 +296,7 @@ async function excluirApontamento(id) {
 function excluirApontamentoConfirm(ids) {
   const idsArr = Array.isArray(ids) ? ids : [ids];
   const msg = idsArr.length > 1
-    ? `Excluir ${idsArr.length} lançamentos (todos os técnicos deste apontamento)?`
+    ? `Excluir ${idsArr.length} lançamentos (todos os técnicos)?`
     : 'Excluir este lançamento?';
   confirmarExclusao(msg, async function() {
     try {
@@ -326,14 +312,13 @@ function coletarDadosForm(setor) {
   const job       = document.getElementById('formJob').value;
   const descricao = document.getElementById('formDesc').value;
   const status    = _statusForm || 'Em andamento';
-  if (!data)    { toast('Informe a data.','erro');        return null; }
-  if (!descricao) { toast('Preencha a descrição.','erro'); return null; }
+  if (!data)      { toast('Informe a data.','erro');        return null; }
+  if (!descricao) { toast('Preencha a descrição.','erro');  return null; }
 
-  // Para Bancada usa lista de técnicos selecionados
   let funcionario = '';
   if (setor === 'Bancada') {
     if (!_tecnicosSelecionados.length) { toast('Adicione pelo menos um técnico.','erro'); return null; }
-    funcionario = _tecnicosSelecionados[0]; // Usado para lançamento único ou primeiro
+    funcionario = _tecnicosSelecionados[0];
   } else {
     funcionario = document.getElementById('formFunc').value;
     if (!funcionario) { toast('Selecione o funcionário.','erro'); return null; }
@@ -361,9 +346,9 @@ function coletarDadosForm(setor) {
     if (!tipo)  { toast('Selecione a atividade.','erro');    return null; }
     if (!hrIni) { toast('Informe a hora de início.','erro'); return null; }
     if (!hrFim) { toast('Informe a hora de fim.','erro');    return null; }
-    const trocaCopo   = document.getElementById('formTrocaCopo')?.checked || false;
-    const tipoCopo    = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
-    const descCopo    = trocaCopo ? (document.getElementById('formDescCopo')?.value?.trim() || null) : null;
+    const trocaCopo  = document.getElementById('formTrocaCopo')?.checked || false;
+    const tipoCopo   = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
+    const descCopo   = trocaCopo ? (document.getElementById('formDescCopo')?.value?.trim() || null) : null;
     if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo.','erro'); return null; }
     Object.assign(dados, {
       tipo, horaInicio:hrIni, horaFim:hrFim,
@@ -390,12 +375,13 @@ function configurarCamposForm(setor) {
     grupoTipoBancada: setor==='Bancada',
     grupoCopo:        setor==='Bancada',
     grupoArea:        setor==='Projeto',
+    grupoHorarios:    setor!=='Projeto',
     grupoHrIni:       setor!=='Projeto',
     grupoHrFim:       setor!=='Projeto',
     grupoAlmoco:      setor!=='Projeto',
     grupoTempoAuto:   setor==='Usinagem',
-    grupoFuncSimples: setor!=='Bancada',   // Técnico único (Usinagem/Projeto)
-    grupoFuncBancada: setor==='Bancada',   // Múltiplos técnicos
+    grupoFuncSimples: setor!=='Bancada',
+    grupoFuncBancada: setor==='Bancada',
   };
   Object.entries(vis).forEach(([id,v]) => {
     const el = document.getElementById(id);
@@ -405,7 +391,6 @@ function configurarCamposForm(setor) {
   if (grpCopo) grpCopo.style.display = 'none';
   const chkCopo = document.getElementById('formTrocaCopo');
   if (chkCopo) chkCopo.checked = false;
-  // Reseta técnicos da bancada
   _tecnicosSelecionados = [];
   _renderizarTecnicosSelecionados();
 
@@ -415,7 +400,6 @@ function configurarCamposForm(setor) {
     montarSelect('formTipoUsina', _listas.tipos||[]);
     montarSelect('formMotivo', _listas.motivos||[], 'Nenhum');
   } else if (setor==='Bancada') {
-    // Popula select de técnicos da bancada
     const sel = document.getElementById('formFuncBancada');
     if (sel) {
       sel.innerHTML = '<option value="">+ Adicionar técnico...</option>' +
@@ -427,9 +411,11 @@ function configurarCamposForm(setor) {
   }
 }
 
+// ==========================================
+// 👤 CARREGAR FUNCIONÁRIOS + AUTO-PREENCHIMENTO
+// ==========================================
 async function carregarFuncionariosForm(setor) {
   if (setor === 'Bancada') {
-    // Bancada usa o select de múltiplos técnicos — já populado em configurarCamposForm
     _renderizarTecnicosSelecionados();
     return;
   }
@@ -442,11 +428,13 @@ async function carregarFuncionariosForm(setor) {
     const lista = funcs.length>0 ? funcs :
       (setor==='Usinagem'?_listas?.funcionarios:_listas?.funcProjeto)||[];
     sel.innerHTML = '<option value="">Selecione...</option>' + lista.map(f=>`<option value="${f}">${f}</option>`).join('');
+
     if (setor==='Usinagem') {
+      // Auto-preenchimento: ao selecionar técnico → preenche máquina e hora início
       sel.onchange = async () => {
         const func = sel.value;
         const data = document.getElementById('formData')?.value;
-        if (!func||!data) return;
+        if (!func || !data) return;
         const aviso = document.getElementById('avisoFunc');
         if (aviso) { aviso.style.display='block'; aviso.innerText='Buscando último apontamento...'; }
         try {
@@ -457,8 +445,25 @@ async function carregarFuncionariosForm(setor) {
         } catch(e) {}
         if (aviso) aviso.style.display='none';
       };
-    } else { sel.onchange = null; }
+    } else {
+      sel.onchange = null;
+    }
   } catch(e) { sel.innerHTML='<option value="">Erro ao carregar</option>'; }
+}
+
+// ==========================================
+// 🔩 AUTO-PREENCHIMENTO DO JOB (Usinagem)
+// ==========================================
+async function aoSelecionarJob(job) {
+  if (_setorAtivo !== 'Usinagem' || !job) return;
+  const maq = document.getElementById('formMaq')?.value || '';
+  try {
+    const desc = await db.buscarDescricaoJob(job, maq);
+    if (desc) {
+      const elDesc = document.getElementById('formDesc');
+      if (elDesc && !elDesc.value) elDesc.value = desc;
+    }
+  } catch(e) {}
 }
 
 function selecionarStatus(status) { _statusForm=status; atualizarBotoesStatus(); }
@@ -524,7 +529,6 @@ async function enviarWhatsapp() {
       const mestra=((_listas?.mapaBancada||{})[i.tipo]||i.tipo||'Outros');
       if (!grupos[mestra]) grupos[mestra]={};
       if (!grupos[mestra][i.tipo]) grupos[mestra][i.tipo]=[];
-      // Agrupa técnicos do mesmo job+tipo+horário
       const chave = `${i.job||''}|${i.horaInicio||''}|${i.horaFim||''}|${i.descricao||''}`;
       const existente = grupos[mestra][i.tipo].find(x=>x._chave===chave);
       if (existente) { existente._tecnicos.push(i.funcionario); }
