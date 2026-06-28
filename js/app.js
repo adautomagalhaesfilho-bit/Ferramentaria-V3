@@ -135,11 +135,16 @@ function toggleAdmin() {
 function inicializarAutocompletes() {
   if (!_listas) return;
   const jobs = _listas.jobs || [];
-  setupAC('formJob',              'formJobList',          jobs);
-  setupAC('fichaJobInput',        'fichaJobList',         jobs);
-  setupAC('histJob',              'histJobList',          jobs);
-  setupAC('prodFormMolde',        'prodFormMoldeList',    jobs);
-  setupAC('formTipoBancadaInput', 'formTipoBancadaList',  _listas.tiposBancada || [], val => {
+
+  // formJob — ao selecionar job na Usinagem, preenche descrição automaticamente
+  setupAC('formJob', 'formJobList', jobs, val => {
+    if (typeof aoSelecionarJob === 'function') aoSelecionarJob(val);
+  });
+
+  setupAC('fichaJobInput',        'fichaJobList',        jobs);
+  setupAC('histJob',              'histJobList',         jobs);
+  setupAC('prodFormMolde',        'prodFormMoldeList',   jobs);
+  setupAC('formTipoBancadaInput', 'formTipoBancadaList', _listas.tiposBancada || [], val => {
     document.getElementById('formTipoBancada').value = val;
   });
 }
@@ -450,7 +455,7 @@ async function excluirInjetoraAdmin(id) {
 }
 
 // ==========================================
-// 🏷️ CATEGORIAS — Lista Mestra por Setor
+// 🏷️ CATEGORIAS
 // ==========================================
 const _SETORES_CAT = ['Usinagem','Bancada','Projeto','Producao'];
 const _CORES_CAT = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', Producao:'#10b981' };
@@ -462,8 +467,6 @@ async function _carregarCategoriasLista() {
     const todas = await db.listarProdCategorias();
     const el = document.getElementById('painelCategorias');
     if (!el) return;
-
-    // Agrupa por setor → tipo → atividades
     const porSetor = {};
     _SETORES_CAT.forEach(s => porSetor[s] = {});
     (todas||[]).forEach(c => {
@@ -472,12 +475,10 @@ async function _carregarCategoriasLista() {
       if (!porSetor[s][c.tipo]) porSetor[s][c.tipo] = [];
       porSetor[s][c.tipo].push(c);
     });
-
     const cor = _CORES_CAT[_abaSetorAtiva];
     const grupos = porSetor[_abaSetorAtiva] || {};
     const total  = Object.values(grupos).flat().length;
 
-    // Abas de setor
     let html = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
       ${_SETORES_CAT.map(s => {
         const t = Object.values(porSetor[s]||{}).flat().length;
@@ -493,18 +494,16 @@ async function _carregarCategoriasLista() {
       }).join('')}
     </div>`;
 
-    // Cabeçalho do setor ativo
     html += `<div class="card" style="border-left:4px solid ${cor};margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-size:18px;font-weight:700;color:#1e3a5f">${_ICOS_CAT[_abaSetorAtiva]} ${_abaSetorAtiva}</div>
-          <div style="font-size:12px;color:#64748b;margin-top:2px">${total} tipo(s) cadastrado(s) — lista mestra de todos os módulos</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">${total} tipo(s) cadastrado(s)</div>
         </div>
         <button class="btn-primary" onclick="abrirModalCategoria()">+ Nova Categoria</button>
       </div>
     </div>`;
 
-    // Grid de grupos
     if (!Object.keys(grupos).length) {
       html += `<div class="empty-state">
         <div style="font-size:40px">${_ICOS_CAT[_abaSetorAtiva]}</div>
@@ -532,24 +531,17 @@ async function _carregarCategoriasLista() {
       });
       html += `</div>`;
     }
-
     html += `<div id="modalCatWrap"></div>`;
     el.innerHTML = html;
   } catch(e) { toast('Erro ao carregar categorias.','erro'); console.error(e); }
 }
 
-function _mudarAbaCategoria(setor) {
-  _abaSetorAtiva = setor;
-  carregarCategorias();
-}
+function _mudarAbaCategoria(setor) { _abaSetorAtiva = setor; carregarCategorias(); }
 
 function abrirModalCategoria(tipoPre) {
-  const cor = _CORES_CAT[_abaSetorAtiva];
-  // Monta lista de tipos existentes no setor ativo
   const tiposExistentes = _listas?.todasCategorias
     ? [...new Set(_listas.todasCategorias.filter(c=>c.setor===_abaSetorAtiva).map(c=>c.tipo))]
     : [];
-
   document.getElementById('modalCatWrap').innerHTML = `
   <div class="modal-overlay" onclick="fecharModalCategoria()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px">
@@ -583,8 +575,6 @@ function abrirModalCategoria(tipoPre) {
       <button class="btn-secondary" onclick="fecharModalCategoria()">Cancelar</button>
     </div>
   </div>`;
-
-  // Pré-seleciona grupo se vier com tipo
   if (tipoPre && tiposExistentes.includes(tipoPre)) {
     const sel = document.getElementById('catTipoSel');
     for (let i=0;i<sel.options.length;i++) if(sel.options[i].value===tipoPre){sel.selectedIndex=i;break;}
@@ -610,7 +600,6 @@ async function salvarCategoria() {
     await db.salvarProdCategoria({ tipo, atividade:ativ, setor:_abaSetorAtiva, ativo:true });
     toast('Categoria adicionada!','sucesso');
     fecharModalCategoria();
-    // Atualiza listas globais
     const cats = await db.listarProdCategorias();
     if (_listas) {
       _listas.todasCategorias = cats;
@@ -642,6 +631,5 @@ async function excluirCategoria(id) {
   });
 }
 
-// Compat com código legado
 async function adicionarCategoria(tipo) { abrirModalCategoria(tipo); }
 async function criarNovoGrupoCategoria() { abrirModalCategoria(); }
