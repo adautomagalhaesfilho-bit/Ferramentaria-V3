@@ -206,7 +206,7 @@ const db = {
       minutos: mins, maquina: dados.maquina || null,
       tempo_auto: dados.tempoAuto || null,
       desconto_almoco: !!dados.descontaAlmoco, turno: dados.turno || null,
-      troca_copo:      !!dados.trocaCopo,
+      troca_copo:     !!dados.trocaCopo,
       tipo_copo:       dados.tipoCopo      || null,
       descricao_copo:  dados.descricaoCopo || null
     };
@@ -235,18 +235,28 @@ const db = {
     return await db._delete('lancamentos', 'id=eq.' + id);
   },
 
+  // Busca última descrição do job na máquina — para auto-preenchimento
   buscarDescricaoJob: async function(job, maquina) {
-    let filtro = 'setor=eq.Usinagem&job=eq.' + encodeURIComponent(job) + '&order=data.desc&limit=1';
+    let filtro = 'setor=eq.Usinagem&job=eq.' + encodeURIComponent(job) + '&order=data.desc,hora_fim.desc&limit=1';
     if (maquina && maquina !== 'Sem Máquina') filtro += '&maquina=eq.' + encodeURIComponent(maquina);
     const res = await db._get('lancamentos', filtro, 'descricao');
     return res && res.length > 0 ? res[0].descricao : '';
   },
 
+  // Busca último lançamento do técnico — máquina de qualquer data, hora só se for hoje
   buscarUltimoApontamento: async function(funcionario, data) {
     const res = await db._get('lancamentos',
       'setor=eq.Usinagem&funcionario=eq.' + encodeURIComponent(funcionario) +
-      '&data=eq.' + data + '&order=hora_fim.desc&limit=1', 'hora_fim,maquina');
-    return res && res.length > 0 ? { horaFim: res[0].hora_fim, maquina: res[0].maquina } : {};
+      '&order=data.desc,hora_fim.desc&limit=1', 'hora_fim,maquina,data');
+    if (!res || res.length === 0) return {};
+    const ultimo = res[0];
+    // Máquina vem sempre do último lançamento (qualquer data)
+    // Hora de início só preenche se o último lançamento for do mesmo dia
+    const mesmoDia = ultimo.data === data;
+    return {
+      maquina: ultimo.maquina || null,
+      horaFim: mesmoDia ? ultimo.hora_fim : null
+    };
   },
 
   // ==========================================
@@ -361,7 +371,7 @@ const db = {
   },
 
   // ==========================================
-  // 👤 USUÁRIOS — senha sempre hasheada
+  // 👤 USUÁRIOS
   // ==========================================
   listarUsuarios: async function() {
     return await db._get('usuarios', '', 'id,nome,perfil,setor,ativo,permissoes');
@@ -369,7 +379,6 @@ const db = {
 
   salvarUsuario: async function(dados) {
     const payload = { ...dados };
-    // Hash da senha se foi fornecida em texto puro (64 chars = já é hash)
     if (payload.senha && payload.senha.length !== 64) {
       payload.senha = await hashSenha(payload.senha);
     }
