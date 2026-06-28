@@ -263,18 +263,14 @@ label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bo
 .modal-form {
   background:#fff; border-radius:20px;
   width:100%; max-width:600px; max-height:90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow:0 24px 80px rgba(0,0,0,0.25);
+  overflow-y:auto; box-shadow:0 24px 80px rgba(0,0,0,0.25);
   animation:slideUp 0.25s ease;
 }
 @keyframes slideUp { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 .modal-form-header {
   display:flex; align-items:center; justify-content:space-between;
   padding:20px 24px; border-bottom:1px solid var(--borda);
-  background:#fff; z-index:1; border-radius:20px 20px 0 0;
-  flex-shrink: 0;
+  position:sticky; top:0; background:#fff; z-index:1; border-radius:20px 20px 0 0;
 }
 .modal-form-header h2 { font-size:16px; font-weight:700; color:var(--azul-dark); }
 .btn-fechar-modal {
@@ -284,16 +280,7 @@ label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bo
   border-radius:8px; transition:background 0.15s;
 }
 .btn-fechar-modal:hover { background:#f1f5f9; }
-.modal-form-body { 
-  padding:24px; 
-  overflow-y: auto; 
-  flex-grow: 1;
-}
-.modal-form-body::-webkit-scrollbar { width: 6px; }
-.modal-form-body::-webkit-scrollbar-track { background: transparent; }
-.modal-form-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.modal-form-body::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
+.modal-form-body { padding:24px; }
 .modal-form-section {
   border:1px solid var(--borda); border-radius:10px;
   padding:16px; margin-bottom:16px;
@@ -473,33 +460,125 @@ tbody tr:hover { background:#f8fafc; }
   .board-kanban { flex-direction:column; }
   .form-row { flex-direction:column; }
 }
+
 /* ==========================================
-   CORREÇÃO DEFINITIVA DA BARRA DO MODAL
+   MODAL FORMULÁRIO — CAMPOS PROPORCIONAIS
    ========================================== */
+
+/* Garante que o modal não ultrapasse a tela */
 .modal-form {
+  max-width: 560px !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
 
-/* Deixa a barra mais grossa para caber a borda transparente */
-.modal-form::-webkit-scrollbar {
-  width: 14px !important;
+/* Seção do modal sem padding excessivo */
+.modal-form-body {
+  padding: 20px 24px !important;
 }
 
-/* Afasta a trilha da barra dos cantos arredondados superior e inferior */
-.modal-form::-webkit-scrollbar-track {
-  background: transparent !important;
-  margin-top: 24px !important; 
-  margin-bottom: 24px !important; 
+/* form-group dentro do modal — sem min-width forçado */
+.modal-form-body .form-group {
+  min-width: 0 !important;
+  margin-bottom: 14px;
 }
 
-/* Cria o "polegar" arredondado com uma borda branca grossa para parecer embutido */
-.modal-form::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1 !important;
-  border-radius: 10px !important;
-  border: 4px solid #ffffff !important; 
+/* form-row dentro do modal — proporcional */
+.modal-form-body .form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin-bottom: 0;
 }
 
-.modal-form::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8 !important;
+/* Em mobile, empilha */
+@media (max-width: 600px) {
+  .modal-form-body .form-row {
+    flex-wrap: wrap;
+  }
+}
+
+/* Inputs e selects dentro do modal — altura e fonte uniforme */
+.modal-form-body input[type="text"],
+.modal-form-body input[type="date"],
+.modal-form-body input[type="time"],
+.modal-form-body input[type="number"],
+.modal-form-body select,
+.modal-form-body textarea {
+  padding: 9px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  height: 40px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-form-body textarea {
+  height: auto;
+  min-height: 80px;
+}
+
+/* Seção interna do modal — espaçamento menor */
+.modal-form-body .modal-form-section {
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+/* Label dentro do modal */
+.modal-form-body label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* Grupo de data + hora — proporcional */
+.modal-form-body #grupoHrIni,
+.modal-form-body #grupoHrFim {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-form-body .form-row > .form-group:first-child {
+  flex: 1.2;
+}
+.modal-form-body .form-row > .form-group:not(:first-child) {
+  flex: 1;
+}
+
+/* Grupo de máquina + tipo — mesma altura */
+.modal-form-body #grupoMaquina,
+.modal-form-body #grupoTipoUsina {
+  margin-bottom: 14px;
+}
+
+/* Botão de salvar no modal */
+.modal-form-body .btn-full {
+  margin-top: 6px;
+  height: 46px;
+  font-size: 14px;
+}
+
+/* Status buttons — distribuição igual */
+.modal-form-body .status-btns {
+  gap: 6px;
+}
+.modal-form-body .btn-status {
+  flex: 1;
+  padding: 9px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Checkbox alinhado */
+.modal-form-body .checkbox-label {
+  font-size: 12px;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* Autocomplete dentro do modal */
+.modal-form-body .autocomplete-wrap input {
+  height: 40px;
 }
