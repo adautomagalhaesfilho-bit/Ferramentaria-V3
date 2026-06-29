@@ -1,9 +1,10 @@
 // ==========================================
-// 📄 FICHA.JS — Ficha do Molde V3
+// 📄 FICHA.JS — Ficha do Molde V3 + Produção
 // ==========================================
 
 var _dadosFicha  = null;
 var _lancsFicha  = [];
+var _lancsProdFicha = [];
 var _chartsFicha = {};
 
 function abrirFichaMolde(job) {
@@ -22,18 +23,22 @@ async function buscarFicha() {
   elConteudo.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando ficha...</span></div>';
   elConteudo.style.display = 'block';
   try {
-    const [res, localizacao, pendencias, histLoc] = await Promise.all([
+    const [res, localizacao, pendencias, histLoc, prodLancs] = await Promise.all([
       db.buscarFicha(job),
       db.buscarLocalizacao(job),
       db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(()=>[]),
-      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(()=>[])
+      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(()=>[]),
+      db._get('prod_lancamentos', 'molde=eq.' + encodeURIComponent(job) + '&order=data.asc', '*').catch(()=>[])
     ]);
-    res.localizacao = localizacao;
-    res.pendencias  = pendencias || [];
-    res.histLoc     = histLoc   || [];
-    _dadosFicha = res;
-    _lancsFicha = res.lancamentos || [];
-    if (!_lancsFicha.length) {
+    res.localizacao  = localizacao;
+    res.pendencias   = pendencias  || [];
+    res.histLoc      = histLoc     || [];
+    res.prodLancamentos = prodLancs || [];
+    _dadosFicha     = res;
+    _lancsFicha     = res.lancamentos || [];
+    _lancsProdFicha = res.prodLancamentos || [];
+
+    if (!_lancsFicha.length && !_lancsProdFicha.length) {
       elConteudo.style.display = 'none';
       elVazio.style.display    = 'block';
       elVazio.innerHTML = '<div style="font-size:48px">🔍</div><div>Nenhum lançamento para "' + job + '"</div>';
@@ -48,31 +53,57 @@ async function buscarFicha() {
 }
 
 function renderizarFicha(job, res) {
-  const lancs    = res.lancamentos || [];
-  const hist     = res.statusHistory || [];
-  const el       = document.getElementById('fichaConteudo');
-  const locAtual = res.localizacao;
-  const _locMap  = {
+  const lancs     = res.lancamentos || [];
+  const prodLancs = res.prodLancamentos || [];
+  const hist      = res.statusHistory || [];
+  const el        = document.getElementById('fichaConteudo');
+  const locAtual  = res.localizacao;
+
+  const _locMap = {
     'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
     'Na Ferramentaria':{ ico:'🔧', cor:'#0056b3', bg:'#dbeafe' },
     'Sala de Molde':   { ico:'📦', cor:'#8b5cf6', bg:'#ede9fe' },
     'Desativado/LOG':  { ico:'🔴', cor:'#ef4444', bg:'#fee2e2' },
   };
-  const locInfo   = locAtual ? (_locMap[locAtual.localizacao]||{ico:'📍',cor:'#64748b',bg:'#f1f5f9'}) : null;
-  const corS      = locInfo?.cor || '#64748b';
-  const bgS       = locInfo?.bg  || '#f1f5f9';
-  const totalMins = lancs.reduce((a,l)=>a+(l.minutos||0),0);
+  const locInfo = locAtual ? (_locMap[locAtual.localizacao]||{ico:'📍',cor:'#64748b',bg:'#f1f5f9'}) : null;
+  const corS    = locInfo?.cor || '#64748b';
+  const bgS     = locInfo?.bg  || '#f1f5f9';
 
+  // Totais
+  const totalMins     = lancs.reduce((a,l)=>a+(l.minutos||0),0);
+  const totalMinsProd = prodLancs.reduce((a,l)=>a+(l.minutos||0),0);
+
+  // Horas por setor (Ferramentaria)
   const porSetor = {};
   lancs.forEach(l => { const s=l.setor||'Outros'; if (!porSetor[s]) porSetor[s]=0; porSetor[s]+=l.minutos||0; });
+  if (totalMinsProd > 0) porSetor['Produção'] = totalMinsProd;
 
+  // Horas por tipo
   const porTipo = {};
   lancs.forEach(l => { const t=l.tipo||'Sem tipo'; if (!porTipo[t]) porTipo[t]=0; porTipo[t]+=l.minutos||0; });
+  prodLancs.forEach(l => { const t=l.tipo||'Sem tipo'; if (!porTipo[t]) porTipo[t]=0; porTipo[t]+=l.minutos||0; });
   const topTipos = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
-  const cors   = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
-  const icos   = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐' };
+  // Horas por técnico (todos os setores)
+  const porFunc = {};
+  lancs.forEach(l => { const f=l.funcionario||'-'; if (!porFunc[f]) porFunc[f]=0; porFunc[f]+=l.minutos||0; });
+  prodLancs.forEach(l => {
+    const tecs = Array.isArray(l.tecnicos) ? l.tecnicos : (l.tecnicos||'').split(',').map(t=>t.trim()).filter(Boolean);
+    tecs.forEach(f => { if (!porFunc[f]) porFunc[f]=0; porFunc[f]+=l.minutos||0; });
+  });
+
+  const cors   = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', 'Produção':'#10b981' };
+  const icos   = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐', 'Produção':'🏭' };
   const paleta = ['#0056b3','#0891b2','#8b5cf6','#10b981','#f59e0b','#ef4444','#6366f1','#ec4899','#14b8a6','#84cc16'];
+
+  // Data primeiro e último lançamento (todos os setores)
+  const todasDatas = [
+    ...lancs.map(l=>l.data),
+    ...prodLancs.map(l=>l.data)
+  ].filter(Boolean).sort();
+  const dataPrimeiro = todasDatas[0] || '';
+  const dataUltimo   = todasDatas[todasDatas.length-1] || '';
+  const totalLancs   = lancs.length + prodLancs.length;
 
   let html = `
   <div class="card" style="border-left:4px solid ${corS}">
@@ -89,8 +120,8 @@ function renderizarFicha(job, res) {
         }
       </div>
       <div style="text-align:right;font-size:12px;color:#64748b">
-        <div>📅 Primeiro: <b>${lancs[0].data.split('-').reverse().join('/')}</b></div>
-        <div>🕐 Último: <b>${lancs[lancs.length-1].data.split('-').reverse().join('/')}</b></div>
+        <div>📅 Primeiro: <b>${dataPrimeiro?dataPrimeiro.split('-').reverse().join('/'):'—'}</b></div>
+        <div>🕐 Último: <b>${dataUltimo?dataUltimo.split('-').reverse().join('/'):'—'}</b></div>
         <div>🔄 Intervenções: <b>${hist.length||1}</b></div>
       </div>
     </div>
@@ -99,7 +130,7 @@ function renderizarFicha(job, res) {
   <div class="cards-row">
     <div class="metric-card" style="border-left-color:#10b981">
       <div class="metric-icon">⏱️</div>
-      <div class="metric-valor" style="color:#10b981">${fmtMin(totalMins)}</div>
+      <div class="metric-valor" style="color:#10b981">${fmtMin(totalMins+totalMinsProd)}</div>
       <div class="metric-label">Total de Horas</div>
     </div>
     ${Object.entries(porSetor).map(([s,m])=>`
@@ -114,7 +145,7 @@ function renderizarFicha(job, res) {
     </div>`).join('')}
     <div class="metric-card" style="border-left-color:#f59e0b">
       <div class="metric-icon">📋</div>
-      <div class="metric-valor" style="color:#f59e0b">${lancs.length}</div>
+      <div class="metric-valor" style="color:#f59e0b">${totalLancs}</div>
       <div class="metric-label">Lançamentos</div>
     </div>
   </div>
@@ -148,6 +179,7 @@ function renderizarFicha(job, res) {
           <option value="Usinagem">⚙️ Usinagem</option>
           <option value="Bancada">🛠️ Bancada</option>
           <option value="Projeto">📐 Projeto</option>
+          <option value="Produção">🏭 Produção</option>
         </select>
         <div id="fichaFiltroMaqDiv" style="display:none">
           <select id="fichaFiltroMaq" onchange="aplicarFiltrosFicha()"><option value="Todas">Todas as Máquinas</option></select>
@@ -158,6 +190,9 @@ function renderizarFicha(job, res) {
         <div id="fichaFiltroAreaDiv" style="display:none">
           <select id="fichaFiltroArea" onchange="aplicarFiltrosFicha()"><option value="Todas">Todas as Áreas</option></select>
         </div>
+        <div id="fichaFiltroInjetDiv" style="display:none">
+          <select id="fichaFiltroInjet" onchange="aplicarFiltrosFicha()"><option value="Todas">Todas as Injetoras</option></select>
+        </div>
         <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="limparFiltrosFicha()">✕ Limpar</button>
         <button class="btn-success" onclick="exportarFichaCSV()" style="padding:6px 14px;font-size:12px">📥 CSV</button>
       </div>
@@ -165,7 +200,9 @@ function renderizarFicha(job, res) {
     <div id="fichaResumo" style="display:none;margin-bottom:12px" class="resumo-bar"></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Data</th><th>Setor</th><th>Técnico</th><th>Tipo</th><th>Início</th><th>Fim</th><th>Horas</th><th>Descrição</th></tr></thead>
+        <thead id="fichaTableHead">
+          <tr><th>Data</th><th>Setor</th><th>Técnico</th><th>Tipo</th><th>Início</th><th>Fim</th><th>Horas</th><th>Descrição</th></tr>
+        </thead>
         <tbody id="tbodyFicha"></tbody>
       </table>
     </div>
@@ -174,6 +211,7 @@ function renderizarFicha(job, res) {
   el.innerHTML = html;
 
   setTimeout(() => {
+    // Gráfico Setores
     const setorEnt = Object.entries(porSetor);
     if (_chartsFicha['setores']) _chartsFicha['setores'].destroy();
     const ctx1 = document.getElementById('chartFichaSetores');
@@ -188,8 +226,7 @@ function renderizarFicha(job, res) {
       }
     });
 
-    const porFunc = {};
-    lancs.forEach(l => { const f=l.funcionario||'-'; if (!porFunc[f]) porFunc[f]=0; porFunc[f]+=l.minutos||0; });
+    // Gráfico Técnicos
     const funcEnt = Object.entries(porFunc).sort((a,b)=>b[1]-a[1]).slice(0,10);
     if (_chartsFicha['tecnicos']) _chartsFicha['tecnicos'].destroy();
     const ctx2 = document.getElementById('chartFichaTecnicos');
@@ -202,6 +239,7 @@ function renderizarFicha(job, res) {
       }
     });
 
+    // Gráfico Tipos
     if (_chartsFicha['tipos']) _chartsFicha['tipos'].destroy();
     const ctx3 = document.getElementById('chartFichaTipos');
     if (ctx3 && topTipos.length) _chartsFicha['tipos'] = new Chart(ctx3, {
@@ -214,8 +252,8 @@ function renderizarFicha(job, res) {
     });
   }, 100);
 
-  renderizarTimeline(hist, lancs, res.pendencias || [], res.localizacao || null, res.histLoc || []);
-  renderizarTabelaFicha(lancs);
+  renderizarTimeline(hist, lancs, res.pendencias||[], res.localizacao||null, res.histLoc||[]);
+  renderizarTabelaFicha(_lancsFicha, _lancsProdFicha);
 }
 
 function filtrarFichaSetor(setor) {
@@ -330,23 +368,48 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
 }
 
 // ==========================================
-// TABELA
+// TABELA — Ferramentaria + Produção
 // ==========================================
-function renderizarTabelaFicha(lancs) {
+function renderizarTabelaFicha(lancs, prodLancs) {
   const tbody = document.getElementById('tbodyFicha');
   if (!tbody) return;
-  const cors = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
-  const icos = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐' };
-  tbody.innerHTML = lancs.map(l => `<tr>
+
+  const cors = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', 'Produção':'#10b981' };
+  const icos = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐', 'Produção':'🏭' };
+
+  // Converte prod_lancamentos para formato compatível
+  const prodFormatado = (prodLancs||[]).map(l => ({
+    data:       l.data,
+    setor:      'Produção',
+    funcionario: Array.isArray(l.tecnicos) ? l.tecnicos.join(', ') : (l.tecnicos||'—'),
+    tipo:       l.tipo || '—',
+    horaInicio: l.hora_inicio ? l.hora_inicio.substring(0,5) : '',
+    horaFim:    l.hora_fim    ? l.hora_fim.substring(0,5)    : '',
+    minutos:    l.minutos || 0,
+    hrProd:     fmtMin(l.minutos||0),
+    descricao:  [l.atividade, l.descricao].filter(Boolean).join(' — ') || '—',
+    injetora:   l.injetora || '—',
+    _isProd:    true
+  }));
+
+  // Une e ordena por data
+  const todos = [...(lancs||[]), ...prodFormatado].sort((a,b)=>a.data>b.data?1:a.data<b.data?-1:0);
+
+  if (!todos.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Nenhum lançamento.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = todos.map(l => `<tr>
     <td><b>${l.data?l.data.split('-').reverse().join('/'):'—'}</b></td>
     <td><span style="color:${cors[l.setor]||'#64748b'};font-weight:600;font-size:12px">${icos[l.setor]||'🏭'} ${l.setor}</span></td>
-    <td>${l.funcionario||'—'}</td>
+    <td style="font-size:12px">${l.funcionario||'—'}${l._isProd&&l.injetora?`<br><span style="color:#94a3b8;font-size:11px">🏭 ${l.injetora}</span>`:''}</td>
     <td>${l.tipo||'—'}</td>
     <td style="font-size:12px">${l.horaInicio||'—'}</td>
     <td style="font-size:12px">${l.horaFim||'—'}</td>
     <td style="color:#10b981;font-weight:700">${l.hrProd||'—'}</td>
     <td style="font-size:12px;color:#64748b">${l.descricao||'—'}</td>
-  </tr>`).join('') || '<tr><td colspan="8" class="empty-msg">Nenhum lançamento.</td></tr>';
+  </tr>`).join('');
 }
 
 // ==========================================
@@ -357,10 +420,12 @@ function filtrarFicha() {
   const maqDiv  = document.getElementById('fichaFiltroMaqDiv');
   const tipoDiv = document.getElementById('fichaFiltroTipoDiv');
   const areaDiv = document.getElementById('fichaFiltroAreaDiv');
+  const injDiv  = document.getElementById('fichaFiltroInjetDiv');
 
-  if (maqDiv)  maqDiv.style.display  = setor==='Usinagem' ? '' : 'none';
-  if (tipoDiv) tipoDiv.style.display = setor==='Bancada'  ? '' : 'none';
-  if (areaDiv) areaDiv.style.display = setor==='Projeto'  ? '' : 'none';
+  if (maqDiv)  maqDiv.style.display  = setor==='Usinagem'  ? '' : 'none';
+  if (tipoDiv) tipoDiv.style.display = setor==='Bancada'   ? '' : 'none';
+  if (areaDiv) areaDiv.style.display = setor==='Projeto'   ? '' : 'none';
+  if (injDiv)  injDiv.style.display  = setor==='Produção'  ? '' : 'none';
 
   if (setor === 'Usinagem') {
     const sel = document.getElementById('fichaFiltroMaq');
@@ -380,9 +445,15 @@ function filtrarFicha() {
       const as = [...new Set(_lancsFicha.filter(l=>l.setor==='Projeto'&&l.area).map(l=>l.area))];
       sel.innerHTML = '<option value="Todas">Todas as Áreas</option>' + as.map(a=>`<option value="${a}">${a}</option>`).join('');
     }
+  } else if (setor === 'Produção') {
+    const sel = document.getElementById('fichaFiltroInjet');
+    if (sel) {
+      const injs = [...new Set(_lancsProdFicha.filter(l=>l.injetora).map(l=>l.injetora))];
+      sel.innerHTML = '<option value="Todas">Todas as Injetoras</option>' + injs.map(i=>`<option value="${i}">${i}</option>`).join('');
+    }
   }
 
-  ['fichaFiltroMaq','fichaFiltroTipo','fichaFiltroArea'].forEach(id => {
+  ['fichaFiltroMaq','fichaFiltroTipo','fichaFiltroArea','fichaFiltroInjet'].forEach(id => {
     const s = document.getElementById(id); if (s) s.selectedIndex = 0;
   });
   aplicarFiltrosFicha();
@@ -390,44 +461,75 @@ function filtrarFicha() {
 
 function aplicarFiltrosFicha() {
   const setor = document.getElementById('fichaFiltroSetor').value;
-  const maq   = document.getElementById('fichaFiltroMaq')?.value  || 'Todas';
-  const tipo  = document.getElementById('fichaFiltroTipo')?.value || 'Todos';
-  const area  = document.getElementById('fichaFiltroArea')?.value || 'Todas';
+  const maq   = document.getElementById('fichaFiltroMaq')?.value   || 'Todas';
+  const tipo  = document.getElementById('fichaFiltroTipo')?.value  || 'Todos';
+  const area  = document.getElementById('fichaFiltroArea')?.value  || 'Todas';
+  const injet = document.getElementById('fichaFiltroInjet')?.value || 'Todas';
 
-  const filtrado = _lancsFicha.filter(l => {
-    if (setor!=='Todos' && l.setor!==setor) return false;
+  let lancsFiltrados = _lancsFicha.filter(l => {
+    if (setor!=='Todos' && setor!=='Produção' && l.setor!==setor) return false;
+    if (setor==='Produção') return false; // Produção vem de outra tabela
     if (setor==='Usinagem' && maq!=='Todas'  && l.maquina!==maq)  return false;
     if (setor==='Bancada'  && tipo!=='Todos' && l.tipo!==tipo)    return false;
     if (setor==='Projeto'  && area!=='Todas' && l.area!==area)    return false;
     return true;
   });
 
-  const totalMins = filtrado.reduce((a,l)=>a+(l.minutos||0),0);
+  let prodFiltrados = setor==='Todos' || setor==='Produção'
+    ? _lancsProdFicha.filter(l => {
+        if (injet!=='Todas' && l.injetora!==injet) return false;
+        return true;
+      })
+    : [];
+
+  const totalMins = [
+    ...lancsFiltrados.map(l=>l.minutos||0),
+    ...prodFiltrados.map(l=>l.minutos||0)
+  ].reduce((a,b)=>a+b,0);
+
+  const totalLancs = lancsFiltrados.length + prodFiltrados.length;
+
   const elRes = document.getElementById('fichaResumo');
   if (elRes) {
     const temFiltro = setor !== 'Todos';
     elRes.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <span style="font-size:13px;font-weight:600;color:#1e3a5f">${temFiltro?'🔍 Filtro: <b>'+setor+'</b>':'📊 Resultado:'}</span>
-      <span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">📋 <b>${filtrado.length} lançamentos</b></span>
+      <span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">📋 <b>${totalLancs} lançamentos</b></span>
       ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bae6fd;font-size:13px;color:#0369a1">⏱️ <b>${fmtMin(totalMins)}</b></span>`:''}
     </div>`;
     elRes.style.display = 'block';
   }
-  renderizarTabelaFicha(filtrado);
+
+  renderizarTabelaFicha(lancsFiltrados, prodFiltrados);
 }
 
 // ==========================================
 // EXPORTAR CSV
 // ==========================================
 function exportarFichaCSV() {
-  if (!_lancsFicha.length) return toast('Nenhum dado para exportar.', 'erro');
+  if (!_lancsFicha.length && !_lancsProdFicha.length) return toast('Nenhum dado para exportar.', 'erro');
   const job = document.getElementById('fichaJobInput').value;
-  const linhas = [['Data','Setor','Técnico','Tipo','Início','Fim','Horas','Descrição'].join(';')];
+
+  const linhas = [['Data','Setor','Técnico','Tipo','Injetora','Início','Fim','Horas','Descrição'].join(';')];
+
   _lancsFicha.forEach(l => linhas.push([
-    l.data, l.setor, l.funcionario, l.tipo||'',
+    l.data, l.setor, l.funcionario, l.tipo||'', '',
     l.horaInicio||'', l.horaFim||'', l.hrProd||'',
     (l.descricao||'').replace(/;/g,',')
   ].join(';')));
+
+  _lancsProdFicha.forEach(l => {
+    const tecs = Array.isArray(l.tecnicos) ? l.tecnicos.join(' / ') : (l.tecnicos||'');
+    const desc = [l.atividade, l.descricao].filter(Boolean).join(' — ');
+    linhas.push([
+      l.data, 'Produção', tecs, l.tipo||'', l.injetora||'',
+      l.hora_inicio?l.hora_inicio.substring(0,5):'',
+      l.hora_fim?l.hora_fim.substring(0,5):'',
+      fmtMin(l.minutos||0),
+      desc.replace(/;/g,',')
+    ].join(';'));
+  });
+
   const blob = new Blob(['\uFEFF'+linhas.join('\n')], { type:'text/csv;charset=utf-8;' });
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(blob),
