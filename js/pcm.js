@@ -4,6 +4,7 @@
 
 var _dadosPCM = [];
 var _filtroLocPCM = 'Todos';
+var _mostrarTodasPendencias = false;
 
 const _LOCALIZACOES = [
   { id:'Em Máquina',        ico:'🟢', cor:'#10b981', bg:'#d1fae5', desc:'Molde ativo em produção' },
@@ -31,6 +32,27 @@ async function inicializarPCM() {
     </div>
   </div>
   <div class="cards-row" id="pcmResumoCards"></div>
+
+  <!-- PAINEL DE PENDÊNCIAS -->
+  <div class="card" id="pcmPainelPendencias" style="margin-bottom:16px;border-left:4px solid #f59e0b">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#1e3a5f">✅ Pendências em Aberto</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px" id="pcmPendLegenda">Mostrando moldes Na Ferramentaria</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">
+          <input type="checkbox" id="pcmToggleTodas" onchange="toggleTodasPendencias(this.checked)"
+            style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b">
+          Mostrar todos os locais
+        </label>
+      </div>
+    </div>
+    <div id="pcmListaPendencias">
+      <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando pendências...</span></div>
+    </div>
+  </div>
+
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="pcmFiltrosBtns">
     <button class="btn-secondary" style="font-size:12px;padding:7px 14px;font-weight:700" onclick="setPcmFiltro('Todos',this)">Todos</button>
     ${_LOCALIZACOES.map(l=>`
@@ -39,6 +61,7 @@ async function inicializarPCM() {
   </div>
   <div id="pcmLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Carregando...</span></div>
   <div id="pcmLista"></div>`;
+
   await carregarPCM();
 }
 
@@ -70,10 +93,129 @@ async function carregarPCM() {
     });
     renderizarResumoPCM();
     filtrarPCM();
+    await carregarPainelPendencias();
   } catch(e) { toast('Erro ao carregar PCM.','erro'); console.error(e); }
   if (loader) loader.style.display = 'none';
 }
 
+// ==========================================
+// ✅ PAINEL DE PENDÊNCIAS INTELIGENTE
+// ==========================================
+async function carregarPainelPendencias() {
+  const el = document.getElementById('pcmListaPendencias');
+  if (!el) return;
+
+  try {
+    // Busca todas as pendências abertas
+    const todasPend = await db._get('molde_pendencias',
+      'concluido=eq.false&order=criado_em.asc', '*');
+
+    if (!todasPend || !todasPend.length) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">🎉 Nenhuma pendência em aberto!</div>';
+      return;
+    }
+
+    // Filtra por localização
+    const locsFiltro = _mostrarTodasPendencias
+      ? null // Mostra todas
+      : ['Na Ferramentaria']; // Só ferramentaria por padrão
+
+    // Agrupa por job
+    const porJob = {};
+    todasPend.forEach(p => {
+      if (!porJob[p.job]) porJob[p.job] = [];
+      porJob[p.job].push(p);
+    });
+
+    // Filtra jobs pela localização
+    const jobsFiltrados = Object.entries(porJob).filter(([job]) => {
+      const molde = _dadosPCM.find(m => m.job === job);
+      const loc   = molde?.localizacao || 'Na Ferramentaria';
+      if (!locsFiltro) return true;
+      return locsFiltro.includes(loc);
+    });
+
+    // Atualiza legenda
+    const legenda = document.getElementById('pcmPendLegenda');
+    if (legenda) {
+      const total = jobsFiltrados.reduce((a,[,pends])=>a+pends.length,0);
+      legenda.innerText = _mostrarTodasPendencias
+        ? `${total} pendência(s) em todos os locais`
+        : `${total} pendência(s) em moldes Na Ferramentaria`;
+    }
+
+    if (!jobsFiltrados.length) {
+      el.innerHTML = `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">
+        ✅ Nenhuma pendência${_mostrarTodasPendencias?'':' para moldes Na Ferramentaria'}
+        ${!_mostrarTodasPendencias?'<br><span style="font-size:11px">Marque "Mostrar todos os locais" para ver outras pendências</span>':''}
+      </div>`;
+      return;
+    }
+
+    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+
+    jobsFiltrados.forEach(([job, pends]) => {
+      const molde = _dadosPCM.find(m => m.job === job);
+      const loc   = molde?.localizacao || 'Na Ferramentaria';
+      const info  = _infoLoc(loc);
+      const jobEsc = job.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+
+      html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#1e3a5f">${job}</div>
+            <span style="background:${info.bg};color:${info.cor};font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700">${info.ico} ${loc}</span>
+          </div>
+          <button onclick="abrirModalPendencias('${jobEsc}')"
+            style="background:#fff;border:1px solid #fde68a;color:#92400e;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap">
+            ✏️ Gerenciar
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${pends.slice(0,3).map(p=>`
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              <input type="checkbox" style="margin-top:2px;width:14px;height:14px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
+                onchange="concluirPendenciaRapida(${p.id},'${jobEsc}',this)">
+              <span style="font-size:12px;color:#1e3a5f">${p.texto}</span>
+            </div>`).join('')}
+          ${pends.length > 3
+            ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">+${pends.length-3} mais pendência(s)...</div>`
+            : ''}
+        </div>
+      </div>`;
+    });
+
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state">Erro ao carregar pendências.</div>';
+    console.error(e);
+  }
+}
+
+async function concluirPendenciaRapida(id, job, checkbox) {
+  const dataConclusao = new Date().toISOString().split('T')[0];
+  try {
+    await db._patch('molde_pendencias', 'id=eq.' + id, {
+      concluido: true, data_conclusao: dataConclusao
+    });
+    toast('Pendência concluída!','sucesso');
+    // Recarrega o painel após breve delay
+    setTimeout(() => carregarPainelPendencias(), 500);
+  } catch(e) {
+    toast('Erro ao concluir.','erro');
+    checkbox.checked = false;
+  }
+}
+
+function toggleTodasPendencias(mostrarTodas) {
+  _mostrarTodasPendencias = mostrarTodas;
+  carregarPainelPendencias();
+}
+
+// ==========================================
+// 📊 RESUMO + LISTA
+// ==========================================
 function renderizarResumoPCM() {
   const el = document.getElementById('pcmResumoCards');
   if (!el) return;
@@ -152,20 +294,15 @@ function _criarCardPCM(m, info) {
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button onclick="abrirModalPendencias('${jobEsc}')"
-          style="background:#fefce8;border:1px solid #fde68a;color:#92400e;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
-          title="Pendências">✅ Pendências</button>
+          style="background:#fefce8;border:1px solid #fde68a;color:#92400e;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">✅ Pendências</button>
         <button onclick="abrirModalHistoricoLoc('${jobEsc}')"
-          style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
-          title="Histórico de movimentação">📋 Histórico</button>
+          style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">📋 Histórico</button>
         <button onclick="gerarQRCode('${jobEsc}')"
-          style="background:#f5f3ff;border:1px solid #ddd6fe;color:#7c3aed;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
-          title="QR Code">📱</button>
+          style="background:#f5f3ff;border:1px solid #ddd6fe;color:#7c3aed;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">📱</button>
         <button onclick="abrirFichaDoMolde('${jobEsc}')"
-          style="background:#f0fdf4;border:1px solid #bbf7d0;color:#059669;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
-          title="Ver Ficha">📄 Ficha</button>
+          style="background:#f0fdf4;border:1px solid #bbf7d0;color:#059669;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">📄 Ficha</button>
         <button onclick="abrirModalLocalizacao('${jobEsc}')"
-          style="background:#fff;border:1px solid var(--borda);color:#475569;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer"
-          title="Editar localização">✏️</button>
+          style="background:#fff;border:1px solid var(--borda);color:#475569;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">✏️</button>
       </div>
     </div>
     ${m.observacao ? `<div style="font-size:11px;color:#64748b;margin-bottom:8px">📝 ${m.observacao}</div>` : ''}
@@ -184,8 +321,6 @@ var _modalLocJob = null;
 function abrirModalLocalizacao(job) {
   _modalLocJob = job;
   const dados = job ? _dadosPCM.find(m=>m.job===job) : null;
-
-  // ✅ CORRIGIDO: busca injetoras, não máquinas de usinagem
   const injetoras = _listas?.injetoras || [];
 
   const div = document.createElement('div');
@@ -265,13 +400,11 @@ async function salvarLocalizacao() {
   if (!loc) return toast('Selecione a localização.','erro');
   if (loc==='Em Máquina' && !maq) return toast('Selecione a injetora.','erro');
   try {
-    // Salva localização atual
     await db.salvarLocalizacao({
       job, localizacao:loc, maquina:maq, observacao:obs,
       atualizado_por: _sessao?.nome || null,
       atualizado_em:  data + 'T00:00:00'
     });
-    // Registra no histórico de movimentação
     await db._post('molde_localizacao_historico', {
       job, localizacao:loc, maquina:maq||null, observacao:obs||null,
       movido_em:  data + 'T00:00:00',
@@ -351,7 +484,7 @@ function fecharModalHistoricoLoc() {
 }
 
 // ==========================================
-// ✅ CHECKLIST DE PENDÊNCIAS
+// ✅ CHECKLIST DE PENDÊNCIAS (Modal)
 // ==========================================
 async function carregarPendencias(job) {
   return await db._get('molde_pendencias',
@@ -376,23 +509,16 @@ async function adicionarPendencia(job) {
 }
 
 async function togglePendencia(id, job, concluido) {
-  // Se está concluindo, pede a data
   if (!concluido) {
     const dataConclusao = await _pedirData('Data de conclusão:', new Date().toISOString().split('T')[0]);
-    if (dataConclusao === null) return; // cancelou
+    if (dataConclusao === null) return;
     try {
-      await db._patch('molde_pendencias', 'id=eq.' + id, {
-        concluido: true,
-        data_conclusao: dataConclusao
-      });
+      await db._patch('molde_pendencias', 'id=eq.' + id, { concluido: true, data_conclusao: dataConclusao });
       await renderizarChecklist(job);
     } catch(e) { toast('Erro ao atualizar.','erro'); }
   } else {
-    // Reabre a pendência
     try {
-      await db._patch('molde_pendencias', 'id=eq.' + id, {
-        concluido: false, data_conclusao: null
-      });
+      await db._patch('molde_pendencias', 'id=eq.' + id, { concluido: false, data_conclusao: null });
       await renderizarChecklist(job);
     } catch(e) { toast('Erro ao atualizar.','erro'); }
   }
@@ -413,7 +539,6 @@ async function editarDataPendencia(id, job, campo, valorAtual) {
   } catch(e) { toast('Erro ao atualizar.','erro'); }
 }
 
-// Mini modal para pedir data
 function _pedirData(label, valorDefault) {
   return new Promise(resolve => {
     const div = document.createElement('div');
@@ -450,10 +575,10 @@ async function excluirPendencia(id, job) {
 async function renderizarChecklist(job) {
   const el = document.getElementById('checklistPendencias');
   if (!el) return;
-  const pends    = await carregarPendencias(job);
-  const abertas  = (pends||[]).filter(p => !p.concluido);
-  const concluidas = (pends||[]).filter(p => p.concluido);
-  const jobEsc   = job.replace(/'/g,"\\'");
+  const pends      = await carregarPendencias(job);
+  const abertas    = (pends||[]).filter(p => !p.concluido);
+  const concluidas = (pends||[]).filter(p =>  p.concluido);
+  const jobEsc     = job.replace(/'/g,"\\'");
 
   let html = '';
   if (!pends.length) {
@@ -540,7 +665,7 @@ async function abrirModalPendencias(job) {
 
 function fecharModalPendencias() {
   document.getElementById('modalPendWrap')?.remove();
-  carregarPCM();
+  carregarPainelPendencias();
 }
 
 // ==========================================
