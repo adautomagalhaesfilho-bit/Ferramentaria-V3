@@ -45,7 +45,15 @@ async function buscarLancamentosProducao() {
 function renderizarProducao() {
   const tbody = document.getElementById('tbodyProducao');
   if (!tbody) return;
-  if (!_dadosProducao.length) { tbody.innerHTML='<tr><td colspan="9" class="empty-msg">Nenhum lançamento encontrado.</td></tr>'; return; }
+
+  // Botão WhatsApp — adiciona após a tabela se houver dados
+  const wppArea = document.getElementById('prodWppArea');
+  if (wppArea) wppArea.style.display = _dadosProducao.length ? 'block' : 'none';
+
+  if (!_dadosProducao.length) {
+    tbody.innerHTML='<tr><td colspan="9" class="empty-msg">Nenhum lançamento encontrado.</td></tr>';
+    return;
+  }
   const coresTipo = { Setup:'#0056b3', Preventiva:'#10b981', Corretiva:'#ef4444', 'Inspeção':'#f59e0b' };
   tbody.innerHTML = _dadosProducao.map(l => {
     const hr = (l.hora_inicio?l.hora_inicio.substring(0,5):'—') + ' às ' + (l.hora_fim?l.hora_fim.substring(0,5):'<span style="color:#f59e0b">⏳</span>');
@@ -70,6 +78,73 @@ function renderizarProducao() {
       <td>${acoes}</td>
     </tr>`;
   }).join('');
+}
+
+// ==========================================
+// 💬 WHATSAPP — PRODUÇÃO
+// ==========================================
+async function enviarWhatsappProducao() {
+  if (!_dadosProducao.length) return toast('Nenhum dado para enviar.','erro');
+
+  const dtArr  = document.getElementById('prodData')?.value?.split('-');
+  const dataBR = dtArr ? dtArr[2]+'/'+dtArr[1]+'/'+dtArr[0] : '—';
+  const dias   = ['DOMINGO','SEGUNDA-FEIRA','TERÇA-FEIRA','QUARTA-FEIRA','QUINTA-FEIRA','SEXTA-FEIRA','SÁBADO'];
+  const diaSem = dias[new Date((document.getElementById('prodData')?.value||'')+'T12:00:00').getDay()];
+  const sep    = '─────────────────────────';
+  const obs    = document.getElementById('prodWppObs')?.value?.trim();
+
+  let t = `🏭 *RELATÓRIO DIÁRIO — PRODUÇÃO*\n📅 ${diaSem}, ${dataBR}\n`;
+
+  // Agrupa por tipo
+  const porTipo = {};
+  _dadosProducao.forEach(l => {
+    const tipo = l.tipo || 'Outros';
+    if (!porTipo[tipo]) porTipo[tipo] = [];
+    porTipo[tipo].push(l);
+  });
+
+  // Ordem de exibição
+  const ordemTipos = ['Setup', 'Preventiva', 'Corretiva', 'Inspeção'];
+  const tiposOrdenados = [
+    ...ordemTipos.filter(t => porTipo[t]),
+    ...Object.keys(porTipo).filter(t => !ordemTipos.includes(t))
+  ];
+
+  tiposOrdenados.forEach(tipo => {
+    const lancs = porTipo[tipo];
+    t += `\n${sep}\n`;
+
+    const icoTipo = tipo==='Setup'?'⚙️':tipo==='Preventiva'?'🔧':tipo==='Corretiva'?'🔴':tipo==='Inspeção'?'🔍':'🏭';
+    t += `📍 *${icoTipo} ${tipo.toUpperCase()}*\n\n`;
+
+    lancs.forEach(l => {
+      const hr = (l.hora_inicio?l.hora_inicio.substring(0,5):'—') + ' → ' + (l.hora_fim?l.hora_fim.substring(0,5):'⏳');
+      const tecs = (l.tecnicos||'').split(',').map(t=>t.trim()).filter(Boolean).join(', ');
+
+      t += `→ *${l.injetora}*`;
+      if (l.molde) t += ` | Molde: ${l.molde}`;
+      t += '\n';
+      if (l.atividade) t += `  📝 ${l.atividade}\n`;
+      if (l.descricao) t += `  💬 ${l.descricao}\n`;
+      t += `  👤 ${tecs} | ⏱️ ${hr}`;
+      if (l.maquina_parada) t += ` | 🔴 *Máquina Parada*`;
+      if (l.tem_os) t += ` | 📋 OS: ${l.numero_os||'?'}`;
+      t += '\n\n';
+    });
+  });
+
+  // Resumo
+  const total    = _dadosProducao.length;
+  const porTipoCount = {};
+  _dadosProducao.forEach(l => { const tp=l.tipo||'Outros'; if(!porTipoCount[tp]) porTipoCount[tp]=0; porTipoCount[tp]++; });
+  const resumoTipos = Object.entries(porTipoCount).map(([tp,qt])=>`${qt} ${tp}`).join(' · ');
+  const paradas  = _dadosProducao.filter(l=>l.maquina_parada).length;
+
+  t += `${sep}\n📊 *RESUMO:* ${total} manutenção(ões) | ${resumoTipos}`;
+  if (paradas) t += ` | 🔴 ${paradas} parada(s)`;
+  if (obs) t += `\n\n📝 *OBSERVAÇÃO:*\n${obs}`;
+
+  window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(t),'_blank');
 }
 
 // ==========================================
