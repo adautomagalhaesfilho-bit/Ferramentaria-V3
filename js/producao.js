@@ -295,6 +295,8 @@ function resetarFormProducao() {
 }
 
 function setSelectP(id, val) {
-  const sel=document.getElementById(id); if(!sel||!val) return;
+  const sel=document.getElementById(id);
+  if(!sel||!val) return;
+  if(sel.tagName !== 'SELECT') { sel.value = val; return; }
   for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===val){sel.selectedIndex=i;return;}
 }
