@@ -553,8 +553,11 @@ function excluirFeriadoConfirm(id) {
 async function carregarFerias() {
   const el = document.getElementById('painelAusencias');
   if (!el) return;
-  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
-    .concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
+  const funcs = (_listas?.funcionarios||[])
+    .concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[])
+    .concat(_listas?.funcProducao||[])
+    .filter((v,i,a)=>a.indexOf(v)===i).sort();
   const motivos = ['Atestado Médico','Falta Injustificada','Férias','Folga Compensatória','Licença / Outros'];
   el.innerHTML = `<div class="card">
     <div class="form-row">
@@ -601,8 +604,11 @@ function excluirFeriasConfirm(id) {
 async function carregarParciais() {
   const el = document.getElementById('painelParciais');
   if (!el) return;
-  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
-    .concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
+  const funcs = (_listas?.funcionarios||[])
+    .concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[])
+    .concat(_listas?.funcProducao||[])
+    .filter((v,i,a)=>a.indexOf(v)===i).sort();
   const motivos = ['Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
 
   el.innerHTML = `
