@@ -82,7 +82,7 @@ function aplicarPermissoes() {
     menuBancada:      _temPermissao('bancada')  && (p!=='operador' || s==='Bancada'),
     menuProjeto:      _temPermissao('projeto')  && (p!=='operador' || s==='Projeto'),
     menuProducao:     _temPermissao('producao') && (p!=='operador' || s==='Producao'),
-    menuMoldes:       _temPermissao('moldes'),
+    // menuMoldes removido — tela de moldes descontinuada
     menuFicha:        _temPermissao('ficha'),
     menuHistorico:    _temPermissao('historico'),
     menuPCM:          _temPermissao('pcm'),
