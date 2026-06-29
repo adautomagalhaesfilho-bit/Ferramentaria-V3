@@ -28,10 +28,23 @@ const db = {
       'Content-Type': 'application/json',
       ...options.headers
     };
-    const res = await fetch(url, { ...options, headers });
+    let res;
+    try {
+      res = await fetch(url, { ...options, headers });
+    } catch(networkErr) {
+      // Erro de rede — Supabase indisponível ou sem internet
+      console.error('Erro de rede:', networkErr);
+      if (typeof toast === 'function') toast('Sem conexão com o servidor. Verifique sua internet.', 'erro');
+      throw new Error('Erro de rede: ' + networkErr.message);
+    }
     if (!res.ok) {
       const err = await res.text();
-      throw new Error('Supabase error: ' + err);
+      // Erro 401/403 — sessão expirada
+      if (res.status === 401 || res.status === 403) {
+        console.error('Sessão expirada ou sem permissão');
+        throw new Error('Sem permissão: ' + err);
+      }
+      throw new Error('Supabase error ' + res.status + ': ' + err);
     }
     const txt = await res.text();
     return txt ? JSON.parse(txt) : null;
