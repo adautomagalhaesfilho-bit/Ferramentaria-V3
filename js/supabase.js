@@ -99,18 +99,18 @@ const db = {
   // ==========================================
   obterListas: async function() {
     const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
-      db._get('funcionarios', 'ativo=eq.true', 'nome,setor,turno'),
-      db._get('maquinas', 'ativo=eq.true', 'nome,turno,cap_liquida'),
-      db._get('jobs', 'ativo=eq.true', 'nome'),
+      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'nome,setor,turno'),
+      db._get('maquinas', 'ativo=eq.true&order=nome.asc', 'nome,turno,cap_liquida'),
+      db._get('jobs', 'ativo=eq.true&order=nome.asc', 'nome'),
       db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
       db._get('motivos_parada', 'ativo=eq.true', 'nome'),
-      db._get('prod_injetoras', 'ativo=eq.true', 'nome')
+      db._get('prod_injetoras', 'ativo=eq.true&order=nome.asc', 'nome')
     ]);
 
-    const funcUsina    = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome);
-    const funcBancada  = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome);
-    const funcProjeto  = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome);
-    const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome);
+    const funcUsina    = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome).sort();
+    const funcBancada  = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome).sort();
+    const funcProjeto  = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome).sort();
+    const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome).sort();
 
     const catUsina   = categorias.filter(c => c.setor === 'Usinagem');
     const catBancada = categorias.filter(c => c.setor === 'Bancada');
@@ -191,9 +191,9 @@ const db = {
       db._get('lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
       db._get('feriados', '', 'data'),
       db._get('ferias', '', '*'),
-      db._get('funcionarios', 'ativo=eq.true', '*'),
+      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', '*'),
       db._get('rh_parciais', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
-      db._get('maquinas', 'ativo=eq.true', '*'),
+      db._get('maquinas', 'ativo=eq.true&order=nome.asc', '*'),
       db._get('prod_lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*')
     ]);
     const capMaquinas = {};
@@ -327,7 +327,7 @@ const db = {
   // 👥 RH
   // ==========================================
   listarFuncionarios: async function() {
-    return await db._get('funcionarios', '', '*');
+    return await db._get('funcionarios', 'order=nome.asc', '*');
   },
   salvarFuncionario: async function(dados) {
     if (dados.id) return await db._patch('funcionarios', 'id=eq.' + dados.id, dados);
@@ -373,7 +373,7 @@ const db = {
   // 🤖 MÁQUINAS
   // ==========================================
   listarMaquinas: async function() {
-    return await db._get('maquinas', '', '*');
+    return await db._get('maquinas', 'order=nome.asc', '*');
   },
   salvarMaquina: async function(dados) {
     if (dados.id) return await db._patch('maquinas', 'id=eq.' + dados.id, dados);
@@ -387,7 +387,7 @@ const db = {
   // 👤 USUÁRIOS
   // ==========================================
   listarUsuarios: async function() {
-    return await db._get('usuarios', '', 'id,nome,perfil,setor,ativo,permissoes');
+    return await db._get('usuarios', 'order=nome.asc', 'id,nome,perfil,setor,ativo,permissoes');
   },
 
   salvarUsuario: async function(dados) {
@@ -414,7 +414,7 @@ const db = {
   },
 
   listarProdTecnicos: async function() {
-    return await db._get('prod_tecnicos', 'ativo=eq.true', '*');
+    return await db._get('prod_tecnicos', 'ativo=eq.true&order=nome.asc', '*');
   },
   salvarProdTecnico: async function(dados) {
     if (dados.id) return await db._patch('prod_tecnicos', 'id=eq.' + dados.id, dados);
@@ -425,7 +425,7 @@ const db = {
   },
 
   listarProdInjetoras: async function() {
-    return await db._get('prod_injetoras', 'ativo=eq.true', '*');
+    return await db._get('prod_injetoras', 'ativo=eq.true&order=nome.asc', '*');
   },
   salvarProdInjetora: async function(dados) {
     if (dados.id) return await db._patch('prod_injetoras', 'id=eq.' + dados.id, dados);
