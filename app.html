@@ -91,6 +91,10 @@
           <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
           <span class="menu-txt">Usuários</span>
         </div>
+        <div class="menu-item" id="menuAuditoria" onclick="irPara('auditoria', this)">
+  <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+  <span class="menu-txt">Log de Alterações</span>
+</div>
       </div>
     </div>
   </div>
@@ -336,6 +340,10 @@
       <div id="painelParciais" class="painel-rh"></div>
     </div>
 
+    <div class="tela" id="telaAuditoria">
+  <div id="telaLogAuditoria"></div>
+</div>
+    
     <!-- USUÁRIOS -->
     <div class="tela" id="telaUsuarios">
       <div class="page-header">
@@ -642,5 +650,6 @@
 <script src="js/ficha-injetora.js?v=1"></script>
 <script src="js/ficha-funcionario.js?v=1"></script>
 <script src="js/app.js?v=2"></script>
+<script src="js/auditoria.js?v=1"></script>
 </body>
 </html>
