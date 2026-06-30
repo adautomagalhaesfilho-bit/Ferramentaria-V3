@@ -69,7 +69,7 @@ function renderizarProducao() {
     return `<tr>
       <td style="font-size:12px">${hr}</td>
       <td>${(l.tecnicos||'').split(',').map(t=>`<span style="background:#e8f0fe;color:#0056b3;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-right:4px">${t.trim()}</span>`).join('')}</td>
-      <td><b>${l.injetora}</b></td>
+      <td><b style="cursor:pointer;color:#0056b3" onclick="abrirFichaInjetora('${l.injetora.replace(/'/g,"\'")}')">${l.injetora}</b></td>
       <td><span style="background:${corT}20;color:${corT};padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700">${l.tipo}</span></td>
       <td>${l.atividade||'—'}</td>
       <td>${l.molde?`<b>${l.molde}</b>`:'—'}</td>
