@@ -69,6 +69,7 @@ var _mapaTelaEl = {
   feriados:     'telaFeriados',
   usuarios:     'telaUsuarios',
   pcm:          'telaPCM',
+  auditoria:    'telaAuditoria',
 };
 
 var _mapaTitulos = {
@@ -87,6 +88,7 @@ var _mapaTitulos = {
   feriados:     'Gestão e RH',
   usuarios:     'Usuários',
   pcm:          'PCM — Controle de Moldes',
+  auditoria:    'Log de Alterações',
 };
 
 function irPara(tela, elMenu) {
@@ -118,6 +120,7 @@ function _irParaSemHistory(tela, elMenu) {
     else if (tela === 'injetoras')    { carregarInjetoras(); }
     else if (tela === 'categorias')   { carregarCategorias(); }
     else if (tela === 'pcm')          { inicializarPCM(); }
+    else if (tela === 'auditoria')    { carregarLogAlteracoes(); }
   }, 50);
 }
 
