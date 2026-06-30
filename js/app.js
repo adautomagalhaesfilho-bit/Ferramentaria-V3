@@ -342,14 +342,17 @@ function carregarCategorias()     { const el=document.getElementById('painelCate
 // ==========================================
 // 🗂️ JOBS / MOLDES
 // ==========================================
+var _todosJobsAdmin = [];
+
 async function _carregarJobs() {
   try {
     const res = await db._get('jobs','order=nome.asc','*');
+    _todosJobsAdmin = res || [];
     const el = document.getElementById('listaJobsAdmin');
     if (!el) return;
     const filtroTipo = document.getElementById('filtroTipoJob')?.value || 'todos';
     const busca = (document.getElementById('buscaJobAdmin')?.value||'').toUpperCase();
-    const filtrado = (res||[]).filter(j => {
+    const filtrado = _todosJobsAdmin.filter(j => {
       const sv = j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/');
       if (filtroTipo==='molde' && sv) return false;
       if (filtroTipo==='servico' && !sv) return false;
@@ -363,94 +366,257 @@ async function _carregarJobs() {
       </div>
       <div class="lista-item-acoes">
         <span class="${j.ativo?'badge-ativo':'badge-inativo'}">${j.ativo?'ATIVO':'INATIVO'}</span>
+        <button class="btn-icon" onclick="abrirEdicaoJob(${j.id})">✏️</button>
         <button class="btn-icon danger" onclick="excluirJob(${j.id})">🗑️</button>
       </div>
     </div>`).join('') || '<div class="empty-msg">Nenhum job.</div>';
   } catch(e) { toast('Erro ao carregar jobs.','erro'); }
 }
 function filtrarJobsAdmin() { _carregarJobs(); }
+
 async function abrirFormJob() {
   const nome = prompt('Nome do Molde / Job (ex: MOL-001 ou SV-001):');
   if (!nome||!nome.trim()) return;
   try {
-    await db._post('jobs',{nome:nome.trim(),ativo:true});
+    const res = await db._post('jobs',{nome:nome.trim(),ativo:true});
     toast('Adicionado!','sucesso');
     if (_listas) _listas.jobs=(_listas.jobs||[]).concat(nome.trim());
     inicializarAutocompletes(); carregarJobsAdmin();
+    await registrarLog('jobs', res?.[0]?.id || nome.trim(), 'criar', null, null, nome.trim());
   } catch(e) { toast('Erro.','erro'); }
 }
+
+function abrirEdicaoJob(id) {
+  const job = _todosJobsAdmin.find(j => j.id === id);
+  if (!job) return;
+  const div = document.createElement('div');
+  div.id = 'modalEditJobWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoJob()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:440px">
+    <div class="modal-header"><h3>✏️ Editar Molde/Job</h3><button onclick="fecharEdicaoJob()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" id="editJobNome" value="${job.nome.replace(/"/g,'&quot;')}">
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label"><input type="checkbox" id="editJobAtivo" ${job.ativo?'checked':''}> Ativo</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoJob(${id})">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoJob()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function fecharEdicaoJob() { document.getElementById('modalEditJobWrap')?.remove(); }
+
+async function salvarEdicaoJob(id) {
+  const job = _todosJobsAdmin.find(j => j.id === id);
+  const novoNome  = document.getElementById('editJobNome')?.value?.trim();
+  const novoAtivo = document.getElementById('editJobAtivo')?.checked;
+  if (!novoNome) return toast('Informe o nome.','erro');
+  try {
+    await db._patch('jobs', 'id=eq.'+id, { nome: novoNome, ativo: novoAtivo });
+    if (job.nome !== novoNome) await registrarLog('jobs', id, 'editar', 'nome', job.nome, novoNome);
+    if (job.ativo !== novoAtivo) await registrarLog('jobs', id, 'editar', 'ativo', job.ativo?'Ativo':'Inativo', novoAtivo?'Ativo':'Inativo');
+    toast('Atualizado!','sucesso');
+    fecharEdicaoJob();
+    if (_listas) { _listas.jobs = (_listas.jobs||[]).map(j => j===job.nome ? novoNome : j); inicializarAutocompletes(); }
+    carregarJobsAdmin();
+  } catch(e) { toast('Erro ao salvar.','erro'); }
+}
+
 async function excluirJob(id) {
+  const job = _todosJobsAdmin.find(j => j.id === id);
   confirmarExclusao('Remover este job?', async()=>{
-    try { await db._patch('jobs','id=eq.'+id,{ativo:false}); toast('Removido!','sucesso'); carregarJobsAdmin(); }
-    catch(e){ toast('Erro.','erro'); }
+    try {
+      await db._patch('jobs','id=eq.'+id,{ativo:false});
+      await registrarLog('jobs', id, 'excluir', null, job?.nome || id, null);
+      toast('Removido!','sucesso'); carregarJobsAdmin();
+    } catch(e){ toast('Erro.','erro'); }
   });
 }
 
 // ==========================================
 // 🤖 MÁQUINAS
 // ==========================================
+var _todasMaquinasAdmin = [];
+
 async function _carregarMaquinasLista() {
   try {
     const res = await db.listarMaquinas();
+    _todasMaquinasAdmin = res || [];
     const el = document.getElementById('listaMaquinas');
     if (!el) return;
-    el.innerHTML = (res||[]).map(m=>`<div class="lista-item">
+    el.innerHTML = _todasMaquinasAdmin.map(m=>`<div class="lista-item">
       <div class="lista-item-info">
         <div class="lista-item-nome">${m.nome}</div>
         <div class="lista-item-sub">Turno: ${m.turno||'ADM'} | Cap: ${m.cap_liquida||508} min/dia</div>
       </div>
       <div class="lista-item-acoes">
         <span class="${m.ativo?'badge-ativo':'badge-inativo'}">${m.ativo?'ATIVO':'INATIVO'}</span>
+        <button class="btn-icon" onclick="abrirEdicaoMaquina(${m.id})">✏️</button>
         <button class="btn-icon danger" onclick="excluirMaquinaAdmin(${m.id})">🗑️</button>
       </div>
     </div>`).join('')||'<div class="empty-msg">Nenhuma máquina.</div>';
   } catch(e) { toast('Erro.','erro'); }
 }
+
 async function abrirFormMaquina() {
   const nome = prompt('Nome da Máquina:');
   if (!nome||!nome.trim()) return;
-  try { await db.salvarMaquina({nome:nome.trim(),turno:'ADM',ativo:true}); toast('Adicionada!','sucesso'); carregarMaquinasAdmin(); }
-  catch(e){ toast('Erro.','erro'); }
+  try {
+    const res = await db.salvarMaquina({nome:nome.trim(),turno:'ADM',ativo:true});
+    toast('Adicionada!','sucesso'); carregarMaquinasAdmin();
+    await registrarLog('maquinas', res?.[0]?.id || nome.trim(), 'criar', null, null, nome.trim());
+  } catch(e){ toast('Erro.','erro'); }
 }
+
+function abrirEdicaoMaquina(id) {
+  const m = _todasMaquinasAdmin.find(x => x.id === id);
+  if (!m) return;
+  const div = document.createElement('div');
+  div.id = 'modalEditMaqWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoMaquina()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:440px">
+    <div class="modal-header"><h3>✏️ Editar Máquina</h3><button onclick="fecharEdicaoMaquina()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nome *</label><input type="text" id="editMaqNome" value="${m.nome.replace(/"/g,'&quot;')}"></div>
+      <div class="form-group"><label>Turno</label>
+        <select id="editMaqTurno">
+          ${['5x2','Turma A','Turma B','6x1','Estágio','ADM'].map(t=>`<option value="${t}" ${m.turno===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Capacidade Líquida (min/dia)</label><input type="number" id="editMaqCap" value="${m.cap_liquida||508}"></div>
+      <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="editMaqAtivo" ${m.ativo?'checked':''}> Ativa</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoMaquina(${id})">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoMaquina()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function fecharEdicaoMaquina() { document.getElementById('modalEditMaqWrap')?.remove(); }
+
+async function salvarEdicaoMaquina(id) {
+  const m = _todasMaquinasAdmin.find(x => x.id === id);
+  const novoNome  = document.getElementById('editMaqNome')?.value?.trim();
+  const novoTurno = document.getElementById('editMaqTurno')?.value;
+  const novaCap   = parseInt(document.getElementById('editMaqCap')?.value) || 508;
+  const novoAtivo = document.getElementById('editMaqAtivo')?.checked;
+  if (!novoNome) return toast('Informe o nome.','erro');
+  try {
+    await db.salvarMaquina({ id, nome: novoNome, turno: novoTurno, cap_liquida: novaCap, ativo: novoAtivo });
+    if (m.nome !== novoNome) await registrarLog('maquinas', id, 'editar', 'nome', m.nome, novoNome);
+    if (m.turno !== novoTurno) await registrarLog('maquinas', id, 'editar', 'turno', m.turno, novoTurno);
+    if (m.cap_liquida !== novaCap) await registrarLog('maquinas', id, 'editar', 'capacidade', m.cap_liquida, novaCap);
+    if (m.ativo !== novoAtivo) await registrarLog('maquinas', id, 'editar', 'ativo', m.ativo?'Ativa':'Inativa', novoAtivo?'Ativa':'Inativa');
+    toast('Atualizada!','sucesso');
+    fecharEdicaoMaquina(); carregarMaquinasAdmin();
+  } catch(e) { toast('Erro ao salvar.','erro'); }
+}
+
 async function excluirMaquinaAdmin(id) {
+  const m = _todasMaquinasAdmin.find(x => x.id === id);
   confirmarExclusao('Remover esta máquina?', async()=>{
-    try { await db.excluirMaquina(id); toast('Removida!','sucesso'); carregarMaquinasAdmin(); }
-    catch(e){ toast('Erro.','erro'); }
+    try {
+      await db.excluirMaquina(id);
+      await registrarLog('maquinas', id, 'excluir', null, m?.nome || id, null);
+      toast('Removida!','sucesso'); carregarMaquinasAdmin();
+    } catch(e){ toast('Erro.','erro'); }
   });
 }
 
 // ==========================================
 // 🏭 INJETORAS
 // ==========================================
+var _todasInjetorasAdmin = [];
+
 async function _carregarInjetorasLista() {
   try {
     const res = await db.listarProdInjetoras();
+    _todasInjetorasAdmin = res || [];
     const el = document.getElementById('listaInjetoras');
     if (!el) return;
-    el.innerHTML = (res||[]).map(i=>`<div class="lista-item">
+    el.innerHTML = _todasInjetorasAdmin.map(i=>`<div class="lista-item">
       <div class="lista-item-info">
-        <div class="lista-item-nome">${i.nome}</div>
+        <div class="lista-item-nome" style="cursor:pointer" onclick="abrirFichaInjetora('${i.nome.replace(/'/g,"\\'")}')">${i.nome}</div>
         <div class="lista-item-sub">${i.tonelagem?i.tonelagem+' ton':'—'} | ${i.fabricante||'—'}</div>
       </div>
       <div class="lista-item-acoes">
         <span class="badge-ativo">ATIVO</span>
+        <button class="btn-icon" onclick="abrirEdicaoInjetora(${i.id})">✏️</button>
         <button class="btn-icon danger" onclick="excluirInjetoraAdmin(${i.id})">🗑️</button>
       </div>
     </div>`).join('')||'<div class="empty-msg">Nenhuma injetora.</div>';
   } catch(e){ toast('Erro.','erro'); }
 }
+
 async function abrirFormInjetora() {
   const nome = prompt('Nome da Injetora (ex: 160-01):');
   if (!nome||!nome.trim()) return;
   const ton = prompt('Tonelagem (opcional):');
   const fab = prompt('Fabricante (opcional):');
-  try { await db.salvarProdInjetora({nome:nome.trim(),tonelagem:ton?parseInt(ton):null,fabricante:fab||null}); toast('Adicionada!','sucesso'); carregarInjetoras(); }
-  catch(e){ toast('Erro.','erro'); }
+  try {
+    const res = await db.salvarProdInjetora({nome:nome.trim(),tonelagem:ton?parseInt(ton):null,fabricante:fab||null});
+    toast('Adicionada!','sucesso'); carregarInjetoras();
+    await registrarLog('prod_injetoras', res?.[0]?.id || nome.trim(), 'criar', null, null, nome.trim());
+  } catch(e){ toast('Erro.','erro'); }
 }
+
+function abrirEdicaoInjetora(id) {
+  const i = _todasInjetorasAdmin.find(x => x.id === id);
+  if (!i) return;
+  const div = document.createElement('div');
+  div.id = 'modalEditInjWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoInjetora()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:440px">
+    <div class="modal-header"><h3>✏️ Editar Injetora</h3><button onclick="fecharEdicaoInjetora()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nome *</label><input type="text" id="editInjNome" value="${i.nome.replace(/"/g,'&quot;')}"></div>
+      <div class="form-group"><label>Tonelagem</label><input type="number" id="editInjTon" value="${i.tonelagem||''}"></div>
+      <div class="form-group"><label>Fabricante</label><input type="text" id="editInjFab" value="${i.fabricante||''}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoInjetora(${id})">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoInjetora()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function fecharEdicaoInjetora() { document.getElementById('modalEditInjWrap')?.remove(); }
+
+async function salvarEdicaoInjetora(id) {
+  const i = _todasInjetorasAdmin.find(x => x.id === id);
+  const novoNome = document.getElementById('editInjNome')?.value?.trim();
+  const novoTon  = document.getElementById('editInjTon')?.value;
+  const novoFab  = document.getElementById('editInjFab')?.value?.trim();
+  if (!novoNome) return toast('Informe o nome.','erro');
+  try {
+    await db.salvarProdInjetora({ id, nome: novoNome, tonelagem: novoTon?parseInt(novoTon):null, fabricante: novoFab||null });
+    if (i.nome !== novoNome) await registrarLog('prod_injetoras', id, 'editar', 'nome', i.nome, novoNome);
+    toast('Atualizada!','sucesso');
+    fecharEdicaoInjetora(); carregarInjetoras();
+  } catch(e) { toast('Erro ao salvar.','erro'); }
+}
+
 async function excluirInjetoraAdmin(id) {
+  const i = _todasInjetorasAdmin.find(x => x.id === id);
   confirmarExclusao('Remover esta injetora?', async()=>{
-    try { await db.excluirProdInjetora(id); toast('Removida!','sucesso'); carregarInjetoras(); }
-    catch(e){ toast('Erro.','erro'); }
+    try {
+      await db.excluirProdInjetora(id);
+      await registrarLog('prod_injetoras', id, 'excluir', null, i?.nome || id, null);
+      toast('Removida!','sucesso'); carregarInjetoras();
+    } catch(e){ toast('Erro.','erro'); }
   });
 }
 
@@ -597,7 +763,8 @@ async function salvarCategoria() {
   if (!tipo) return toast('Informe o grupo/tipo.','erro');
   if (!ativ) return toast('Informe a atividade.','erro');
   try {
-    await db.salvarProdCategoria({ tipo, atividade:ativ, setor:_abaSetorAtiva, ativo:true });
+    const res = await db.salvarProdCategoria({ tipo, atividade:ativ, setor:_abaSetorAtiva, ativo:true });
+    await registrarLog('prod_categorias', res?.[0]?.id || ativ, 'criar', null, null, `${_abaSetorAtiva} / ${tipo} / ${ativ}`);
     toast('Categoria adicionada!','sucesso');
     fecharModalCategoria();
     const cats = await db.listarProdCategorias();
@@ -626,7 +793,11 @@ async function editarCategoria(id, ativAtual) {
 
 async function excluirCategoria(id) {
   confirmarExclusao('Remover esta categoria?', async()=>{
-    try { await db.excluirProdCategoria(id); toast('Removida!','sucesso'); carregarCategorias(); }
+    try {
+      await db.excluirProdCategoria(id);
+      await registrarLog('prod_categorias', id, 'excluir', null, 'Categoria #'+id, null);
+      toast('Removida!','sucesso'); carregarCategorias();
+    }
     catch(e){ toast('Erro.','erro'); }
   });
 }
