@@ -93,6 +93,7 @@ function aplicarPermissoes() {
     menuCategorias:   _temPermissao('admin'),
     menuFeriados:     _temPermissao('rh') || _temPermissao('admin'),
     menuUsuarios:     isAdmin(),
+    menuAuditoria:    isAdmin(),
     adminSection:     _temPermissao('admin') || _temPermissao('rh'),
   };
 
