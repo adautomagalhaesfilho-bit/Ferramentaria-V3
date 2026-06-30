@@ -289,7 +289,7 @@ function _criarCardPCM(m, info) {
       <div>
         <div style="font-size:14px;font-weight:700;color:#1e3a5f">${m.job}</div>
         ${m.localizacao==='Em Máquina'&&m.maquina
-          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px">🏭 ${m.maquina}</div>`
+          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px;cursor:pointer" onclick="event.stopPropagation();abrirFichaInjetora('${m.maquina.replace(/'/g,"\'")}')">🏭 ${m.maquina}</div>`
           : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
