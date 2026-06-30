@@ -283,7 +283,20 @@ ${editando ? `
         </div>` :
         '<div style="color:#94a3b8;font-size:13px">Nenhuma mudança de turno registrada.</div>'
       }
+    </div>
+
+    <!-- HISTÓRICO DE LANÇAMENTOS -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:12px">📊 Histórico de Lançamentos e Produtividade</div>
+      <div id="fichaFuncHistorico">
+        <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>
+      </div>
     </div>`;
+
+    // Carrega histórico de lançamentos (todos os setores)
+    if (typeof renderizarHistoricoNaFicha === 'function') {
+      renderizarHistoricoNaFicha(f.nome, 'fichaFuncHistorico');
+    }
 
   } catch(e) {
     document.getElementById('fichaFuncCorpo').innerHTML = '<div class="empty-msg">Erro ao carregar.</div>';
@@ -553,11 +566,8 @@ function excluirFeriadoConfirm(id) {
 async function carregarFerias() {
   const el = document.getElementById('painelAusencias');
   if (!el) return;
-  const funcs = (_listas?.funcionarios||[])
-    .concat(_listas?.funcBancada||[])
-    .concat(_listas?.funcProjeto||[])
-    .concat(_listas?.funcProducao||[])
-    .filter((v,i,a)=>a.indexOf(v)===i).sort();
+  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
   const motivos = ['Atestado Médico','Falta Injustificada','Férias','Folga Compensatória','Licença / Outros'];
   el.innerHTML = `<div class="card">
     <div class="form-row">
@@ -604,11 +614,8 @@ function excluirFeriasConfirm(id) {
 async function carregarParciais() {
   const el = document.getElementById('painelParciais');
   if (!el) return;
-  const funcs = (_listas?.funcionarios||[])
-    .concat(_listas?.funcBancada||[])
-    .concat(_listas?.funcProjeto||[])
-    .concat(_listas?.funcProducao||[])
-    .filter((v,i,a)=>a.indexOf(v)===i).sort();
+  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
   const motivos = ['Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
 
   el.innerHTML = `
