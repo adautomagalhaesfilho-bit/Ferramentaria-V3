@@ -187,11 +187,17 @@ async function salvarUsuario() {
     ativo:      document.getElementById('uAtivo').checked,
     permissoes: permissoes
   };
-  if (_editandoUserId) dados.id = _editandoUserId;
+  const isEdicao = !!_editandoUserId;
+  if (isEdicao) dados.id = _editandoUserId;
 
   try {
-    await db.salvarUsuario(dados);
-    toast(_editandoUserId ? 'Usuário atualizado!' : 'Usuário criado!', 'sucesso');
+    const res = await db.salvarUsuario(dados);
+    const idLog = isEdicao ? _editandoUserId : (res?.[0]?.id || nome);
+    if (typeof registrarLog === 'function') {
+      await registrarLog('usuarios', idLog, isEdicao ? 'editar' : 'criar', isEdicao ? 'dados' : null,
+        isEdicao ? 'Atualização de usuário' : null, `${nome} (${dados.perfil})`);
+    }
+    toast(isEdicao ? 'Usuário atualizado!' : 'Usuário criado!', 'sucesso');
     fecharFormUsuario();
     carregarUsuarios();
   } catch(e) { toast('Erro ao salvar.','erro'); }
@@ -200,6 +206,7 @@ async function salvarUsuario() {
 async function excluirUsuario(id) {
   try {
     await db.excluirUsuario(id);
+    if (typeof registrarLog === 'function') await registrarLog('usuarios', id, 'excluir', null, 'Usuário #'+id, null);
     toast('Usuário removido!','sucesso');
     carregarUsuarios();
   } catch(e) { toast('Erro ao excluir.','erro'); }
