@@ -35,6 +35,14 @@ function capMinutosPorTurno(turno) {
   return 528;
 }
 
+// Supervisores/Encarregados são excluídos dos cálculos de ocupação/produtividade
+// (aparecem nas listas de técnico para lançamento, mas não contam na meta da equipe)
+function isSupervisor(nome, dados) {
+  const funcRH = (dados.funcionarios || []).find(f => f.nome === nome);
+  if (!funcRH) return false;
+  return funcRH.setor === 'Supervisão' || funcRH.cargo === 'Supervisor' || funcRH.cargo === 'Encarregado';
+}
+
 // ==========================================
 // 🕐 CALCULAR META
 // ==========================================
@@ -220,14 +228,18 @@ function desenharSetor(setor, ini, fim) {
   const totalMins = lancs.reduce((a,l)=>a+(l.minutos||0),0);
   const totalJobs = new Set(lancs.filter(l=>l.job).map(l=>l.job)).size;
 
-  const horasExtras = lancs.filter(l => {
+  // Exclui supervisores das horas produtivas do setor (têm função administrativa)
+  const lancsSemSupervisor = lancs.filter(l => !isSupervisor(l.funcionario, _dadosDash));
+  const totalMinsSemSup = lancsSemSupervisor.reduce((a,l)=>a+(l.minutos||0),0);
+
+  const horasExtras = lancsSemSupervisor.filter(l => {
     const funcRH = (_dadosDash.funcionarios||[]).find(f=>f.nome===l.funcionario);
     const turno  = funcRH?.turno || '5x2';
     return !funcTrabalhaEmDia(turno, l.data, feriados);
   }).reduce((a,l)=>a+(l.minutos||0),0);
 
   const porOp = {};
-  lancs.forEach(l => {
+  lancsSemSupervisor.forEach(l => {
     const f=l.funcionario||'—';
     if(f.toUpperCase().includes('SEM OPERADOR')) return;
     if(!porOp[f]) porOp[f]=0; porOp[f]+=l.minutos||0;
@@ -238,7 +250,7 @@ function desenharSetor(setor, ini, fim) {
     return { nome, mins, meta, pct };
   }).sort((a,b)=>b.pct-a.pct);
   const totalMeta = opEntries.reduce((a,o)=>a+o.meta,0);
-  const pctEquipe = totalMeta>0?Math.round(totalMins/totalMeta*100):0;
+  const pctEquipe = totalMeta>0?Math.round(totalMinsSemSup/totalMeta*100):0;
 
   const porMaq = {};
   if(setor==='Usinagem') lancs.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; if(!porMaq[l.maquina]) porMaq[l.maquina]=0; porMaq[l.maquina]+=l.minutos||0; });
@@ -251,7 +263,7 @@ function desenharSetor(setor, ini, fim) {
   const capTotal  = 528 * diasUteis;
   const numMaq    = Object.keys(porMaq).length;
   const capBancada = setor==='Bancada' ? calcularCapBancada(ini, fim, _dadosDash) : 0;
-  const pctBancada = capBancada>0?Math.round(totalMins/capBancada*100):0;
+  const pctBancada = capBancada>0?Math.round(totalMinsSemSup/capBancada*100):0;
 
   const porJob={};
   lancs.forEach(l=>{ if(!l.job) return; if(!porJob[l.job]) porJob[l.job]=0; porJob[l.job]+=l.minutos||0; });
@@ -270,7 +282,7 @@ function desenharSetor(setor, ini, fim) {
   const paleta=['#0056b3','#10b981','#8b5cf6','#f59e0b','#ef4444','#0ea5e9','#ec4899','#14b8a6'];
 
   let html=`<div class="cards-row">
-    ${metricCard('⏱️','Horas Produtivas',fmtMin(totalMins),'total da equipe',cor)}
+    ${metricCard('⏱️','Horas Produtivas',fmtMin(totalMinsSemSup),'total da equipe (sem supervisão)',cor)}
     ${metricCard('🔩','Jobs Trabalhados',totalJobs,'moldes únicos','#10b981')}
     ${metricCard('👥','Ocupação da Equipe',pctEquipe+'%','vs meta do período',pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444',badgePct(pctEquipe))}
     ${setor==='Usinagem'
