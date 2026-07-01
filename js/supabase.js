@@ -392,6 +392,17 @@ const db = {
     return await db._patch('prod_tecnicos', 'id=eq.' + id, { ativo: false });
   },
 
+  listarCargos: async function() {
+    return await db._get('cargos', 'ativo=eq.true&order=nome.asc', '*');
+  },
+  salvarCargo: async function(dados) {
+    if (dados.id) return await db._patch('cargos', 'id=eq.' + dados.id, dados);
+    return await db._post('cargos', dados);
+  },
+  excluirCargo: async function(id) {
+    return await db._patch('cargos', 'id=eq.' + id, { ativo: false });
+  },
+
   listarProdInjetoras: async function() {
     return await db._get('prod_injetoras', 'ativo=eq.true&order=nome.asc', '*');
   },
