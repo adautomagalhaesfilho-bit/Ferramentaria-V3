@@ -92,9 +92,9 @@
           <span class="menu-txt">Usuários</span>
         </div>
         <div class="menu-item" id="menuAuditoria" onclick="irPara('auditoria', this)">
-  <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
-  <span class="menu-txt">Log de Alterações</span>
-</div>
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+          <span class="menu-txt">Log de Alterações</span>
+        </div>
       </div>
     </div>
   </div>
@@ -121,6 +121,7 @@
         <div class="saudacao-titulo" id="saudacaoTitulo">Bom dia!</div>
         <div class="saudacao-sub">Aqui está o seu resumo</div>
       </div>
+      <div id="alertaPendenciasDash"></div>
       <div class="page-header" style="margin-top:0">
         <div class="periodo-controls">
           <input type="date" id="dashIni" onchange="carregarDashboard()" style="width:auto">
@@ -207,14 +208,15 @@
           </table>
         </div>
       </div>
+      <div id="prodWppArea" style="display:none" class="card">
+        <label style="color:#059669;font-weight:600;font-size:12px">OBSERVAÇÕES PARA O RELATÓRIO</label>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <textarea id="prodWppObs" rows="2" style="flex:1;resize:vertical"></textarea>
+          <button class="btn-wpp" onclick="enviarWhatsappProducao()">💬 Enviar Relatório</button>
+        </div>
+      </div>
     </div>
-<div id="prodWppArea" style="display:none" class="card">
-  <label style="color:#059669;font-weight:600;font-size:12px">OBSERVAÇÕES PARA O RELATÓRIO</label>
-  <div style="display:flex;gap:10px;margin-top:8px">
-    <textarea id="prodWppObs" rows="2" style="flex:1;resize:vertical"></textarea>
-    <button class="btn-wpp" onclick="enviarWhatsappProducao()">💬 Enviar Relatório</button>
-  </div>
-</div>
+
     <!-- FICHA -->
     <div class="tela" id="telaFicha">
       <div class="page-header"><h1>📄 Ficha do Molde</h1></div>
@@ -340,10 +342,11 @@
       <div id="painelParciais" class="painel-rh"></div>
     </div>
 
+    <!-- LOG DE ALTERAÇÕES -->
     <div class="tela" id="telaAuditoria">
-  <div id="telaLogAuditoria"></div>
-</div>
-    
+      <div id="telaLogAuditoria"></div>
+    </div>
+
     <!-- USUÁRIOS -->
     <div class="tela" id="telaUsuarios">
       <div class="page-header">
@@ -366,7 +369,7 @@
 </main>
 
 <!-- ==========================================
-     MODAL APONTAMENTOS — ORDEM REORGANIZADA
+     MODAL APONTAMENTOS
      ========================================== -->
 <div class="modal-form-overlay" id="modalFormOverlay">
   <div class="modal-form" id="modalForm">
@@ -390,18 +393,16 @@
         </div>
       </div>
 
-      <!-- 2. TÉCNICO — único (Usinagem/Projeto) ou múltiplos (Bancada) -->
+      <!-- 2. TÉCNICO -->
       <div class="modal-form-section">
         <div class="modal-form-section-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           Técnico
         </div>
-        <!-- Técnico único (Usinagem / Projeto) -->
         <div class="form-group" id="grupoFuncSimples" style="margin-bottom:0">
           <select id="formFunc"><option value="">Selecione...</option></select>
           <div id="avisoFunc" class="aviso-info" style="display:none">Buscando último apontamento...</div>
         </div>
-        <!-- Múltiplos técnicos (Bancada) -->
         <div class="form-group" id="grupoFuncBancada" style="display:none;margin-bottom:0">
           <label>Adicionar Técnico</label>
           <div style="display:flex;gap:8px">
@@ -414,13 +415,13 @@
         </div>
       </div>
 
-      <!-- 3. MÁQUINA (Usinagem) -->
+      <!-- 3. MÁQUINA -->
       <div id="grupoMaquina" style="display:none" class="form-group">
         <label>Máquina *</label>
         <select id="formMaq"><option value="">Selecione...</option></select>
       </div>
 
-      <!-- 4. TIPO DE SERVIÇO (Usinagem) -->
+      <!-- 4. TIPO DE SERVIÇO -->
       <div id="grupoTipoUsina" style="display:none" class="form-row">
         <div class="form-group">
           <label>Tipo de Serviço *</label>
@@ -432,7 +433,7 @@
         </div>
       </div>
 
-      <!-- 5. ATIVIDADE (Bancada) -->
+      <!-- 5. ATIVIDADE -->
       <div id="grupoTipoBancada" style="display:none" class="form-group">
         <label>Atividade *</label>
         <div class="autocomplete-wrap">
@@ -442,7 +443,7 @@
         <input type="hidden" id="formTipoBancada">
       </div>
 
-      <!-- 6. ÁREA / CATEGORIA (Projeto) -->
+      <!-- 6. ÁREA / CATEGORIA -->
       <div id="grupoArea" style="display:none" class="form-row">
         <div class="form-group">
           <label>Área *</label>
@@ -481,7 +482,7 @@
         </div>
       </div>
 
-      <!-- 8. TROCA DE COPO (Bancada) -->
+      <!-- 8. TROCA DE COPO -->
       <div id="grupoCopo" style="display:none">
         <div class="modal-form-section" style="background:#fefce8;border-color:#fde68a">
           <div class="modal-form-section-title" style="color:#92400e">
