@@ -282,29 +282,81 @@ function desenharSetor(setor, ini, fim) {
   const sx=setor==='Usinagem'?'U':'B';
   const paleta=['#0056b3','#10b981','#8b5cf6','#f59e0b','#ef4444','#0ea5e9','#ec4899','#14b8a6'];
 
-  let html=`<div class="cards-row">
-    ${metricCard('⏱️','Horas Produtivas',fmtMin(totalMinsSemSup),'total da equipe (sem supervisão)',cor)}
-    ${metricCard('🔩','Jobs Trabalhados',totalJobs,'moldes únicos','#10b981')}
-    ${metricCard('👥','Ocupação da Equipe',pctEquipe+'%','vs meta do período',pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444',badgePct(pctEquipe))}
-    ${setor==='Usinagem'
-      ? metricCard('⚙️','Ocupação Máquinas',numMaq>0?Math.round(Object.values(porMaq).reduce((a,b)=>a+b,0)/(capTotal*numMaq)*100)+'%':'—','média das máquinas','#0056b3',`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${numMaq} máquinas</span>`)
-      : metricCard('🛠️','Ocupação Bancada',pctBancada+'%','vs capacidade real',pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444',badgePct(pctBancada))
-    }
-    ${metricCard('📋','Lançamentos',lancs.length,'no período','#8b5cf6')}
-    ${horasExtras>0?metricCard('⏰','Horas Extras',fmtMin(horasExtras),'fora do expediente','#f59e0b'):''}
-  </div>`;
+  // Guarda estado completo para os filtros estilo Excel
+  _dashEstado = {
+    opEntries, porMaq, cor, capTotal, capBancada, setor,
+    funcionarios: _dadosDash.funcionarios||[],
+    feriados: feriados,
+    lancsSemSupervisor,
+    filtroPessoas:  new Set(opEntries.map(o=>o.nome)),
+    filtroMaquinas: new Set(Object.keys(porMaq))
+  };
 
-  // Guarda estado para os filtros de seleção
-  _dashEstado = { opEntries, porMaq, cor, capTotal, funcionarios: _dadosDash.funcionarios||[] };
+  const pctMaqInicial = numMaq>0?Math.round(Object.values(porMaq).reduce((a,b)=>a+b,0)/(capTotal*numMaq)*100):0;
+
+  let html=`<div class="cards-row">
+    <div class="metric-card" style="border-left-color:${cor}">
+      <div class="metric-icon">⏱️</div>
+      <div class="metric-valor" id="valHorasProdutivas" style="color:${cor}">${fmtMin(totalMinsSemSup)}</div>
+      <div class="metric-label">Horas Produtivas</div>
+      <div class="metric-sub">total da equipe (sem supervisão)</div>
+    </div>
+    ${metricCard('🔩','Jobs Trabalhados',totalJobs,'moldes únicos','#10b981')}
+    <div class="metric-card" style="border-left-color:${pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="metric-icon">👥</div><div id="badgeOcupacaoEquipe">${badgePct(pctEquipe)}</div>
+      </div>
+      <div class="metric-valor" id="valOcupacaoEquipe" style="color:${pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444'}">${pctEquipe}%</div>
+      <div class="metric-label">Ocupação da Equipe</div>
+      <div class="metric-sub">vs meta do período</div>
+    </div>
+    ${setor==='Usinagem' ? `
+    <div class="metric-card" style="border-left-color:#0056b3">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="metric-icon">⚙️</div><div id="badgeOcupacaoMaquinas"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${numMaq} máquinas</span></div>
+      </div>
+      <div class="metric-valor" id="valOcupacaoMaquinas" style="color:#0056b3">${numMaq>0?pctMaqInicial+'%':'—'}</div>
+      <div class="metric-label">Ocupação Máquinas</div>
+      <div class="metric-sub">média das máquinas</div>
+    </div>` : `
+    <div class="metric-card" style="border-left-color:${pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="metric-icon">🛠️</div><div id="badgeOcupacaoBancada">${badgePct(pctBancada)}</div>
+      </div>
+      <div class="metric-valor" id="valOcupacaoBancada" style="color:${pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444'}">${pctBancada}%</div>
+      <div class="metric-label">Ocupação Bancada</div>
+      <div class="metric-sub">vs capacidade real</div>
+    </div>`}
+    <div class="metric-card" style="border-left-color:#8b5cf6">
+      <div class="metric-icon">📋</div>
+      <div class="metric-valor" id="valLancamentos" style="color:#8b5cf6">${lancs.length}</div>
+      <div class="metric-label">Lançamentos</div>
+      <div class="metric-sub">no período</div>
+    </div>
+    <div class="metric-card" id="cardHorasExtras" style="border-left-color:#f59e0b;display:${horasExtras>0?'':'none'}">
+      <div class="metric-icon">⏰</div>
+      <div class="metric-valor" id="valHorasExtras" style="color:#f59e0b">${fmtMin(horasExtras)}</div>
+      <div class="metric-label">Horas Extras</div>
+      <div class="metric-sub">fora do expediente</div>
+    </div>
+  </div>`;
 
   const opOrdenados = [...opEntries].sort((a,b)=>a.nome.localeCompare(b.nome));
   html+=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">👤 Desempenho Individual</div>
-      <select id="selFiltroPessoaOcup" onchange="filtrarOcupacaoPessoa()" style="width:auto;font-size:12px">
-        <option value="Todos">Todos os Técnicos</option>
-        ${opOrdenados.map(o=>`<option value="${o.nome}">${o.nome}</option>`).join('')}
-      </select>
+      <div style="position:relative;display:inline-block">
+        <button id="btnFiltroPessoas" class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="toggleFiltroDash(event,'painelFiltroPessoas')">🔽 Técnicos (${opEntries.length}/${opEntries.length})</button>
+        <div id="painelFiltroPessoas" class="painel-filtro-dash" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:500;width:240px;padding:10px;max-height:280px;overflow-y:auto" onclick="event.stopPropagation()">
+          <div style="display:flex;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">
+            <button class="btn-secondary" style="font-size:11px;padding:3px 8px;flex:1" onclick="marcarTodosFiltroDash('pessoas',true)">Marcar todos</button>
+            <button class="btn-secondary" style="font-size:11px;padding:3px 8px;flex:1" onclick="marcarTodosFiltroDash('pessoas',false)">Limpar</button>
+          </div>
+          ${opOrdenados.map(o=>`<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;cursor:pointer">
+            <input type="checkbox" class="chkFiltroPessoa" value="${o.nome.replace(/"/g,'&quot;')}" checked onchange="aplicarFiltroDashPessoas()"> ${o.nome}
+          </label>`).join('')}
+        </div>
+      </div>
     </div>
     <div id="listaOcupacaoPessoas">${_renderBarrasPessoas(opEntries)}</div>
   </div>`;
@@ -314,10 +366,18 @@ function desenharSetor(setor, ini, fim) {
     html+=`<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
         <div style="font-weight:700;color:#1e3a5f;font-size:15px">🤖 Ocupação das Máquinas</div>
-        <select id="selFiltroMaquina" onchange="filtrarOcupacaoMaquina()" style="width:auto;font-size:12px">
-          <option value="Todas">Todas as Máquinas</option>
-          ${maqOrdenadas.map(m=>`<option value="${m}">${m}</option>`).join('')}
-        </select>
+        <div style="position:relative;display:inline-block">
+          <button id="btnFiltroMaquinas" class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="toggleFiltroDash(event,'painelFiltroMaquinas')">🔽 Máquinas (${numMaq}/${numMaq})</button>
+          <div id="painelFiltroMaquinas" class="painel-filtro-dash" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:500;width:220px;padding:10px;max-height:280px;overflow-y:auto" onclick="event.stopPropagation()">
+            <div style="display:flex;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">
+              <button class="btn-secondary" style="font-size:11px;padding:3px 8px;flex:1" onclick="marcarTodosFiltroDash('maquinas',true)">Marcar todos</button>
+              <button class="btn-secondary" style="font-size:11px;padding:3px 8px;flex:1" onclick="marcarTodosFiltroDash('maquinas',false)">Limpar</button>
+            </div>
+            ${maqOrdenadas.map(m=>`<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;cursor:pointer">
+              <input type="checkbox" class="chkFiltroMaquina" value="${m.replace(/"/g,'&quot;')}" checked onchange="aplicarFiltroDashMaquinas()"> ${m}
+            </label>`).join('')}
+          </div>
+        </div>
       </div>
       <div id="listaOcupacaoMaquinas">${_renderBarrasMaquinas(porMaq)}</div>
     </div>`;
@@ -561,22 +621,119 @@ function _renderBarrasMaquinas(porMaq) {
   }).join('');
 }
 
-function filtrarOcupacaoPessoa() {
-  const val = document.getElementById('selFiltroPessoaOcup')?.value || 'Todos';
-  const container = document.getElementById('listaOcupacaoPessoas');
-  if (!container || !_dashEstado) return;
-  const filtrados = val === 'Todos' ? _dashEstado.opEntries : _dashEstado.opEntries.filter(o=>o.nome===val);
-  container.innerHTML = _renderBarrasPessoas(filtrados);
+// ==========================================
+// 🎛️ FILTRO ESTILO EXCEL — Checkbox + Recalcula Totais
+// ==========================================
+var _dashFiltroListenerAdicionado = false;
+
+function toggleFiltroDash(evt, painelId) {
+  evt.stopPropagation();
+  document.querySelectorAll('.painel-filtro-dash').forEach(p => { if (p.id !== painelId) p.style.display = 'none'; });
+  const painel = document.getElementById(painelId);
+  if (!painel) return;
+  painel.style.display = painel.style.display === 'block' ? 'none' : 'block';
+
+  if (!_dashFiltroListenerAdicionado) {
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.painel-filtro-dash').forEach(p => p.style.display = 'none');
+    });
+    _dashFiltroListenerAdicionado = true;
+  }
 }
 
-function filtrarOcupacaoMaquina() {
-  const val = document.getElementById('selFiltroMaquina')?.value || 'Todas';
+function marcarTodosFiltroDash(tipo, marcar) {
+  const classe = tipo === 'pessoas' ? '.chkFiltroPessoa' : '.chkFiltroMaquina';
+  document.querySelectorAll(classe).forEach(c => c.checked = marcar);
+  if (tipo === 'pessoas') aplicarFiltroDashPessoas();
+  else aplicarFiltroDashMaquinas();
+}
+
+function _badgeOcupacaoHTML(pct) {
+  const c  = pct>=90?'#059669':pct>=70?'#92400e':'#b91c1c';
+  const bg = pct>=90?'#d1fae5':pct>=70?'#fef3c7':'#fee2e2';
+  const t  = pct>=90?'✅ Meta':pct>=70?'⚠️ OK':'🔴 Baixo';
+  return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${bg};color:${c}">${t}</span>`;
+}
+
+function _corPct(pct) { return pct>=90?'#10b981':pct>=70?'#f59e0b':'#ef4444'; }
+
+function _setTexto(id, texto) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = texto;
+}
+
+function aplicarFiltroDashPessoas() {
+  if (!_dashEstado) return;
+  const marcados = Array.from(document.querySelectorAll('.chkFiltroPessoa:checked')).map(c => c.value);
+  _dashEstado.filtroPessoas = new Set(marcados);
+
+  const filtrados = _dashEstado.opEntries.filter(o => _dashEstado.filtroPessoas.has(o.nome));
+  const container = document.getElementById('listaOcupacaoPessoas');
+  if (container) container.innerHTML = _renderBarrasPessoas(filtrados);
+
+  const btn = document.getElementById('btnFiltroPessoas');
+  if (btn) btn.innerText = `🔽 Técnicos (${filtrados.length}/${_dashEstado.opEntries.length})`;
+
+  // Recalcula totais gerais
+  const totalMinsF = filtrados.reduce((a,o)=>a+o.mins,0);
+  const totalMetaF = filtrados.reduce((a,o)=>a+o.meta,0);
+  const pctEquipeF = totalMetaF>0 ? Math.round(totalMinsF/totalMetaF*100) : 0;
+
+  _setTexto('valHorasProdutivas', fmtMin(totalMinsF));
+  _setTexto('valOcupacaoEquipe', pctEquipeF+'%');
+  const valEquipeEl = document.getElementById('valOcupacaoEquipe');
+  if (valEquipeEl) valEquipeEl.style.color = _corPct(pctEquipeF);
+  const badgeEquipeEl = document.getElementById('badgeOcupacaoEquipe');
+  if (badgeEquipeEl) badgeEquipeEl.innerHTML = _badgeOcupacaoHTML(pctEquipeF);
+
+  // Bancada: Ocupação Bancada também reflete a seleção de pessoas
+  if (_dashEstado.setor === 'Bancada' && _dashEstado.capBancada) {
+    const pctBancadaF = _dashEstado.capBancada>0 ? Math.round(totalMinsF/_dashEstado.capBancada*100) : 0;
+    _setTexto('valOcupacaoBancada', pctBancadaF+'%');
+    const valBancadaEl = document.getElementById('valOcupacaoBancada');
+    if (valBancadaEl) valBancadaEl.style.color = _corPct(pctBancadaF);
+    const badgeBancadaEl = document.getElementById('badgeOcupacaoBancada');
+    if (badgeBancadaEl) badgeBancadaEl.innerHTML = _badgeOcupacaoHTML(pctBancadaF);
+  }
+
+  // Lançamentos e Horas Extras — recalcula com base nos técnicos selecionados
+  if (_dashEstado.lancsSemSupervisor) {
+    const lancsF = _dashEstado.lancsSemSupervisor.filter(l => _dashEstado.filtroPessoas.has(l.funcionario));
+    _setTexto('valLancamentos', lancsF.length);
+    const extrasF = lancsF.filter(l => {
+      const fr = (_dashEstado.funcionarios||[]).find(f=>f.nome===l.funcionario);
+      const turno = fr?.turno || '5x2';
+      return !funcTrabalhaEmDia(turno, l.data, _dashEstado.feriados||[]);
+    }).reduce((a,l)=>a+(l.minutos||0),0);
+    const cardExtras = document.getElementById('cardHorasExtras');
+    if (cardExtras) cardExtras.style.display = extrasF>0 ? '' : 'none';
+    _setTexto('valHorasExtras', fmtMin(extrasF));
+  }
+}
+
+function aplicarFiltroDashMaquinas() {
+  if (!_dashEstado) return;
+  const marcados = Array.from(document.querySelectorAll('.chkFiltroMaquina:checked')).map(c => c.value);
+  _dashEstado.filtroMaquinas = new Set(marcados);
+
+  const porMaqFiltrado = {};
+  marcados.forEach(m => { if (_dashEstado.porMaq[m] !== undefined) porMaqFiltrado[m] = _dashEstado.porMaq[m]; });
+
   const container = document.getElementById('listaOcupacaoMaquinas');
-  if (!container || !_dashEstado) return;
-  const porMaqFiltrado = val === 'Todas'
-    ? _dashEstado.porMaq
-    : (_dashEstado.porMaq[val] !== undefined ? { [val]: _dashEstado.porMaq[val] } : {});
-  container.innerHTML = _renderBarrasMaquinas(porMaqFiltrado);
+  if (container) container.innerHTML = _renderBarrasMaquinas(porMaqFiltrado);
+
+  const totalMaq = Object.keys(_dashEstado.porMaq).length;
+  const btn = document.getElementById('btnFiltroMaquinas');
+  if (btn) btn.innerText = `🔽 Máquinas (${marcados.length}/${totalMaq})`;
+
+  // Recalcula Ocupação Máquinas com base na seleção
+  const totalMinsF = Object.values(porMaqFiltrado).reduce((a,b)=>a+b,0);
+  const numSel = marcados.length;
+  const pctMaqF = numSel>0 && _dashEstado.capTotal>0 ? Math.round(totalMinsF/(_dashEstado.capTotal*numSel)*100) : 0;
+
+  _setTexto('valOcupacaoMaquinas', numSel>0 ? pctMaqF+'%' : '—');
+  const badgeMaqEl = document.getElementById('badgeOcupacaoMaquinas');
+  if (badgeMaqEl) badgeMaqEl.innerHTML = `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${numSel} máquina(s)</span>`;
 }
 
 function metricCard(ico,titulo,valor,sub,cor,extra){
