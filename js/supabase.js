@@ -328,6 +328,7 @@ const db = {
     return await db._get('ferias', 'order=inicio.desc', '*');
   },
   salvarFerias: async function(dados) {
+    if (dados.id) return await db._patch('ferias', 'id=eq.' + dados.id, dados);
     return await db._post('ferias', dados);
   },
   excluirFerias: async function(id) {
@@ -340,6 +341,7 @@ const db = {
     return await db._get('rh_parciais', filtro, '*');
   },
   salvarParcial: async function(dados) {
+    if (dados.id) return await db._patch('rh_parciais', 'id=eq.' + dados.id, dados);
     return await db._post('rh_parciais', dados);
   },
   excluirParcial: async function(id) {
