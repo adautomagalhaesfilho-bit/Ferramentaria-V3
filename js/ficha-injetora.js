@@ -27,7 +27,15 @@ async function abrirFichaInjetora(nomeInjetora) {
       db._get('prod_injetoras', 'nome=eq.' + encodeURIComponent(nomeInjetora), '*')
     ]);
 
-    _dadosFichaInjetora = { lancamentos: lancs || [], info: (infoInj && infoInj[0]) || null };
+    const info = (infoInj && infoInj[0]) || null;
+
+    // Histórico de alterações administrativas — só Admin, só se a injetora tiver id cadastrado
+    let logsAlteracao = [];
+    if (typeof isAdmin === 'function' && isAdmin() && info?.id && typeof buscarHistoricoItem === 'function') {
+      logsAlteracao = await buscarHistoricoItem('prod_injetoras', info.id);
+    }
+
+    _dadosFichaInjetora = { lancamentos: lancs || [], info, logsAlteracao };
     renderizarFichaInjetora(nomeInjetora, _dadosFichaInjetora);
   } catch(e) {
     document.getElementById('fichaInjetoraCorpo').innerHTML = '<div class="empty-state">Erro ao carregar ficha.</div>';
@@ -39,6 +47,8 @@ function renderizarFichaInjetora(nome, dados) {
   const el    = document.getElementById('fichaInjetoraCorpo');
   const lancs = dados.lancamentos || [];
   const info  = dados.info;
+  const logsAlteracao = dados.logsAlteracao || [];
+  const mostrarAuditoria = typeof isAdmin === 'function' && isAdmin();
 
   if (!lancs.length) {
     el.innerHTML = `
@@ -134,6 +144,12 @@ function renderizarFichaInjetora(nome, dados) {
         : '<span style="color:#94a3b8;font-size:13px">Nenhum molde registrado</span>'}
     </div>
   </div>
+
+  ${mostrarAuditoria ? `
+  <div class="card" style="border-left:4px solid #7c3aed">
+    <div style="font-weight:700;color:#1e3a5f;font-size:14px;margin-bottom:12px">📜 Histórico de Alterações Administrativas (Admin)</div>
+    ${typeof renderizarHistoricoItemHTML === 'function' ? renderizarHistoricoItemHTML(logsAlteracao) : '<div style="color:#94a3b8;font-size:12px">Indisponível.</div>'}
+  </div>` : ''}
 
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
