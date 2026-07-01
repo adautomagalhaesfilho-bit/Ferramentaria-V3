@@ -5,9 +5,6 @@
 const SUPABASE_URL = 'https://iiaxqbswpqfsjxrsoiqd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpYXhxYnN3cHFmc2p4cnNvaXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzA2ODMsImV4cCI6MjA5NzgwNjY4M30.4jFGu-QoRQNqE4k_GkOxYxqqi0cGD9vsQ1UZkVQiLIc';
 
-// ==========================================
-// 🔒 HASH SHA-256
-// ==========================================
 async function hashSenha(senha) {
   const encoder = new TextEncoder();
   const data    = encoder.encode(senha);
@@ -17,9 +14,6 @@ async function hashSenha(senha) {
 
 const db = {
 
-  // ==========================================
-  // 🛠️ HELPER — fetch com headers padrão
-  // ==========================================
   _fetch: async function(endpoint, options = {}) {
     const url = SUPABASE_URL + '/rest/v1/' + endpoint;
     const headers = {
@@ -32,14 +26,12 @@ const db = {
     try {
       res = await fetch(url, { ...options, headers });
     } catch(networkErr) {
-      // Erro de rede — Supabase indisponível ou sem internet
       console.error('Erro de rede:', networkErr);
       if (typeof toast === 'function') toast('Sem conexão com o servidor. Verifique sua internet.', 'erro');
       throw new Error('Erro de rede: ' + networkErr.message);
     }
     if (!res.ok) {
       const err = await res.text();
-      // Erro 401/403 — sessão expirada
       if (res.status === 401 || res.status === 403) {
         console.error('Sessão expirada ou sem permissão');
         throw new Error('Sem permissão: ' + err);
@@ -77,9 +69,6 @@ const db = {
     return await db._fetch(tabela + '?' + filtro, { method: 'DELETE' });
   },
 
-  // ==========================================
-  // 🔐 LOGIN — compara hash SHA-256
-  // ==========================================
   login: async function(nome, senha) {
     const res = await db._get('usuarios',
       'nome=ilike.' + encodeURIComponent(nome) + '&ativo=eq.true'
@@ -94,12 +83,9 @@ const db = {
     };
   },
 
-  // ==========================================
-  // 📋 LISTAS GLOBAIS
-  // ==========================================
   obterListas: async function() {
     const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
-      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'nome,setor,turno'),
+      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'nome,setor,turno,cargo'),
       db._get('maquinas', 'ativo=eq.true&order=nome.asc', 'nome,turno,cap_liquida'),
       db._get('jobs', 'ativo=eq.true&order=nome.asc', 'nome'),
       db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
@@ -107,10 +93,16 @@ const db = {
       db._get('prod_injetoras', 'ativo=eq.true&order=nome.asc', 'nome')
     ]);
 
-    const funcUsina    = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome).sort();
-    const funcBancada  = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome).sort();
-    const funcProjeto  = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome).sort();
-    const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome).sort();
+    // Supervisores — aparecem como opção em todos os setores para lançamento,
+    // mas são excluídos dos cálculos de ocupação/produtividade no dashboard
+    const funcSupervisores = funcionarios.filter(f =>
+      f.setor === 'Supervisão' || f.cargo === 'Supervisor' || f.cargo === 'Encarregado'
+    ).map(f => f.nome);
+
+    const funcUsina    = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome).concat(funcSupervisores).sort();
+    const funcBancada  = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome).concat(funcSupervisores).sort();
+    const funcProjeto  = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome).concat(funcSupervisores).sort();
+    const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome).concat(funcSupervisores).sort();
 
     const catUsina   = categorias.filter(c => c.setor === 'Usinagem');
     const catBancada = categorias.filter(c => c.setor === 'Bancada');
@@ -136,6 +128,7 @@ const db = {
       funcBancada:     funcBancada,
       funcProjeto:     funcProjeto,
       funcProducao:    funcProducao,
+      funcSupervisores: funcSupervisores,
       maquinas:        maquinas.map(m => m.nome),
       jobs:            jobs.map(j => j.nome),
       tipos:           tiposUsina,
@@ -166,9 +159,6 @@ const db = {
     return await db._patch('prod_categorias', 'id=eq.' + id, { ativo: false });
   },
 
-  // ==========================================
-  // 💾 LANÇAMENTOS
-  // ==========================================
   buscarLancamentosDia: async function(setor, data, maquina) {
     let filtro = 'setor=eq.' + setor + '&data=eq.' + data;
     if (maquina && maquina !== 'Todas') filtro += '&maquina=eq.' + encodeURIComponent(maquina);
@@ -248,7 +238,6 @@ const db = {
     return await db._delete('lancamentos', 'id=eq.' + id);
   },
 
-  // Busca última descrição do job na máquina — para auto-preenchimento
   buscarDescricaoJob: async function(job, maquina) {
     let filtro = 'setor=eq.Usinagem&job=eq.' + encodeURIComponent(job) + '&order=data.desc,hora_fim.desc&limit=1';
     if (maquina && maquina !== 'Sem Máquina') filtro += '&maquina=eq.' + encodeURIComponent(maquina);
@@ -256,15 +245,12 @@ const db = {
     return res && res.length > 0 ? res[0].descricao : '';
   },
 
-  // Busca último lançamento do técnico — máquina de qualquer data, hora só se for hoje
   buscarUltimoApontamento: async function(funcionario, data) {
     const res = await db._get('lancamentos',
       'setor=eq.Usinagem&funcionario=eq.' + encodeURIComponent(funcionario) +
       '&order=data.desc,hora_fim.desc&limit=1', 'hora_fim,maquina,data');
     if (!res || res.length === 0) return {};
     const ultimo = res[0];
-    // Máquina vem sempre do último lançamento (qualquer data)
-    // Hora de início só preenche se o último lançamento for do mesmo dia
     const mesmoDia = ultimo.data === data;
     return {
       maquina: ultimo.maquina || null,
@@ -272,9 +258,6 @@ const db = {
     };
   },
 
-  // ==========================================
-  // 🔩 STATUS JOBS
-  // ==========================================
   listarStatusJobs: async function() {
     const res = await db._get('status_jobs', '', '*');
     const mapa = {};
@@ -303,9 +286,6 @@ const db = {
     }
   },
 
-  // ==========================================
-  // 📄 FICHA DO MOLDE
-  // ==========================================
   buscarFicha: async function(job) {
     const [lancamentos, statusHistory, localizacao, pendencias, histLoc] = await Promise.all([
       db._get('lancamentos', 'job=eq.' + encodeURIComponent(job) + '&order=data.asc', '*'),
@@ -323,9 +303,6 @@ const db = {
     };
   },
 
-  // ==========================================
-  // 👥 RH
-  // ==========================================
   listarFuncionarios: async function() {
     return await db._get('funcionarios', 'order=nome.asc', '*');
   },
@@ -369,9 +346,6 @@ const db = {
     return await db._delete('rh_parciais', 'id=eq.' + id);
   },
 
-  // ==========================================
-  // 🤖 MÁQUINAS
-  // ==========================================
   listarMaquinas: async function() {
     return await db._get('maquinas', 'order=nome.asc', '*');
   },
@@ -383,9 +357,6 @@ const db = {
     return await db._delete('maquinas', 'id=eq.' + id);
   },
 
-  // ==========================================
-  // 👤 USUÁRIOS
-  // ==========================================
   listarUsuarios: async function() {
     return await db._get('usuarios', 'order=nome.asc', 'id,nome,perfil,setor,ativo,permissoes');
   },
@@ -406,9 +377,6 @@ const db = {
     return await db._delete('usuarios', 'id=eq.' + id);
   },
 
-  // ==========================================
-  // 🏭 PRODUÇÃO / SETUP
-  // ==========================================
   listarProdCategorias: async function() {
     return await db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*');
   },
@@ -479,9 +447,6 @@ const db = {
     return await db._delete('prod_lancamentos', 'id=eq.' + id);
   },
 
-  // ==========================================
-  // 🗂️ PCM — LOCALIZAÇÃO DE MOLDES
-  // ==========================================
   listarLocalizacoes: async function() {
     return await db._get('molde_localizacao', 'order=job.asc', '*');
   },
@@ -509,9 +474,6 @@ const db = {
     return res && res.length > 0 ? res[0] : null;
   },
 
-  // ==========================================
-  // 🛠️ HELPERS INTERNOS
-  // ==========================================
   _formatarLancamento: function(l) {
     return {
       id:             l.id,
