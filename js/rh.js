@@ -5,8 +5,82 @@
 var _todosFuncionarios = [];
 var _turnos = ['5x2','Turma A','Turma B','6x1','Estágio'];
 var _setores = ['Usinagem','Bancada','Projeto','Projeto / Desenvolvimento','Produção','Supervisão'];
-var _cargos  = ['Ferramenteiro','Técnico de Ferramentaria','Torneiro Mecânico','Fresador',
-                'Retificador','Operador de Injetora','Estagiário','Supervisor','Encarregado','Outros'];
+var _cargos  = []; // carregado dinamicamente do Supabase — ver carregarCargosGlobal()
+
+async function carregarCargosGlobal() {
+  try {
+    const res = await db.listarCargos();
+    _cargos = (res || []).map(c => c.nome);
+  } catch(e) { console.error('Erro ao carregar cargos:', e); }
+}
+
+// ==========================================
+// ⚙️ GERENCIAR CARGOS (Admin)
+// ==========================================
+var _todosCargosAdmin = [];
+
+async function abrirGerenciarCargos() {
+  const div = document.createElement('div');
+  div.id = 'modalCargosWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharGerenciarCargos()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:460px">
+    <div class="modal-header"><h3>⚙️ Gerenciar Cargos</h3><button onclick="fecharGerenciarCargos()">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="novoCargoInput" placeholder="Nome do novo cargo..." style="flex:1">
+        <button class="btn-primary" style="white-space:nowrap" onclick="adicionarCargo()">+ Add</button>
+      </div>
+      <div id="listaCargosModal"><div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="fecharGerenciarCargos()">Fechar</button></div>
+  </div>`;
+  document.body.appendChild(div);
+  await _renderizarCargosModal();
+}
+
+async function _renderizarCargosModal() {
+  try {
+    _todosCargosAdmin = await db.listarCargos();
+    const el = document.getElementById('listaCargosModal');
+    if (!el) return;
+    el.innerHTML = _todosCargosAdmin.length
+      ? _todosCargosAdmin.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #f1f5f9">
+          <span style="font-size:13px;color:#1e3a5f">${c.nome}</span>
+          <button class="btn-icon danger" onclick="excluirCargoConfirm(${c.id},'${c.nome.replace(/'/g,"\'")}')">🗑️</button>
+        </div>`).join('')
+      : '<div class="empty-msg">Nenhum cargo cadastrado.</div>';
+  } catch(e) { toast('Erro ao carregar cargos.','erro'); }
+}
+
+async function adicionarCargo() {
+  const nome = document.getElementById('novoCargoInput')?.value?.trim();
+  if (!nome) return toast('Informe o nome do cargo.','erro');
+  try {
+    const res = await db.salvarCargo({ nome, ativo: true });
+    if (typeof registrarLog === 'function') await registrarLog('cargos', res?.[0]?.id || nome, 'criar', null, null, nome);
+    toast('Cargo adicionado!','sucesso');
+    document.getElementById('novoCargoInput').value = '';
+    await _renderizarCargosModal();
+    await carregarCargosGlobal();
+  } catch(e) { toast('Erro ao adicionar. Talvez já exista.','erro'); }
+}
+
+function excluirCargoConfirm(id, nome) {
+  confirmarExclusao('Remover o cargo "' + nome + '"?', async () => {
+    try {
+      await db.excluirCargo(id);
+      if (typeof registrarLog === 'function') await registrarLog('cargos', id, 'excluir', null, nome, null);
+      toast('Cargo removido!','sucesso');
+      await _renderizarCargosModal();
+      await carregarCargosGlobal();
+    } catch(e) { toast('Erro ao remover.','erro'); }
+  });
+}
+
+function fecharGerenciarCargos() {
+  document.getElementById('modalCargosWrap')?.remove();
+}
 
 // ==========================================
 // 👥 LISTA DE FUNCIONÁRIOS
@@ -15,6 +89,7 @@ async function carregarFuncionariosRH() {
   const el = document.getElementById('listaFuncionarios');
   if (!el) return;
   el.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>';
+  if (!_cargos.length) await carregarCargosGlobal();
   try {
     const [ferr, prod] = await Promise.all([
       db.listarFuncionarios(),
