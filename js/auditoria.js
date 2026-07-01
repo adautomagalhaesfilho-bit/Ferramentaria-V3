@@ -37,6 +37,7 @@ async function carregarLogAlteracoes() {
         <option value="prod_injetoras">🏭 Injetoras</option>
         <option value="usuarios">👤 Usuários</option>
         <option value="prod_categorias">🗂️ Categorias</option>
+        <option value="cargos">💼 Cargos</option>
       </select>
       <select id="logFiltroAcao" onchange="filtrarLogAuditoria()">
         <option value="Todos">Todas as Ações</option>
@@ -93,7 +94,7 @@ function renderizarLogAuditoria(logs) {
 
   const labelTabela = {
     jobs: '🔩 Molde/Job', maquinas: '🤖 Máquina', prod_injetoras: '🏭 Injetora',
-    usuarios: '👤 Usuário', prod_categorias: '🗂️ Categoria'
+    usuarios: '👤 Usuário', prod_categorias: '🗂️ Categoria', cargos: '💼 Cargo'
   };
   const corAcao = { criar:'#10b981', editar:'#f59e0b', excluir:'#ef4444' };
   const icoAcao = { criar:'+', editar:'✏️', excluir:'🗑️' };
