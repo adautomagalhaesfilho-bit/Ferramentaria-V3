@@ -97,6 +97,7 @@ async function carregarDashboard() {
   const ini = document.getElementById('dashIni')?.value;
   const fim = document.getElementById('dashFim')?.value;
   if (!ini || !fim) return;
+  if (typeof carregarAlertaPendencias === 'function') carregarAlertaPendencias();
   const loader = document.getElementById('dashLoader');
   if (loader) loader.style.display = 'flex';
   try {
