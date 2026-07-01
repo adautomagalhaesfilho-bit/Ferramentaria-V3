@@ -27,6 +27,76 @@ function _infoSetor(setor) {
 
 var _filtroSetorPendencias = 'Todos';
 
+// ==========================================
+// 🔔 ALERTA DE PENDÊNCIAS NO DASHBOARD
+// ==========================================
+function _normalizarSetorPend(setor) {
+  if (!setor) return null;
+  if (setor === 'Producao') return 'Produção';
+  return setor;
+}
+
+async function carregarAlertaPendencias() {
+  const el = document.getElementById('alertaPendenciasDash');
+  if (!el || !_sessao) return;
+
+  const perfil = _sessao.perfil;
+  const isGestorOuAdmin = perfil === 'admin' || perfil === 'gestor';
+  const setorUsuario = _normalizarSetorPend(_sessao.setor);
+
+  if (!isGestorOuAdmin && !setorUsuario) { el.innerHTML = ''; return; }
+
+  try {
+    let filtro = 'concluido=eq.false&order=criado_em.asc';
+    if (isGestorOuAdmin) {
+      filtro += '&setor_responsavel=not.is.null';
+    } else {
+      filtro += '&setor_responsavel=eq.' + encodeURIComponent(setorUsuario);
+    }
+    const pend = await db._get('molde_pendencias', filtro, '*');
+
+    if (!pend || !pend.length) { el.innerHTML = ''; return; }
+
+    const titulo = isGestorOuAdmin
+      ? `${pend.length} pendência(s) administrativa(s) em aberto`
+      : `${pend.length} pendência(s) do seu setor em aberto`;
+
+    el.innerHTML = `
+    <div class="card" style="border-left:4px solid #f59e0b;background:#fffbeb;margin-bottom:16px;cursor:pointer"
+      onclick="abrirPCMComFiltroSetor('${isGestorOuAdmin ? 'Todos' : setorUsuario}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:24px">⚠️</div>
+          <div>
+            <div style="font-weight:700;color:#92400e;font-size:14px">${titulo}</div>
+            <div style="font-size:12px;color:#78350f">Clique para ver no PCM</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;max-width:60%">
+          ${pend.slice(0,3).map(p=>`<span style="background:#fff;border:1px solid #fde68a;padding:3px 10px;border-radius:8px;font-size:11px;color:#92400e"><b>${p.job}</b>: ${p.texto.length>28?p.texto.slice(0,28)+'…':p.texto}</span>`).join('')}
+          ${pend.length>3?`<span style="font-size:11px;color:#92400e;align-self:center;font-weight:700">+${pend.length-3}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  } catch(e) {
+    el.innerHTML = '';
+    console.error('Erro ao carregar alerta de pendências:', e);
+  }
+}
+
+function abrirPCMComFiltroSetor(setor) {
+  irPara('pcm', document.getElementById('menuPCM'));
+  setTimeout(() => {
+    _filtroSetorPendencias = setor || 'Todos';
+    _mostrarTodasPendencias = true;
+    const sel = document.getElementById('pcmFiltroSetorPend');
+    if (sel) sel.value = _filtroSetorPendencias;
+    const chk = document.getElementById('pcmToggleTodas');
+    if (chk) chk.checked = true;
+    carregarPainelPendencias();
+  }, 400);
+}
+
 function _infoLoc(loc) {
   return _LOCALIZACOES.find(l=>l.id===loc) || { ico:'❓', cor:'#64748b', bg:'#f1f5f9', desc:'' };
 }
