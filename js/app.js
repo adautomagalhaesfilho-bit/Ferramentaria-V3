@@ -207,10 +207,26 @@ function fecharModalFormProd() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Fecha o modal apenas em clique REAL fora dele — não em arrastos de seleção de texto
+  // que terminam fora da caixa (mousedown dentro + mouseup fora não deve fechar).
+  let _mouseDownAlvoForm = null;
+  let _mouseDownAlvoProd = null;
+
   const o = document.getElementById('modalFormOverlay');
-  if (o) o.addEventListener('click', e => { if (e.target === o) fecharModalForm(); });
+  if (o) {
+    o.addEventListener('mousedown', e => { _mouseDownAlvoForm = e.target; });
+    o.addEventListener('click', e => {
+      if (e.target === o && _mouseDownAlvoForm === o) fecharModalForm();
+    });
+  }
+
   const op = document.getElementById('modalFormProdOverlay');
-  if (op) op.addEventListener('click', e => { if (e.target === op) cancelarFormProducao(); });
+  if (op) {
+    op.addEventListener('mousedown', e => { _mouseDownAlvoProd = e.target; });
+    op.addEventListener('click', e => {
+      if (e.target === op && _mouseDownAlvoProd === op) cancelarFormProducao();
+    });
+  }
 });
 
 // ==========================================
