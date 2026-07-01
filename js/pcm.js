@@ -13,6 +13,20 @@ const _LOCALIZACOES = [
   { id:'Desativado/LOG',    ico:'🔴', cor:'#ef4444', bg:'#fee2e2', desc:'Fora de uso / inativo' },
 ];
 
+const _SETORES_RESPONSAVEL = [
+  { id:'Usinagem',  ico:'⚙️', cor:'#0056b3' },
+  { id:'Bancada',   ico:'🛠️', cor:'#0891b2' },
+  { id:'Projeto',   ico:'📐', cor:'#8b5cf6' },
+  { id:'Produção',  ico:'🏭', cor:'#10b981' },
+  { id:'PCM',       ico:'🗂️', cor:'#f59e0b' },
+];
+
+function _infoSetor(setor) {
+  return _SETORES_RESPONSAVEL.find(s=>s.id===setor) || { ico:'❔', cor:'#64748b' };
+}
+
+var _filtroSetorPendencias = 'Todos';
+
 function _infoLoc(loc) {
   return _LOCALIZACOES.find(l=>l.id===loc) || { ico:'❓', cor:'#64748b', bg:'#f1f5f9', desc:'' };
 }
@@ -40,7 +54,11 @@ async function inicializarPCM() {
         <div style="font-size:15px;font-weight:700;color:#1e3a5f">✅ Pendências em Aberto</div>
         <div style="font-size:12px;color:#64748b;margin-top:2px" id="pcmPendLegenda">Mostrando moldes Na Ferramentaria</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <select id="pcmFiltroSetorPend" onchange="filtrarSetorPendencias(this.value)" style="width:auto;font-size:12px">
+          <option value="Todos">Todos os Setores</option>
+          ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+        </select>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">
           <input type="checkbox" id="pcmToggleTodas" onchange="toggleTodasPendencias(this.checked)"
             style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b">
@@ -120,9 +138,14 @@ async function carregarPainelPendencias() {
       ? null // Mostra todas
       : ['Na Ferramentaria']; // Só ferramentaria por padrão
 
+    // Filtra por setor responsável (se selecionado)
+    const pendFiltradas = _filtroSetorPendencias === 'Todos'
+      ? todasPend
+      : todasPend.filter(p => p.setor_responsavel === _filtroSetorPendencias);
+
     // Agrupa por job
     const porJob = {};
-    todasPend.forEach(p => {
+    pendFiltradas.forEach(p => {
       if (!porJob[p.job]) porJob[p.job] = [];
       porJob[p.job].push(p);
     });
@@ -172,12 +195,18 @@ async function carregarPainelPendencias() {
           </button>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">
-          ${pends.slice(0,3).map(p=>`
+          ${pends.slice(0,3).map(p=>{
+            const setorInfo = p.setor_responsavel ? _infoSetor(p.setor_responsavel) : null;
+            return `
             <div style="display:flex;align-items:flex-start;gap:8px">
               <input type="checkbox" style="margin-top:2px;width:14px;height:14px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
                 onchange="concluirPendenciaRapida(${p.id},'${jobEsc}',this)">
-              <span style="font-size:12px;color:#1e3a5f">${p.texto}</span>
-            </div>`).join('')}
+              <div style="flex:1">
+                <span style="font-size:12px;color:#1e3a5f">${p.texto}</span>
+                ${setorInfo ? `<span style="display:block;margin-top:2px;background:${setorInfo.cor}20;color:${setorInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;width:fit-content">${setorInfo.ico} ${p.setor_responsavel}</span>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
           ${pends.length > 3
             ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">+${pends.length-3} mais pendência(s)...</div>`
             : ''}
@@ -210,6 +239,11 @@ async function concluirPendenciaRapida(id, job, checkbox) {
 
 function toggleTodasPendencias(mostrarTodas) {
   _mostrarTodasPendencias = mostrarTodas;
+  carregarPainelPendencias();
+}
+
+function filtrarSetorPendencias(setor) {
+  _filtroSetorPendencias = setor;
   carregarPainelPendencias();
 }
 
@@ -289,7 +323,7 @@ function _criarCardPCM(m, info) {
       <div>
         <div style="font-size:14px;font-weight:700;color:#1e3a5f">${m.job}</div>
         ${m.localizacao==='Em Máquina'&&m.maquina
-          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px;cursor:pointer" onclick="event.stopPropagation();abrirFichaInjetora('${m.maquina.replace(/'/g,"\'")}')">🏭 ${m.maquina}</div>`
+          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px">🏭 ${m.maquina}</div>`
           : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -494,11 +528,13 @@ async function carregarPendencias(job) {
 async function adicionarPendencia(job) {
   const texto = document.getElementById('novaPendenciaInput')?.value?.trim();
   if (!texto) return toast('Digite o texto da pendência.','erro');
+  const setorResp = document.getElementById('novaPendenciaSetor')?.value || null;
   const dataCriacao = document.getElementById('novaPendenciaData')?.value ||
     new Date().toISOString().split('T')[0];
   try {
     await db._post('molde_pendencias', {
       job, texto, concluido: false,
+      setor_responsavel: setorResp,
       criado_por: _sessao?.nome || null,
       criado_em:  dataCriacao + 'T00:00:00'
     });
@@ -536,6 +572,39 @@ async function editarDataPendencia(id, job, campo, valorAtual) {
     await db._patch('molde_pendencias', 'id=eq.' + id, payload);
     await renderizarChecklist(job);
     toast('Data atualizada!','sucesso');
+  } catch(e) { toast('Erro ao atualizar.','erro'); }
+}
+
+function editarSetorPendencia(id, job) {
+  return new Promise(resolve => {
+    const div = document.createElement('div');
+    div.id = 'modalSetorPendWrap';
+    div.innerHTML = `
+    <div class="modal-overlay" style="display:block;z-index:9999" onclick="document.getElementById('modalSetorPendWrap').remove()"></div>
+    <div class="modal" style="display:block;max-width:340px;z-index:10000">
+      <div class="modal-header"><h3>Atribuir Setor Responsável</h3></div>
+      <div class="modal-body">
+        <select id="selSetorPend" style="width:100%">
+          <option value="">— Nenhum —</option>
+          ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="_confirmarSetorPendencia(${id},'${job.replace(/'/g,"\\'")}')">✓ Confirmar</button>
+        <button class="btn-secondary" onclick="document.getElementById('modalSetorPendWrap').remove()">Cancelar</button>
+      </div>
+    </div>`;
+    document.body.appendChild(div);
+  });
+}
+
+async function _confirmarSetorPendencia(id, job) {
+  const setor = document.getElementById('selSetorPend')?.value || null;
+  document.getElementById('modalSetorPendWrap')?.remove();
+  try {
+    await db._patch('molde_pendencias', 'id=eq.' + id, { setor_responsavel: setor });
+    await renderizarChecklist(job);
+    toast('Setor atualizado!','sucesso');
   } catch(e) { toast('Erro ao atualizar.','erro'); }
 }
 
@@ -584,23 +653,28 @@ async function renderizarChecklist(job) {
   if (!pends.length) {
     html = `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">✅ Nenhuma pendência registrada</div>`;
   } else {
-    html += abertas.map(p => `
+    html += abertas.map(p => {
+      const setorInfo = p.setor_responsavel ? _infoSetor(p.setor_responsavel) : null;
+      return `
       <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px dashed #f1f5f9">
         <input type="checkbox" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
           onchange="togglePendencia(${p.id},'${jobEsc}',false)">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:#1e3a5f;font-weight:500">${p.texto}</div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
+          <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            ${setorInfo ? `<span style="background:${setorInfo.cor}20;color:${setorInfo.cor};padding:1px 8px;border-radius:8px;font-weight:700">${setorInfo.ico} ${p.setor_responsavel}</span>` : `<span style="cursor:pointer;text-decoration:underline;color:#94a3b8" onclick="editarSetorPendencia(${p.id},'${jobEsc}')">➕ Atribuir setor</span>`}
             <span>👤 ${p.criado_por||'—'}</span>
             <span style="cursor:pointer;text-decoration:underline;color:#0369a1"
               onclick="editarDataPendencia(${p.id},'${jobEsc}','criado_em','${p.criado_em||''}')">
               📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'} ✏️
             </span>
+            ${setorInfo ? `<span style="cursor:pointer;text-decoration:underline;color:#94a3b8" onclick="editarSetorPendencia(${p.id},'${jobEsc}')">✏️ setor</span>` : ''}
           </div>
         </div>
         <button onclick="excluirPendencia(${p.id},'${jobEsc}')"
           style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;flex-shrink:0">🗑️</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     if (concluidas.length) {
       html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:14px 0 8px;text-transform:uppercase">
@@ -646,9 +720,14 @@ async function abrirModalPendencias(job) {
             onkeydown="if(event.key==='Enter') adicionarPendencia('${jobEsc}')">
           <button class="btn-primary" style="white-space:nowrap" onclick="adicionarPendencia('${jobEsc}')">+ Add</button>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <label style="font-size:12px;color:#64748b">Data:</label>
           <input type="date" id="novaPendenciaData" value="${new Date().toISOString().split('T')[0]}" style="width:auto">
+          <label style="font-size:12px;color:#64748b;margin-left:8px">Setor Responsável:</label>
+          <select id="novaPendenciaSetor" style="width:auto">
+            <option value="">— Nenhum —</option>
+            ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+          </select>
         </div>
       </div>
       <div id="checklistPendencias">
