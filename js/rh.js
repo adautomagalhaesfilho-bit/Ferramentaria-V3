@@ -663,7 +663,10 @@ async function carregarFerias() {
           <td>${f.inicio?f.inicio.split('-').reverse().join('/'):'—'}</td>
           <td>${f.fim?f.fim.split('-').reverse().join('/'):'—'}</td>
           <td style="color:${f.motivo?.includes('Falta')?'#ef4444':'#059669'};font-weight:600">${f.motivo}</td>
-          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriasConfirm(${f.id})">🗑️</button></td>
+          <td>
+            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick='abrirEdicaoFerias(${JSON.stringify(f).replace(/'/g,"&apos;")})'>✏️</button>
+            <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriasConfirm(${f.id})">🗑️</button>
+          </td>
         </tr>`).join('')
       : '<tr><td colspan="5" class="empty-msg">Nenhum registro.</td></tr>';
   } catch(e) {}
@@ -682,6 +685,56 @@ function excluirFeriasConfirm(id) {
     try { await db.excluirFerias(id); toast('Removido!','sucesso'); carregarFerias(); } catch(e){}
   });
 }
+
+// ==========================================
+// ✏️ EDITAR AUSÊNCIA / FÉRIAS
+// ==========================================
+function abrirEdicaoFerias(f) {
+  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[]).concat(_listas?.funcProducao||[])
+    .filter((v,i,a)=>a.indexOf(v)===i).sort();
+  const motivos = ['Atestado Médico','Falta Injustificada','Férias','Folga Compensatória','Licença / Outros'];
+  const div = document.createElement('div');
+  div.id = 'modalEditFeriasWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoFerias()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:460px">
+    <div class="modal-header"><h3>✏️ Editar Ausência</h3><button onclick="fecharEdicaoFerias()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Técnico *</label>
+        <select id="efFerFunc">${funcs.map(fn=>`<option value="${fn}" ${f.funcionario===fn?'selected':''}>${fn}</option>`).join('')}</select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Início *</label><input type="date" id="efFerIni" value="${f.inicio||''}"></div>
+        <div class="form-group"><label>Fim *</label><input type="date" id="efFerFim" value="${f.fim||''}"></div>
+      </div>
+      <div class="form-group"><label>Motivo *</label>
+        <select id="efFerMotivo">${motivos.map(m=>`<option value="${m}" ${f.motivo===m?'selected':''}>${m}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoFerias(${f.id})">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoFerias()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+async function salvarEdicaoFerias(id) {
+  const funcionario = document.getElementById('efFerFunc')?.value;
+  const inicio      = document.getElementById('efFerIni')?.value;
+  const fim         = document.getElementById('efFerFim')?.value;
+  const motivo      = document.getElementById('efFerMotivo')?.value;
+  if (!funcionario || !inicio || !fim) return toast('Preencha todos os campos.','erro');
+  try {
+    await db.salvarFerias({ id, funcionario, inicio, fim, motivo });
+    toast('Atualizado!','sucesso');
+    fecharEdicaoFerias();
+    carregarFerias();
+  } catch(e) { toast('Erro ao salvar.','erro'); }
+}
+
+function fecharEdicaoFerias() { document.getElementById('modalEditFeriasWrap')?.remove(); }
 
 // ==========================================
 // ⏱️ PARCIAIS / ATRASOS
@@ -753,11 +806,69 @@ async function _renderizarParciais() {
           <td>${p.imagem_url
             ? `<a href="${p.imagem_url}" target="_blank"><img src="${p.imagem_url}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer"></a>`
             : '<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
-          <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcialConfirm(${p.id})">🗑️</button></td>
+          <td>
+            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick='abrirEdicaoParcial(${JSON.stringify(p).replace(/'/g,"&apos;")})'>✏️</button>
+            <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcialConfirm(${p.id})">🗑️</button>
+          </td>
         </tr>`).join('')
       : '<tr><td colspan="8" class="empty-msg">Nenhum registro.</td></tr>';
   } catch(e) {}
 }
+
+// ==========================================
+// ✏️ EDITAR ATRASO / PARCIAL
+// ==========================================
+function abrirEdicaoParcial(p) {
+  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
+    .concat(_listas?.funcProjeto||[]).concat(_listas?.funcProducao||[])
+    .filter((v,i,a)=>a.indexOf(v)===i).sort();
+  const motivos = ['Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
+  const div = document.createElement('div');
+  div.id = 'modalEditParcialWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoParcial()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:460px">
+    <div class="modal-header"><h3>✏️ Editar Ocorrência</h3><button onclick="fecharEdicaoParcial()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Técnico *</label>
+        <select id="efParcFunc">${funcs.map(fn=>`<option value="${fn}" ${p.funcionario===fn?'selected':''}>${fn}</option>`).join('')}</select>
+      </div>
+      <div class="form-group"><label>Data *</label><input type="date" id="efParcData" value="${p.data||''}"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Saída</label><input type="time" id="efParcIni" value="${p.inicio?p.inicio.substring(0,5):''}"></div>
+        <div class="form-group"><label>Retorno</label><input type="time" id="efParcFim" value="${p.fim?p.fim.substring(0,5):''}"></div>
+      </div>
+      <div class="form-group"><label>Motivo *</label>
+        <select id="efParcMotivo">${motivos.map(m=>`<option value="${m}" ${p.motivo===m?'selected':''}>${m}</option>`).join('')}</select>
+      </div>
+      <div class="form-group"><label>Observação</label><input type="text" id="efParcObs" value="${(p.obs||'').replace(/"/g,'&quot;')}"></div>
+      ${p.imagem_url ? `<div style="font-size:11px;color:#64748b">📎 Anexo atual será mantido (edição de imagem não suportada aqui — exclua e recrie se precisar trocar).</div>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoParcial(${p.id})">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoParcial()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+async function salvarEdicaoParcial(id) {
+  const funcionario = document.getElementById('efParcFunc')?.value;
+  const data        = document.getElementById('efParcData')?.value;
+  const inicio      = document.getElementById('efParcIni')?.value || null;
+  const fim         = document.getElementById('efParcFim')?.value || null;
+  const motivo      = document.getElementById('efParcMotivo')?.value;
+  const obs         = document.getElementById('efParcObs')?.value?.trim() || null;
+  if (!funcionario || !data || !motivo) return toast('Preencha técnico, data e motivo.','erro');
+  try {
+    await db.salvarParcial({ id, funcionario, data, inicio, fim, motivo, obs });
+    toast('Atualizado!','sucesso');
+    fecharEdicaoParcial();
+    await _renderizarParciais();
+  } catch(e) { toast('Erro ao salvar.','erro'); }
+}
+
+function fecharEdicaoParcial() { document.getElementById('modalEditParcialWrap')?.remove(); }
 
 function previewImagemParcial(input) {
   const file = input.files[0]; if (!file) return;
