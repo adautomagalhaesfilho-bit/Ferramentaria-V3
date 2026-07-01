@@ -153,6 +153,9 @@ async function inicializarPCM() {
   await carregarPCM();
 }
 
+// Limite de dias sem lançamento para um molde "Na Ferramentaria" ser considerado parado
+const DIAS_ALERTA_PARADO = 3;
+
 async function carregarPCM() {
   const loader = document.getElementById('pcmLoader');
   if (loader) loader.style.display = 'flex';
@@ -176,9 +179,33 @@ async function carregarPCM() {
         atualizadoPor: loc?.atualizado_por || null,
         status:        stat?.status        || null,
         intervencao:   stat?.intervencao   || 0,
-        temLoc:        !!loc
+        temLoc:        !!loc,
+        diasParado:    null
       };
     });
+
+    // Calcula dias sem lançamento apenas para moldes "Na Ferramentaria" (evita sobrecarga)
+    const jobsNaFerramentaria = _dadosPCM.filter(m => m.localizacao === 'Na Ferramentaria');
+    await Promise.all(jobsNaFerramentaria.map(async m => {
+      try {
+        const [ultFerr, ultProd] = await Promise.all([
+          db._get('lancamentos', 'job=eq.' + encodeURIComponent(m.job) + '&order=data.desc&limit=1', 'data'),
+          db._get('prod_lancamentos', 'molde=eq.' + encodeURIComponent(m.job) + '&order=data.desc&limit=1', 'data')
+        ]);
+        const dataFerr = ultFerr && ultFerr[0] ? ultFerr[0].data : null;
+        const dataProd = ultProd && ultProd[0] ? ultProd[0].data : null;
+        const ultimaData = [dataFerr, dataProd].filter(Boolean).sort().pop() || null;
+        if (ultimaData) {
+          const hoje = new Date().toISOString().split('T')[0];
+          const dias = Math.floor((new Date(hoje) - new Date(ultimaData)) / 86400000);
+          m.diasParado = dias;
+          m.ultimaMovimentacao = ultimaData;
+        } else {
+          m.diasParado = null; // nunca teve lançamento — não alerta
+        }
+      } catch(e) { m.diasParado = null; }
+    }));
+
     renderizarResumoPCM();
     filtrarPCM();
     await carregarPainelPendencias();
@@ -388,12 +415,18 @@ function renderizarListaPCM(lista) {
 function _criarCardPCM(m, info) {
   const jobEsc = m.job.replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const dt = m.atualizado ? new Date(m.atualizado).toLocaleDateString('pt-BR') : '—';
-  return `<div style="background:#f8fafc;border:1px solid var(--borda);border-left:4px solid ${info.cor};border-radius:10px;padding:14px">
+  const estaParado = m.localizacao === 'Na Ferramentaria' && m.diasParado !== null && m.diasParado >= DIAS_ALERTA_PARADO;
+  const corBorda = estaParado ? '#ef4444' : info.cor;
+  const bgCard = estaParado ? '#fef2f2' : '#f8fafc';
+  return `<div style="background:${bgCard};border:1px solid ${estaParado?'#fecaca':'var(--borda)'};border-left:4px solid ${corBorda};border-radius:10px;padding:14px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
       <div>
         <div style="font-size:14px;font-weight:700;color:#1e3a5f">${m.job}</div>
         ${m.localizacao==='Em Máquina'&&m.maquina
           ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px">🏭 ${m.maquina}</div>`
+          : ''}
+        ${estaParado
+          ? `<div style="font-size:11px;color:#dc2626;font-weight:700;margin-top:2px">⏰ Parado há ${m.diasParado} dia(s) sem lançamento</div>`
           : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
