@@ -171,7 +171,7 @@ function renderizarFichaInjetora(nome, dados) {
               <td><span style="background:${corT}20;color:${corT};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${l.tipo}</span></td>
               <td style="font-size:12px">${l.atividade||'—'}</td>
               <td style="font-size:12px">${l.molde||'—'}</td>
-              <td style="font-size:12px">${l.tecnicos||'—'}</td>
+              <td style="font-size:12px">${(l.tecnicos||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t).join(', ') || '—'}</td>
               <td style="color:#10b981;font-weight:700">${fmtMin(l.minutos||0)}</td>
               <td style="font-size:11px">${flags||'—'}</td>
             </tr>`;
