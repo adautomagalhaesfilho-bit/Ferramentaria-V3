@@ -118,14 +118,14 @@ function renderizarApontamentos() {
     }
 
     const tecnico = _setorAtivo==='Bancada' && item._tecnicos
-      ? item._tecnicos.map(t=>`<span style="display:inline-block;background:#f1f5f9;padding:1px 7px;border-radius:8px;font-size:11px;margin:1px">${t}</span>`).join('')
-      : (item.funcionario||'—');
+      ? item._tecnicos.map(t=>`<span style="display:inline-block;background:#f1f5f9;padding:1px 7px;border-radius:8px;font-size:11px;margin:1px">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t}</span>`).join('')
+      : (typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—'));
 
     if (_setorAtivo==='Usinagem')
-      return `<tr><td>${job}</td><td>${item.maquina||'—'}</td><td>${item.funcionario||'—'}</td><td style="font-size:12px">${hr}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
+      return `<tr><td>${job}</td><td>${item.maquina||'—'}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—')}</td><td style="font-size:12px">${hr}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
     if (_setorAtivo==='Bancada')
       return `<tr><td>${job}</td><td>${item.tipo||'—'}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td style="color:#10b981;font-weight:bold">${item.hrProd||'—'}</td><td>${badgeCopo}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${acoes}</td></tr>`;
-    return `<tr><td>${job}</td><td>${item.area||'—'}</td><td>${item.funcionario||'—'}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td></td><td>${acoes}</td></tr>`;
+    return `<tr><td>${job}</td><td>${item.area||'—'}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—')}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td></td><td>${acoes}</td></tr>`;
   }).join('');
 
   document.getElementById('wppArea').style.display = 'block';
