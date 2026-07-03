@@ -249,21 +249,51 @@ function fecharModalFunc() {
 // ==========================================
 // 👁️ FICHA DO FUNCIONÁRIO
 // ==========================================
+// ==========================================
+// 👤 FICHA DO FUNCIONÁRIO — Página própria (como Ficha do Molde)
+// ==========================================
+var _fichaFuncAtual = null; // { id, origem, nome } do funcionário atualmente exibido
+
+// Chamada pela lista de Funcionários (mantém compatibilidade com onclick existente)
 async function abrirFichaFuncionario(id, origem) {
-  const div = document.createElement('div');
-  div.id = 'modalFichaFuncWrap';
-  div.innerHTML = `
-  <div class="modal-overlay" onclick="fecharFichaFunc()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:620px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header">
-      <h3>👤 Ficha do Funcionário</h3>
-      <button onclick="fecharFichaFunc()">✕</button>
-    </div>
-    <div class="modal-body" id="fichaFuncCorpo">
-      <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div>
-    </div>
-  </div>`;
-  document.body.appendChild(div);
+  irPara('fichaFuncionario', document.getElementById('menuFichaFuncionario'));
+  setTimeout(() => carregarFichaFuncionarioPorId(id, origem), 100);
+}
+
+// Chamada pela busca dentro da própria página da ficha
+async function buscarFichaFuncionarioPagina() {
+  const nome = document.getElementById('fichaFuncNomeInput')?.value?.trim();
+  if (!nome) return toast('Digite o nome do funcionário.','erro');
+  await carregarFichaFuncionarioPorNome(nome);
+}
+
+async function carregarFichaFuncionarioPorNome(nome) {
+  try {
+    let todos = await db.listarFuncionarios();
+    let f = todos.find(t => t.nome === nome);
+    let origem = 'Ferramentaria';
+    if (!f) {
+      const todosProd = await db.listarProdTecnicos();
+      f = todosProd.find(t => t.nome === nome);
+      origem = 'Producao';
+    }
+    if (!f) {
+      document.getElementById('fichaFuncPaginaConteudo').style.display = 'none';
+      document.getElementById('fichaFuncPaginaVazio').style.display = 'block';
+      document.getElementById('fichaFuncPaginaVazio').innerHTML = '<div style="font-size:48px">🔍</div><div>Funcionário "' + nome + '" não encontrado.</div>';
+      return;
+    }
+    await carregarFichaFuncionarioPorId(f.id, origem);
+  } catch(e) { toast('Erro ao buscar funcionário.','erro'); console.error(e); }
+}
+
+async function carregarFichaFuncionarioPorId(id, origem) {
+  const conteudo = document.getElementById('fichaFuncPaginaConteudo');
+  const vazio    = document.getElementById('fichaFuncPaginaVazio');
+  if (!conteudo) return;
+  vazio.style.display = 'none';
+  conteudo.style.display = 'block';
+  conteudo.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando ficha...</span></div>';
 
   try {
     let f;
@@ -277,7 +307,11 @@ async function abrirFichaFuncionario(id, origem) {
       if (f) f = { ...f, _origem:'Ferramentaria' };
     }
 
-    if (!f) { document.getElementById('fichaFuncCorpo').innerHTML='<div class="empty-msg">Não encontrado.</div>'; return; }
+    if (!f) { conteudo.innerHTML='<div class="empty-msg">Funcionário não encontrado.</div>'; return; }
+
+    _fichaFuncAtual = { id: f.id, origem: f._origem, nome: f.nome };
+    const elBusca = document.getElementById('fichaFuncNomeInput');
+    if (elBusca) elBusca.value = f.nome;
 
     // Busca histórico de turno
     let histTurno = [];
@@ -290,14 +324,14 @@ async function abrirFichaFuncionario(id, origem) {
       Produção:'#10b981', Supervisão:'#f59e0b' }[f.setor] || '#64748b';
 
     const fmtDt = d => d ? d.split('-').reverse().join('/') : '—';
-    const editando = true;
 
-    document.getElementById('fichaFuncCorpo').innerHTML = `
+    conteudo.innerHTML = `
     <!-- CABEÇALHO -->
-    <div style="background:linear-gradient(135deg,${cor}20,${cor}05);border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid ${cor}30">
+    <div class="card" style="background:linear-gradient(135deg,${cor}20,${cor}05);border:1px solid ${cor}30">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
         <div>
-          <div style="font-size:22px;font-weight:700;color:#1e3a5f">${f.nome}</div>
+          <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:1px;margin-bottom:6px">FICHA DO FUNCIONÁRIO</div>
+          <div style="font-size:24px;font-weight:700;color:#1e3a5f">${f.nome}</div>
           ${f.matricula?`<div style="font-size:13px;color:#64748b;margin-top:2px">Matrícula: <b>#${f.matricula}</b></div>`:''}
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
             <span style="background:${cor}20;color:${cor};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${f.setor||'—'}</span>
@@ -305,16 +339,15 @@ async function abrirFichaFuncionario(id, origem) {
             <span class="${f.ativo?'badge-ativo':'badge-inativo'}">${f.ativo?'ATIVO':'INATIVO'}</span>
           </div>
         </div>
-${editando ? `
-  <div style="display:flex;gap:8px">
-    <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>
-    <button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}')">🗑️ Excluir</button>
-  </div>` : ''}  
-  </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>
+          <button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}')">🗑️ Excluir</button>
+        </div>
+      </div>
     </div>
 
     <!-- DADOS -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
       <div class="card" style="margin:0;padding:14px">
         <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">INFORMAÇÕES</div>
         <div style="font-size:13px;line-height:2">
@@ -333,7 +366,7 @@ ${editando ? `
             f.turno==='6x1'?'07:30 → 16:00 | Seg-Sab | 440 min':
             f.turno==='Estágio'?'07:30 → 16:00 | Seg-Sex | 440 min':'—'}
         </div>
-        ${editando ? `<button class="btn-secondary" style="margin-top:10px;font-size:11px;padding:5px 10px" onclick="abrirModalTrocaTurno(${id},'${f.turno||''}')">🔄 Registrar Mudança de Turno</button>` : ''}
+        <button class="btn-secondary" style="margin-top:10px;font-size:11px;padding:5px 10px" onclick="abrirModalTrocaTurno(${id},'${f.turno||''}')">🔄 Registrar Mudança de Turno</button>
       </div>
       <div class="card" style="margin:0;padding:14px" id="fichaFuncSaldoBH">
         <div style="font-size:12px;color:#94a3b8">Calculando saldo do banco de horas...</div>
@@ -371,24 +404,21 @@ ${editando ? `
       </div>
     </div>`;
 
-    // Carrega histórico de lançamentos (todos os setores)
     if (typeof renderizarHistoricoNaFicha === 'function') {
       renderizarHistoricoNaFicha(f.nome, 'fichaFuncHistorico');
     }
-    // Carrega saldo do banco de horas
     if (typeof renderizarSaldoBancoHorasNaFicha === 'function') {
       renderizarSaldoBancoHorasNaFicha(f.nome, 'fichaFuncSaldoBH');
     }
 
   } catch(e) {
-    document.getElementById('fichaFuncCorpo').innerHTML = '<div class="empty-msg">Erro ao carregar.</div>';
+    conteudo.innerHTML = '<div class="empty-msg">Erro ao carregar ficha.</div>';
     console.error(e);
   }
 }
 
-function fecharFichaFunc() {
-  document.getElementById('modalFichaFuncWrap')?.remove();
-}
+// Mantido por compatibilidade — não faz mais nada (não há modal para fechar)
+function fecharFichaFunc() {}
 
 // ==========================================
 // ✏️ EDITAR FUNCIONÁRIO
@@ -482,8 +512,10 @@ async function salvarEdicaoFuncionario(id) {
       matricula, admissao, demissao: demissao||null, ativo });
     toast('Funcionário atualizado!','sucesso');
     fecharEdicaoFunc();
-    fecharFichaFunc();
-    carregarFuncionariosRH();
+    // Se estiver na página da ficha, recarrega os dados atualizados
+    if (_fichaFuncAtual && _fichaFuncAtual.id === id) {
+      await carregarFichaFuncionarioPorId(id, _fichaFuncAtual.origem);
+    }
   } catch(e) { toast('Erro ao salvar.','erro'); console.error(e); }
 }
 
@@ -574,7 +606,14 @@ async function excluirFuncConfirm(id, origem) {
       if (origem==='Producao') await db.excluirProdTecnico(id);
       else await db.excluirFuncionario(id);
       toast('Removido!','sucesso');
-      carregarFuncionariosRH();
+      // Se a exclusão veio da página da ficha, volta para a lista de Funcionários
+      if (_fichaFuncAtual && _fichaFuncAtual.id === id) {
+        _fichaFuncAtual = null;
+        irPara('funcionarios', document.getElementById('menuFuncionarios'));
+        setTimeout(() => carregarFuncionariosRH(), 100);
+      } else {
+        carregarFuncionariosRH();
+      }
     } catch(e) { toast('Erro.','erro'); }
   });
 }
