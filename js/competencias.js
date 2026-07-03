@@ -18,7 +18,10 @@ const _NIVEIS_COMP = [
   { v:4, label:'Especialista',   cor:'#10b981', bg:'#d1fae5' },
 ];
 
+const _NAO_APLICA = { v:-1, label:'Não se aplica', cor:'#94a3b8', bg:'#f8fafc' };
+
 function _infoNivel(v) {
+  if (v === -1) return _NAO_APLICA;
   return _NIVEIS_COMP.find(n => n.v === v) || _NIVEIS_COMP[0];
 }
 
@@ -127,7 +130,7 @@ function renderizarMatrizCompetencias() {
     let soma=0, n=0;
     funcionarios.forEach(f => {
       const av = _nivelAtual(f.nome, c.id);
-      if (av) { soma += av.nivel; n++; }
+      if (av && av.nivel !== -1) { soma += av.nivel; n++; }
     });
     return { competencia: c, media: n>0?soma/n:0, avaliados: n };
   });
@@ -137,7 +140,7 @@ function renderizarMatrizCompetencias() {
     let soma=0, n=0;
     competencias.forEach(c => {
       const av = _nivelAtual(f.nome, c.id);
-      if (av) { soma += av.nivel; n++; }
+      if (av && av.nivel !== -1) { soma += av.nivel; n++; }
     });
     return { funcionario: f, media: n>0?soma/n:0, avaliados: n };
   });
@@ -196,11 +199,12 @@ function renderizarMatrizCompetencias() {
               ${competencias.map(c => {
                 const av = _nivelAtual(f.nome, c.id);
                 const info = av ? _infoNivel(av.nivel) : { cor:'#cbd5e1', bg:'#f8fafc', label:'Não avaliado' };
+                const textoCelula = av ? (av.nivel === -1 ? 'N/A' : av.nivel) : '—';
                 return `<td style="text-align:center;padding:0">
-                  <div style="width:36px;height:36px;background:${info.bg};border:2px solid ${info.cor}40;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:800;color:${info.cor};font-size:13px;margin:0 auto"
+                  <div style="width:36px;height:36px;background:${info.bg};border:2px solid ${info.cor}40;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:800;color:${info.cor};font-size:${av && av.nivel===-1?'10px':'13px'};margin:0 auto"
                     title="${f.nome} · ${c.nome}: ${info.label}"
                     onclick="abrirModalAvaliar('${f.nome.replace(/'/g,"\\'")}',${c.id},'${c.nome.replace(/'/g,"\\'")}')">
-                    ${av ? av.nivel : '—'}
+                    ${textoCelula}
                   </div>
                 </td>`;
               }).join('')}
@@ -219,6 +223,9 @@ function renderizarMatrizCompetencias() {
       ${_NIVEIS_COMP.map(n=>`<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b">
         <span style="width:14px;height:14px;background:${n.bg};border:2px solid ${n.cor}40;border-radius:4px;display:inline-block"></span>${n.v} — ${n.label}
       </span>`).join('')}
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b">
+        <span style="width:14px;height:14px;background:${_NAO_APLICA.bg};border:2px dashed ${_NAO_APLICA.cor}80;border-radius:4px;display:inline-block"></span>N/A — Não se aplica
+      </span>
     </div>
   </div>
 
@@ -291,7 +298,12 @@ function abrirRadarFuncionario(nome) {
   if (card) { card.style.display = 'block'; card.scrollIntoView({behavior:'smooth', block:'center'}); }
 
   const { competencias } = _dadosComp;
-  const dadosRadar = competencias.map(c => {
+  // Exclui competências marcadas como "Não se aplica" — não fazem sentido no radar
+  const competenciasRadar = competencias.filter(c => {
+    const av = _nivelAtual(nome, c.id);
+    return !(av && av.nivel === -1);
+  });
+  const dadosRadar = competenciasRadar.map(c => {
     const av = _nivelAtual(nome, c.id);
     return av ? av.nivel : 0;
   });
@@ -304,7 +316,7 @@ function abrirRadarFuncionario(nome) {
     _chartsComp['radar'] = new Chart(ctx, {
       type: 'radar',
       data: {
-        labels: competencias.map(c=>c.nome),
+        labels: competenciasRadar.map(c=>c.nome),
         datasets: [{ label: nome, data: dadosRadar, backgroundColor: cor+'30', borderColor: cor, borderWidth:2, pointBackgroundColor: cor, pointRadius:4 }]
       },
       options: {
@@ -345,6 +357,12 @@ function abrirModalAvaliar(funcionario, competenciaId, competenciaNome) {
           <input type="radio" name="nivelAval" value="${n.v}" ${avAtual?.nivel===n.v?'checked':''} style="display:none">
           <b>${n.v}</b> — ${n.label}
         </label>`).join('')}
+        <div style="border-top:1px dashed #e2e8f0;margin:4px 0"></div>
+        <label style="cursor:pointer;border:2px dashed ${avAtual?.nivel===-1?_NAO_APLICA.cor:'#e2e8f0'};background:${avAtual?.nivel===-1?_NAO_APLICA.bg:'#fff'};border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:${avAtual?.nivel===-1?'#475569':'#94a3b8'}"
+          onclick="selecionarNivelAvaliacao(-1)">
+          <input type="radio" name="nivelAval" value="-1" ${avAtual?.nivel===-1?'checked':''} style="display:none">
+          🚫 Não se aplica <span style="font-size:11px;font-weight:400">(não conta na média)</span>
+        </label>
       </div>
       <input type="hidden" id="nivelSelecionado" value="${avAtual?.nivel ?? ''}">
       <div class="form-group" style="margin-top:14px">
