@@ -422,7 +422,7 @@ function renderizarTabelaFicha(lancs, prodLancs) {
   tbody.innerHTML = todos.map(l => `<tr>
     <td><b>${l.data?l.data.split('-').reverse().join('/'):'—'}</b></td>
     <td><span style="color:${cors[l.setor]||'#64748b'};font-weight:600;font-size:12px">${icos[l.setor]||'🏭'} ${l.setor}</span></td>
-    <td style="font-size:12px">${l.funcionario||'—'}${l._isProd&&l.injetora?`<br><span style="color:#94a3b8;font-size:11px">🏭 ${l.injetora}</span>`:''}</td>
+    <td style="font-size:12px">${(l.funcionario||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t).join(', ') || '—'}${l._isProd&&l.injetora?`<br><span style="color:#94a3b8;font-size:11px">🏭 ${l.injetora}</span>`:''}</td>
     <td>${l.tipo||'—'}</td>
     <td style="font-size:12px">${l.horaInicio||'—'}</td>
     <td style="font-size:12px">${l.horaFim||'—'}</td>
