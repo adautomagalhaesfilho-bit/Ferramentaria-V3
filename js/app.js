@@ -71,6 +71,7 @@ var _mapaTelaEl = {
   pcm:          'telaPCM',
   auditoria:    'telaAuditoria',
   fichaFuncionario: 'telaFichaFuncionario',
+  competencias: 'telaCompetencias',
 };
 
 var _mapaTitulos = {
@@ -91,6 +92,7 @@ var _mapaTitulos = {
   pcm:          'PCM — Controle de Moldes',
   auditoria:    'Log de Alterações',
   fichaFuncionario: 'Ficha do Funcionário',
+  competencias: 'Matriz de Competência',
 };
 
 function irPara(tela, elMenu) {
@@ -123,6 +125,7 @@ function _irParaSemHistory(tela, elMenu) {
     else if (tela === 'categorias')   { carregarCategorias(); }
     else if (tela === 'pcm')          { inicializarPCM(); }
     else if (tela === 'auditoria')    { carregarLogAlteracoes(); }
+    else if (tela === 'competencias') { if (typeof inicializarCompetencias==='function') inicializarCompetencias(); }
   }, 50);
 }
 
