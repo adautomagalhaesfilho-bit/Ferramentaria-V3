@@ -256,6 +256,18 @@ function desenharSetor(setor, ini, fim) {
   const porMaq = {};
   if(setor==='Usinagem') lancs.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; if(!porMaq[l.maquina]) porMaq[l.maquina]=0; porMaq[l.maquina]+=l.minutos||0; });
 
+  // Máquinas compartilhadas entre setores (ex: Solda Tig/Mig usadas pela Bancada)
+  // devem contar na ocupação de máquinas da Usinagem, independente de quem lançou
+  if (setor === 'Usinagem') {
+    const MAQUINAS_COMPARTILHADAS = ['Solda Tig', 'Solda Mig'];
+    (_dadosDash.lancamentos || []).forEach(l => {
+      if (l.setor === 'Usinagem') return; // já contabilizado acima via campo Máquina
+      if (!MAQUINAS_COMPARTILHADAS.includes(l.tipo)) return;
+      if (!porMaq[l.tipo]) porMaq[l.tipo] = 0;
+      porMaq[l.tipo] += l.minutos || 0;
+    });
+  }
+
   let diasUteis = 0;
   for(let d=new Date(ini+'T12:00:00');d<=new Date(fim+'T12:00:00');d.setDate(d.getDate()+1)) {
     const ds=d.toISOString().split('T')[0];
