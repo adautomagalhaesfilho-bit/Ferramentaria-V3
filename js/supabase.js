@@ -411,6 +411,27 @@ const db = {
     return !!(res && res.length > 0);
   },
 
+  listarCompetencias: async function(setor) {
+    let filtro = 'ativo=eq.true&order=nome.asc';
+    if (setor) filtro = 'setor=eq.' + encodeURIComponent(setor) + '&' + filtro;
+    return await db._get('competencias', filtro, '*');
+  },
+  salvarCompetencia: async function(dados) {
+    if (dados.id) return await db._patch('competencias', 'id=eq.' + dados.id, dados);
+    return await db._post('competencias', dados);
+  },
+  excluirCompetencia: async function(id) {
+    return await db._patch('competencias', 'id=eq.' + id, { ativo: false });
+  },
+  listarAvaliacoesPorCompetencias: async function(idsCompetencias) {
+    if (!idsCompetencias || !idsCompetencias.length) return [];
+    const filtro = 'competencia_id=in.(' + idsCompetencias.join(',') + ')&order=avaliado_em.desc';
+    return await db._get('avaliacoes_competencia', filtro, '*');
+  },
+  salvarAvaliacaoCompetencia: async function(dados) {
+    return await db._post('avaliacoes_competencia', dados);
+  },
+
   listarCargos: async function() {
     return await db._get('cargos', 'ativo=eq.true&order=nome.asc', '*');
   },
