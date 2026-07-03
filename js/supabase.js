@@ -394,6 +394,23 @@ const db = {
     return await db._patch('prod_tecnicos', 'id=eq.' + id, { ativo: false });
   },
 
+  listarBancoHoras: async function(funcionario) {
+    let filtro = 'order=data.desc';
+    if (funcionario && funcionario !== 'Todos') filtro = 'funcionario=eq.' + encodeURIComponent(funcionario) + '&' + filtro;
+    return await db._get('banco_horas', filtro, '*');
+  },
+  salvarBancoHoras: async function(dados) {
+    if (dados.id) return await db._patch('banco_horas', 'id=eq.' + dados.id, dados);
+    return await db._post('banco_horas', dados);
+  },
+  excluirBancoHoras: async function(id) {
+    return await db._delete('banco_horas', 'id=eq.' + id);
+  },
+  buscarBancoHorasPorReferencia: async function(referenciaId) {
+    const res = await db._get('banco_horas', 'referencia_id=eq.' + encodeURIComponent(referenciaId), 'id');
+    return !!(res && res.length > 0);
+  },
+
   listarCargos: async function() {
     return await db._get('cargos', 'ativo=eq.true&order=nome.asc', '*');
   },
