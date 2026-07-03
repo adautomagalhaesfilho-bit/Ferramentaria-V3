@@ -24,6 +24,35 @@ async function calcularSaldoBancoHoras(nome) {
 // ==========================================
 // 🔄 CRÉDITO AUTOMÁTICO — Sincroniza Horas Extras
 // ==========================================
+// Converte "HH:MM" ou "HH:MM:SS" em minutos desde 00:00
+function _paraMinutosDoDia(hstr) {
+  if (!hstr) return null;
+  const partes = String(hstr).split(':');
+  const h = parseInt(partes[0], 10), m = parseInt(partes[1], 10);
+  if (isNaN(h) || isNaN(m)) return null;
+  return h*60 + m;
+}
+
+// Mescla intervalos sobrepostos/adjacentes e retorna o total de minutos ÚNICOS trabalhados
+// (evita contar 2x quando o operador tem lançamentos simultâneos em máquinas diferentes)
+function _mesclarIntervalos(intervalos) {
+  if (!intervalos.length) return 0;
+  const ordenados = intervalos.slice().sort((a,b)=>a[0]-b[0]);
+  let total = 0;
+  let [curIni, curFim] = ordenados[0];
+  for (let i=1; i<ordenados.length; i++) {
+    const [ini, fim] = ordenados[i];
+    if (ini <= curFim) {
+      if (fim > curFim) curFim = fim; // estende o intervalo atual
+    } else {
+      total += (curFim - curIni);
+      curIni = ini; curFim = fim;
+    }
+  }
+  total += (curFim - curIni);
+  return total;
+}
+
 async function sincronizarHorasExtras() {
   const ini = document.getElementById('bhSincIni')?.value;
   const fim = document.getElementById('bhSincFim')?.value;
@@ -32,12 +61,14 @@ async function sincronizarHorasExtras() {
   if (btn) { btn.disabled = true; btn.innerText = 'Sincronizando...'; }
   try {
     const [lancamentos, funcionarios, feriados] = await Promise.all([
-      db._get('lancamentos', 'data=gte.'+ini+'&data=lte.'+fim, 'funcionario,data,minutos'),
+      db._get('lancamentos', 'data=gte.'+ini+'&data=lte.'+fim, 'funcionario,data,minutos,hora_inicio,hora_fim'),
       db._get('funcionarios', 'ativo=eq.true', '*'),
       db._get('feriados', '', 'data')
     ]);
     const feriadosArr = (feriados||[]).map(f=>f.data);
 
+    // Agrupa por funcionário+dia, guardando os INTERVALOS de horário (não só a soma bruta)
+    // para não contar duas vezes quando o operador trabalha em mais de uma máquina ao mesmo tempo.
     const porDia = {};
     (lancamentos||[]).forEach(l => {
       const f = (funcionarios||[]).find(fn=>fn.nome===l.funcionario);
@@ -46,22 +77,30 @@ async function sincronizarHorasExtras() {
       const turno = f.turno || '5x2';
       if (typeof funcTrabalhaEmDia !== 'function') return;
       if (funcTrabalhaEmDia(turno, l.data, feriadosArr)) return; // dia normal, não é hora extra
+
       const key = l.funcionario + '|' + l.data;
-      if (!porDia[key]) porDia[key] = { funcionario:l.funcionario, data:l.data, minutos:0 };
-      porDia[key].minutos += l.minutos || 0;
+      if (!porDia[key]) porDia[key] = { funcionario:l.funcionario, data:l.data, intervalos:[] };
+
+      const iniMin = _paraMinutosDoDia(l.hora_inicio);
+      let fimMin   = _paraMinutosDoDia(l.hora_fim);
+      if (iniMin !== null && fimMin !== null) {
+        if (fimMin < iniMin) fimMin += 1440; // atravessou meia-noite
+        porDia[key].intervalos.push([iniMin, fimMin]);
+      }
     });
 
     let criados = 0, ignorados = 0;
     for (const key of Object.keys(porDia)) {
       const item = porDia[key];
-      if (item.minutos <= 0) continue;
+      const minutosReais = _mesclarIntervalos(item.intervalos);
+      if (minutosReais <= 0) continue;
       const refId = 'HE-' + item.funcionario + '-' + item.data;
       const jaExiste = await db.buscarBancoHorasPorReferencia(refId);
       if (jaExiste) { ignorados++; continue; }
       await db.salvarBancoHoras({
         funcionario: item.funcionario, data: item.data, tipo: 'Credito',
-        origem: 'Hora Extra Automática', minutos: item.minutos,
-        descricao: 'Trabalho em dia fora da escala normal',
+        origem: 'Hora Extra Automática', minutos: minutosReais,
+        descricao: 'Trabalho em dia fora da escala normal (horários sobrepostos mesclados)',
         referencia_id: refId, criado_por: _sessao?.nome || null
       });
       criados++;
