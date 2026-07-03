@@ -71,6 +71,10 @@
           <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
           <span class="menu-txt">Ficha do Funcionário</span>
         </div>
+        <div class="menu-item" id="menuCompetencias" onclick="irPara('competencias', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+          <span class="menu-txt">Matriz de Competência</span>
+        </div>
         <div class="menu-item" id="menuJobsAdmin" onclick="irPara('jobsAdmin', this)">
           <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>
           <span class="menu-txt">Moldes / Jobs</span>
@@ -365,6 +369,11 @@
       <div id="painelAusencias" class="painel-rh"></div>
       <div id="painelParciais" class="painel-rh"></div>
       <div id="painelBancoHoras" class="painel-rh"></div>
+    </div>
+
+    <!-- MATRIZ DE COMPETÊNCIA -->
+    <div class="tela" id="telaCompetencias">
+      <div id="telaMatrizCompetencia"></div>
     </div>
 
     <!-- LOG DE ALTERAÇÕES -->
@@ -674,6 +683,7 @@
 <script src="js/usuarios.js?v=2"></script>
 <script src="js/pcm.js?v=2"></script>
 <script src="js/banco-horas.js?v=1"></script>
+<script src="js/competencias.js?v=1"></script>
 <script src="js/ficha-injetora.js?v=1"></script>
 <script src="js/ficha-funcionario.js?v=1"></script>
 <script src="js/app.js?v=2"></script>
