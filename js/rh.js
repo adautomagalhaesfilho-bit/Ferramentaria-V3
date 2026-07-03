@@ -254,6 +254,30 @@ function fecharModalFunc() {
 // ==========================================
 var _fichaFuncAtual = null; // { id, origem, nome } do funcionário atualmente exibido
 
+// ==========================================
+// 🔗 ATALHO GLOBAL — clicar no nome do técnico em qualquer lugar do sistema
+// ==========================================
+function _podeVerFichaFuncionario() {
+  return typeof _temPermissao === 'function' && (_temPermissao('rh') || _temPermissao('admin'));
+}
+
+function abrirFichaTecnico(nome) {
+  if (!nome) return;
+  if (!_podeVerFichaFuncionario()) return;
+  irPara('fichaFuncionario', document.getElementById('menuFichaFuncionario'));
+  setTimeout(() => carregarFichaFuncionarioPorNome(nome), 150);
+}
+
+// Retorna o nome como span clicável (se o usuário tiver permissão) ou texto simples
+function nomeTecnicoClicavel(nome) {
+  if (!nome) return '—';
+  const nomeUpper = String(nome).toUpperCase();
+  if (nomeUpper.includes('SEM OPERADOR') || nomeUpper === '—') return nome;
+  if (!_podeVerFichaFuncionario()) return nome;
+  const nomeEsc = String(nome).replace(/'/g, "\\'");
+  return `<span style="cursor:pointer;color:#0056b3;text-decoration:underline dotted" onclick="event.stopPropagation();abrirFichaTecnico('${nomeEsc}')">${nome}</span>`;
+}
+
 // Chamada pela lista de Funcionários (mantém compatibilidade com onclick existente)
 async function abrirFichaFuncionario(id, origem) {
   irPara('fichaFuncionario', document.getElementById('menuFichaFuncionario'));
@@ -706,7 +730,7 @@ async function carregarFerias() {
     const res = await db.listarFerias();
     document.getElementById('tbodyFerias').innerHTML = res.length
       ? res.map(f=>`<tr>
-          <td><b>${f.funcionario}</b></td>
+          <td><b>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(f.funcionario):f.funcionario}</b></td>
           <td>${f.inicio?f.inicio.split('-').reverse().join('/'):'—'}</td>
           <td>${f.fim?f.fim.split('-').reverse().join('/'):'—'}</td>
           <td style="color:${f.motivo?.includes('Falta')?'#ef4444':'#059669'};font-weight:600">${f.motivo}</td>
@@ -853,7 +877,7 @@ async function _renderizarParciais() {
     tbody.innerHTML = res.length
       ? res.map(p=>`<tr>
           <td><b>${p.data?p.data.split('-').reverse().join('/'):'—'}</b></td>
-          <td>${p.funcionario}</td>
+          <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(p.funcionario):p.funcionario}</td>
           <td>${p.inicio?p.inicio.substring(0,5):'—'}</td>
           <td>${p.fim?p.fim.substring(0,5):'—'}</td>
           <td style="color:${p.motivo?.includes('Injustificado')?'#ef4444':'#ca8a04'};font-weight:600">${p.motivo||'—'}</td>
