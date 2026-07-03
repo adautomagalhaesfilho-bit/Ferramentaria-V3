@@ -541,7 +541,7 @@ function desenharProducao(ini,fim){
       const pct=Math.round(info.count/maxTec*100);
       const medalha=['🥇','🥈','🥉','4️⃣','5️⃣'][i]||'';
       const cor=coresTecnicos[i]||'#64748b';
-      html+=`<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${medalha} ${nome}</div>
+      html+=`<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${medalha} ${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(nome):nome}</div>
         <div style="display:flex;gap:12px;align-items:center">
           <span style="font-size:12px;color:#64748b">${info.count} manutenções · ${fmtMin(info.mins)}</span>
           <span class="barra-valor" style="color:${cor}">#${i+1}</span>
@@ -596,7 +596,7 @@ function _renderBarrasPessoas(opEntries) {
     const badgeTurno = `<span style="background:#f1f5f9;color:#475569;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px">⏰ ${turno}</span>`;
     return `<div class="barra-wrap">
       <div class="barra-header">
-        <div class="barra-nome">${op.nome} ${badge} ${badgeTurno}</div>
+        <div class="barra-nome">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(op.nome):op.nome} ${badge} ${badgeTurno}</div>
         <div style="display:flex;gap:12px;align-items:center">
           <span style="font-size:12px;color:#64748b">${fmtMin(op.mins)} / ${fmtMin(op.meta)}</span>
           <span class="barra-valor" style="color:${c}">${op.pct}%</span>
