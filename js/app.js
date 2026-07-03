@@ -70,6 +70,7 @@ var _mapaTelaEl = {
   usuarios:     'telaUsuarios',
   pcm:          'telaPCM',
   auditoria:    'telaAuditoria',
+  fichaFuncionario: 'telaFichaFuncionario',
 };
 
 var _mapaTitulos = {
@@ -89,6 +90,7 @@ var _mapaTitulos = {
   usuarios:     'Usuários',
   pcm:          'PCM — Controle de Moldes',
   auditoria:    'Log de Alterações',
+  fichaFuncionario: 'Ficha do Funcionário',
 };
 
 function irPara(tela, elMenu) {
@@ -149,6 +151,16 @@ function inicializarAutocompletes() {
   setupAC('prodFormMolde',        'prodFormMoldeList',   jobs);
   setupAC('formTipoBancadaInput', 'formTipoBancadaList', _listas.tiposBancada || [], val => {
     document.getElementById('formTipoBancada').value = val;
+  });
+
+  // Busca de funcionário na página da Ficha do Funcionário
+  const nomesFuncionarios = [...new Set([
+    ...(_listas.funcionarios||[]), ...(_listas.funcBancada||[]),
+    ...(_listas.funcProjeto||[]), ...(_listas.funcProducao||[]),
+    ...(_listas.funcSupervisores||[])
+  ])].sort();
+  setupAC('fichaFuncNomeInput', 'fichaFuncNomeList', nomesFuncionarios, val => {
+    if (typeof carregarFichaFuncionarioPorNome === 'function') carregarFichaFuncionarioPorNome(val);
   });
 }
 
