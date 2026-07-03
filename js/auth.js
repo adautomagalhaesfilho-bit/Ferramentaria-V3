@@ -31,6 +31,7 @@ function _temPermissao(key) {
     rh:         ['gestor','admin'],
     admin:      ['admin'],
     editar:     ['supervisor','gestor','admin'],
+    competencias: ['supervisor','gestor','admin'],
   };
   return !!_PERM_PADRAO[key]?.includes(_sessao.perfil);
 }
@@ -88,6 +89,7 @@ function aplicarPermissoes() {
     menuPCM:          _temPermissao('pcm'),
     menuFuncionarios: _temPermissao('rh') || _temPermissao('admin'),
     menuFichaFuncionario: _temPermissao('rh') || _temPermissao('admin'),
+    menuCompetencias: _temPermissao('competencias'),
     menuJobsAdmin:    _temPermissao('admin'),
     menuMaquinasAdmin:_temPermissao('admin'),
     menuInjetoras:    _temPermissao('admin'),
@@ -95,7 +97,7 @@ function aplicarPermissoes() {
     menuFeriados:     _temPermissao('rh') || _temPermissao('admin'),
     menuUsuarios:     isAdmin(),
     menuAuditoria:    isAdmin(),
-    adminSection:     _temPermissao('admin') || _temPermissao('rh'),
+    adminSection:     _temPermissao('admin') || _temPermissao('rh') || _temPermissao('competencias'),
   };
 
   Object.entries(menus).forEach(([id, visivel]) => {
