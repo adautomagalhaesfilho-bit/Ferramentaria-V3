@@ -314,7 +314,7 @@ ${editando ? `
     </div>
 
     <!-- DADOS -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
       <div class="card" style="margin:0;padding:14px">
         <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">INFORMAÇÕES</div>
         <div style="font-size:13px;line-height:2">
@@ -334,6 +334,9 @@ ${editando ? `
             f.turno==='Estágio'?'07:30 → 16:00 | Seg-Sex | 440 min':'—'}
         </div>
         ${editando ? `<button class="btn-secondary" style="margin-top:10px;font-size:11px;padding:5px 10px" onclick="abrirModalTrocaTurno(${id},'${f.turno||''}')">🔄 Registrar Mudança de Turno</button>` : ''}
+      </div>
+      <div class="card" style="margin:0;padding:14px" id="fichaFuncSaldoBH">
+        <div style="font-size:12px;color:#94a3b8">Calculando saldo do banco de horas...</div>
       </div>
     </div>
 
@@ -371,6 +374,10 @@ ${editando ? `
     // Carrega histórico de lançamentos (todos os setores)
     if (typeof renderizarHistoricoNaFicha === 'function') {
       renderizarHistoricoNaFicha(f.nome, 'fichaFuncHistorico');
+    }
+    // Carrega saldo do banco de horas
+    if (typeof renderizarSaldoBancoHorasNaFicha === 'function') {
+      renderizarSaldoBancoHorasNaFicha(f.nome, 'fichaFuncSaldoBH');
     }
 
   } catch(e) {
@@ -590,9 +597,10 @@ function mudarTabRH(aba, elBtn) {
 }
 
 function carregarPainelRH(aba) {
-  if (aba==='feriados')       carregarFeriados();
-  else if (aba==='ausencias') carregarFerias();
-  else if (aba==='parciais')  carregarParciais();
+  if (aba==='feriados')         carregarFeriados();
+  else if (aba==='ausencias')   carregarFerias();
+  else if (aba==='parciais')    carregarParciais();
+  else if (aba==='bancoHoras')  { if (typeof inicializarBancoHoras==='function') inicializarBancoHoras(); }
 }
 
 // ==========================================
@@ -676,7 +684,15 @@ async function salvarFerias() {
   const func=document.getElementById('ferFunc')?.value, ini=document.getElementById('ferIni')?.value,
         fim=document.getElementById('ferFim')?.value, motivo=document.getElementById('ferMotivo')?.value;
   if (!func||!ini||!fim) return toast('Preencha todos os campos.','erro');
-  try { await db.salvarFerias({funcionario:func,inicio:ini,fim,motivo}); toast('Registrado!','sucesso'); carregarFerias(); }
+  try {
+    const res = await db.salvarFerias({funcionario:func,inicio:ini,fim,motivo});
+    toast('Registrado!','sucesso');
+    if (motivo === 'Folga Compensatória' && typeof registrarDebitoFolgaCompensatoria === 'function') {
+      const novoId = res && res[0] ? res[0].id : null;
+      await registrarDebitoFolgaCompensatoria(func, ini, fim, novoId);
+    }
+    carregarFerias();
+  }
   catch(e) { toast('Erro.','erro'); }
 }
 
