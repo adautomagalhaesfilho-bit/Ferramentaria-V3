@@ -53,6 +53,10 @@
       <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
       <span class="menu-txt">Ficha do Molde</span>
     </div>
+    <div class="menu-item" id="menuFichaFuncionario" onclick="irPara('fichaFuncionario', this)" style="display:none">
+      <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
+      <span class="menu-txt">Ficha do Funcionário</span>
+    </div>
     <div class="menu-item" id="menuHistorico" onclick="irPara('historico', this)">
       <span class="menu-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
       <span class="menu-txt">Histórico</span>
@@ -231,6 +235,22 @@
       </div>
       <div id="fichaConteudo" style="display:none"></div>
       <div id="fichaVazio" class="empty-state"><div style="font-size:48px">🔩</div><div>Digite o nome do job para ver a ficha completa</div></div>
+    </div>
+
+    <!-- FICHA DO FUNCIONÁRIO -->
+    <div class="tela" id="telaFichaFuncionario">
+      <div class="page-header"><h1>👤 Ficha do Funcionário</h1></div>
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:flex-end">
+          <div style="flex:1" class="autocomplete-wrap">
+            <input type="text" id="fichaFuncNomeInput" placeholder="Digite o nome do funcionário...">
+            <div class="autocomplete-list" id="fichaFuncNomeList"></div>
+          </div>
+          <button class="btn-primary" onclick="buscarFichaFuncionarioPagina()">🔍 Abrir Ficha</button>
+        </div>
+      </div>
+      <div id="fichaFuncPaginaConteudo" style="display:none"></div>
+      <div id="fichaFuncPaginaVazio" class="empty-state"><div style="font-size:48px">👤</div><div>Digite o nome do funcionário para ver a ficha completa</div></div>
     </div>
 
     <!-- HISTÓRICO -->
