@@ -166,7 +166,7 @@ function renderizarHistorico(res, setor) {
 
     return `<tr>
       <td><b>${dt}</b></td>
-      <td>${l.funcionario||'—'}</td>
+      <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(l.funcionario):(l.funcionario||'—')}</td>
       <td>${col3}</td>
       <td><b>${l.job||'—'}</b></td>
       <td style="font-size:12px">${hr1}</td>
@@ -231,7 +231,8 @@ function renderizarHistoricoProducao(res, ini, fim) {
 
   tbody.innerHTML = res.map(l => {
     const dt   = l.data ? l.data.split('-').reverse().join('/') : '—';
-    const tecs = Array.isArray(l.tecnicos) ? l.tecnicos.join(', ') : (l.tecnicos || '—');
+    const tecsArr = Array.isArray(l.tecnicos) ? l.tecnicos : (l.tecnicos ? l.tecnicos.split(',').map(t=>t.trim()) : []);
+    const tecs = tecsArr.length ? tecsArr.map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t).join(', ') : '—';
     const mins = l.minutos || 0;
     const hrProd = mins > 0 ? fmtMin(mins) : '—';
     const flags = [
