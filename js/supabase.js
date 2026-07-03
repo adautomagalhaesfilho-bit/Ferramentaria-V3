@@ -85,7 +85,7 @@ const db = {
 
   obterListas: async function() {
     const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
-      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'nome,setor,turno,cargo'),
+      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'nome,setor,turno,cargo,setor_apontamento_extra'),
       db._get('maquinas', 'ativo=eq.true&order=nome.asc', 'nome,turno,cap_liquida'),
       db._get('jobs', 'ativo=eq.true&order=nome.asc', 'nome'),
       db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
@@ -99,10 +99,17 @@ const db = {
       f.setor === 'Supervisão' || f.cargo === 'Supervisor' || f.cargo === 'Encarregado'
     ).map(f => f.nome);
 
-    const funcUsina    = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome).concat(funcSupervisores).sort();
-    const funcBancada  = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome).concat(funcSupervisores).sort();
-    const funcProjeto  = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome).concat(funcSupervisores).sort();
-    const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome).concat(funcSupervisores).sort();
+    // Funcionários com setor extra de apontamento — pertencem oficialmente a um setor (RH/Matriz de Competência)
+    // mas também podem ser lançados por outro setor (ex: técnico da Bancada que atua na Usinagem)
+    const funcExtraUsina    = funcionarios.filter(f => f.setor_apontamento_extra === 'Usinagem').map(f => f.nome);
+    const funcExtraBancada  = funcionarios.filter(f => f.setor_apontamento_extra === 'Bancada').map(f => f.nome);
+    const funcExtraProjeto  = funcionarios.filter(f => f.setor_apontamento_extra === 'Projeto').map(f => f.nome);
+    const funcExtraProducao = funcionarios.filter(f => f.setor_apontamento_extra === 'Producao' || f.setor_apontamento_extra === 'Produção').map(f => f.nome);
+
+    const funcUsina    = funcionarios.filter(f => f.setor === 'Usinagem').map(f => f.nome).concat(funcSupervisores, funcExtraUsina).filter((v,i,a)=>a.indexOf(v)===i).sort();
+    const funcBancada  = funcionarios.filter(f => f.setor === 'Bancada').map(f => f.nome).concat(funcSupervisores, funcExtraBancada).filter((v,i,a)=>a.indexOf(v)===i).sort();
+    const funcProjeto  = funcionarios.filter(f => f.setor === 'Projeto' || f.setor === 'Projeto / Desenvolvimento').map(f => f.nome).concat(funcSupervisores, funcExtraProjeto).filter((v,i,a)=>a.indexOf(v)===i).sort();
+    const funcProducao = funcionarios.filter(f => f.setor === 'Producao' || f.setor === 'Produção').map(f => f.nome).concat(funcSupervisores, funcExtraProducao).filter((v,i,a)=>a.indexOf(v)===i).sort();
 
     const catUsina   = categorias.filter(c => c.setor === 'Usinagem');
     const catBancada = categorias.filter(c => c.setor === 'Bancada');
