@@ -245,6 +245,17 @@ function abrirFormFuncionario() {
           </select>
         </div>
       </div>
+      <div class="form-group">
+        <label>Setor Extra de Apontamento (opcional)</label>
+        <select id="fnSetorExtra">
+          <option value="">Nenhum</option>
+          <option value="Usinagem">Usinagem</option>
+          <option value="Bancada">Bancada</option>
+          <option value="Projeto">Projeto</option>
+          <option value="Producao">Produção</option>
+        </select>
+        <div style="font-size:11px;color:#64748b;margin-top:4px">Use quando o funcionário pertence a um setor, mas também precisa ser lançado por outro (ex: técnico da Bancada que opera solda na Usinagem).</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="salvarNovoFuncionario()">💾 Salvar</button>
@@ -263,6 +274,7 @@ async function salvarNovoFuncionario() {
   const admissao = document.getElementById('fnAdmissao')?.value || null;
   const matricula= document.getElementById('fnMatricula')?.value?.trim() || null;
   const origem   = document.getElementById('fnOrigem')?.value;
+  const setorExtra = document.getElementById('fnSetorExtra')?.value || null;
 
   if (!nome) return toast('Informe o nome.','erro');
 
@@ -271,7 +283,7 @@ async function salvarNovoFuncionario() {
       await db.salvarProdTecnico({ nome, turno, supervisor:sup, ativo:true });
     } else {
       await db.salvarFuncionario({ nome, setor, turno, cargo, supervisor:sup,
-        matricula, admissao, ativo:true });
+        matricula, admissao, ativo:true, setor_apontamento_extra: setorExtra });
     }
     toast('Funcionário adicionado!','sucesso');
     fecharModalFunc();
@@ -547,6 +559,17 @@ function abrirEdicaoFuncionario(f) {
           <input type="checkbox" id="efAtivo" ${f.ativo!==false?'checked':''}> Funcionário Ativo
         </label>
       </div>
+      <div class="form-group">
+        <label>Setor Extra de Apontamento (opcional)</label>
+        <select id="efSetorExtra">
+          <option value="">Nenhum</option>
+          <option value="Usinagem" ${f.setor_apontamento_extra==='Usinagem'?'selected':''}>Usinagem</option>
+          <option value="Bancada" ${f.setor_apontamento_extra==='Bancada'?'selected':''}>Bancada</option>
+          <option value="Projeto" ${f.setor_apontamento_extra==='Projeto'?'selected':''}>Projeto</option>
+          <option value="Producao" ${(f.setor_apontamento_extra==='Producao'||f.setor_apontamento_extra==='Produção')?'selected':''}>Produção</option>
+        </select>
+        <div style="font-size:11px;color:#64748b;margin-top:4px">Use quando o funcionário pertence a um setor, mas também precisa ser lançado por outro (ex: técnico da Bancada que opera solda na Usinagem).</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="salvarEdicaoFuncionario(${f.id})">💾 Salvar</button>
@@ -566,11 +589,12 @@ async function salvarEdicaoFuncionario(id) {
   const demissao  = document.getElementById('efDemissao')?.value || null;
   const matricula = document.getElementById('efMatricula')?.value?.trim() || null;
   const ativo     = document.getElementById('efAtivo')?.checked ?? true;
+  const setorExtra = document.getElementById('efSetorExtra')?.value || null;
 
   if (!nome) return toast('Informe o nome.','erro');
   try {
     await db.salvarFuncionario({ id, nome, setor, turno, cargo, supervisor:sup,
-      matricula, admissao, demissao: demissao||null, ativo });
+      matricula, admissao, demissao: demissao||null, ativo, setor_apontamento_extra: setorExtra });
     toast('Funcionário atualizado!','sucesso');
     fecharEdicaoFunc();
     // Se estiver na página da ficha, recarrega os dados atualizados
