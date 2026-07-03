@@ -491,10 +491,11 @@ function abrirModalLocalizacao(job) {
       </div>
       <div class="form-group" id="pcmGrupoMaquina" style="${dados?.localizacao==='Em Máquina'?'':'display:none'}">
         <label>Injetora *</label>
-        <select id="pcmLocMaquina">
+        <select id="pcmLocMaquina" onchange="verificarMoldeNaMaquina()">
           <option value="">Selecione...</option>
           ${injetoras.map(m=>`<option value="${m}" ${dados?.maquina===m?'selected':''}>${m}</option>`).join('')}
         </select>
+        <div id="pcmAvisoTrocaMaquina" style="display:none;margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e"></div>
       </div>
       <div class="form-group">
         <label>Observação</label>
@@ -525,6 +526,32 @@ function selecionarLocalizacao(loc) {
   });
   const grpMaq = document.getElementById('pcmGrupoMaquina');
   if (grpMaq) grpMaq.style.display = loc==='Em Máquina' ? '' : 'none';
+  if (loc==='Em Máquina') verificarMoldeNaMaquina();
+}
+
+// Ao selecionar a injetora, mostra qual molde está rodando nela atualmente (se houver)
+function verificarMoldeNaMaquina() {
+  const maq = document.getElementById('pcmLocMaquina')?.value;
+  const aviso = document.getElementById('pcmAvisoTrocaMaquina');
+  if (!aviso) return;
+  if (!maq) { aviso.style.display = 'none'; return; }
+
+  const jobAtual = _modalLocJob || document.getElementById('pcmLocJob')?.value?.trim();
+  const moldeNaMaquina = _dadosPCM.find(m =>
+    m.localizacao === 'Em Máquina' && m.maquina === maq && m.job !== jobAtual
+  );
+
+  if (moldeNaMaquina) {
+    aviso.style.display = 'block';
+    aviso.innerHTML = `⚠️ A injetora <b>${maq}</b> está rodando o molde <b>${moldeNaMaquina.job}</b> atualmente.<br>
+      Ao salvar, ele será movido automaticamente para <b>🔧 Na Ferramentaria</b>.`;
+  } else {
+    aviso.style.display = 'block';
+    aviso.style.background = '#d1fae5';
+    aviso.style.borderColor = '#a7f3d0';
+    aviso.style.color = '#065f46';
+    aviso.innerHTML = `✅ A injetora <b>${maq}</b> está livre no momento.`;
+  }
 }
 
 async function salvarLocalizacao() {
@@ -537,6 +564,14 @@ async function salvarLocalizacao() {
   if (!loc) return toast('Selecione a localização.','erro');
   if (loc==='Em Máquina' && !maq) return toast('Selecione a injetora.','erro');
   try {
+    // Verifica se outro molde já está nessa injetora — precisa ser liberado antes de salvar o novo
+    let moldeSubstituido = null;
+    if (loc === 'Em Máquina') {
+      moldeSubstituido = _dadosPCM.find(m =>
+        m.localizacao === 'Em Máquina' && m.maquina === maq && m.job !== job
+      ) || null;
+    }
+
     await db.salvarLocalizacao({
       job, localizacao:loc, maquina:maq, observacao:obs,
       atualizado_por: _sessao?.nome || null,
@@ -547,7 +582,25 @@ async function salvarLocalizacao() {
       movido_em:  data + 'T00:00:00',
       movido_por: _sessao?.nome || null
     });
-    toast('Localização atualizada!','sucesso');
+
+    // Move automaticamente o molde substituído para Na Ferramentaria
+    if (moldeSubstituido) {
+      const obsAuto = `Movido automaticamente — injetora ${maq} passou a rodar o molde ${job}`;
+      await db.salvarLocalizacao({
+        job: moldeSubstituido.job, localizacao:'Na Ferramentaria', maquina:null, observacao:obsAuto,
+        atualizado_por: _sessao?.nome || null,
+        atualizado_em:  data + 'T00:00:00'
+      });
+      await db._post('molde_localizacao_historico', {
+        job: moldeSubstituido.job, localizacao:'Na Ferramentaria', maquina:null, observacao:obsAuto,
+        movido_em:  data + 'T00:00:00',
+        movido_por: _sessao?.nome || null
+      });
+      toast(`Localização atualizada! Molde ${moldeSubstituido.job} foi movido para Na Ferramentaria.`,'sucesso');
+    } else {
+      toast('Localização atualizada!','sucesso');
+    }
+
     fecharModalLocalizacao();
     await carregarPCM();
   } catch(e) { toast('Erro ao salvar.','erro'); console.error(e); }
