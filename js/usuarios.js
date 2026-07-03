@@ -35,6 +35,7 @@ const _PERMISSOES_PADRAO = {
   rh:           ['gestor','admin'],
   admin:        ['admin'],
   editar:       ['supervisor','gestor','admin'],
+  competencias: ['supervisor','gestor','admin'],
 };
 
 async function carregarUsuarios() {
@@ -75,6 +76,7 @@ function abrirFormUsuario(user) {
     { key:'rh',         label:'👥 RH / Feriados' },
     { key:'admin',      label:'⚙️ Administração' },
     { key:'editar',     label:'✏️ Pode Editar/Excluir Lançamentos' },
+    { key:'competencias', label:'🎯 Matriz de Competência' },
   ];
 
   el.innerHTML = `
@@ -153,7 +155,7 @@ function abrirFormUsuario(user) {
 function aplicarPermissoesPadrao() {
   const perfil = document.getElementById('uPerfil')?.value || 'operador';
   document.getElementById('descPerfil').innerText = _descPerfil(perfil);
-  const permItems = ['dashboard','usinagem','bancada','projeto','producao','moldes','ficha','historico','pcm','rh','admin','editar'];
+  const permItems = ['dashboard','usinagem','bancada','projeto','producao','moldes','ficha','historico','pcm','rh','admin','editar','competencias'];
   permItems.forEach(key => {
     const el = document.getElementById('perm_' + key);
     if (el) el.checked = !!_PERMISSOES_PADRAO[key]?.includes(perfil);
@@ -173,7 +175,7 @@ async function salvarUsuario() {
   if (!nome || !senha) return toast('Preencha nome e senha.','erro');
 
   // Coleta permissões
-  const permItems = ['dashboard','usinagem','bancada','projeto','producao','moldes','ficha','historico','pcm','rh','admin','editar'];
+  const permItems = ['dashboard','usinagem','bancada','projeto','producao','moldes','ficha','historico','pcm','rh','admin','editar','competencias'];
   const permissoes = {};
   permItems.forEach(key => {
     const el = document.getElementById('perm_' + key);
