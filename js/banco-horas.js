@@ -279,7 +279,7 @@ function _renderizarTabelaExtratoBH(lista) {
     const ehManual = r.origem === 'Ajuste Manual';
     return `<tr>
       <td><b>${r.data?r.data.split('-').reverse().join('/'):'—'}</b></td>
-      <td>${r.funcionario}</td>
+      <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(r.funcionario):r.funcionario}</td>
       <td><span style="color:${corTipo};font-weight:700">${icoTipo} ${r.tipo==='Credito'?'Crédito':'Débito'}</span></td>
       <td style="font-size:11px;color:#64748b">${r.origem}</td>
       <td style="font-weight:700;color:${corTipo}">${fmtMinSaldo(r.tipo==='Credito'?r.minutos:-r.minutos)}</td>
