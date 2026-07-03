@@ -15,41 +15,47 @@ async function carregarCargosGlobal() {
 }
 
 // ==========================================
-// ⚙️ GERENCIAR CARGOS (Admin)
+// 💼 CARGOS — Aba dentro de Gestão e RH
 // ==========================================
 var _todosCargosAdmin = [];
 
-async function abrirGerenciarCargos() {
-  const div = document.createElement('div');
-  div.id = 'modalCargosWrap';
-  div.innerHTML = `
-  <div class="modal-overlay" onclick="fecharGerenciarCargos()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:460px">
-    <div class="modal-header"><h3>⚙️ Gerenciar Cargos</h3><button onclick="fecharGerenciarCargos()">✕</button></div>
-    <div class="modal-body">
-      <div style="display:flex;gap:8px;margin-bottom:16px">
-        <input type="text" id="novoCargoInput" placeholder="Nome do novo cargo..." style="flex:1">
-        <button class="btn-primary" style="white-space:nowrap" onclick="adicionarCargo()">+ Add</button>
-      </div>
-      <div id="listaCargosModal"><div class="loader-inline"><div class="spinner-sm"></div><span>Carregando...</span></div></div>
-    </div>
-    <div class="modal-footer"><button class="btn-secondary" onclick="fecharGerenciarCargos()">Fechar</button></div>
-  </div>`;
-  document.body.appendChild(div);
-  await _renderizarCargosModal();
+// Atalho usado no botão da tela Funcionários — leva direto para a aba Cargos em RH
+function abrirGerenciarCargos() {
+  irPara('feriados', document.getElementById('menuFeriados'));
+  setTimeout(() => {
+    const btnCargos = document.querySelector('.tab-rh[onclick*="cargos"]');
+    mudarTabRH('cargos', btnCargos);
+  }, 100);
 }
 
-async function _renderizarCargosModal() {
+async function carregarCargosPainelRH() {
+  const el = document.getElementById('painelCargos');
+  if (!el) return;
+  el.innerHTML = `<div class="card">
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px">
+      <div class="form-group" style="flex:2;min-width:220px"><label>Novo Cargo</label><input type="text" id="novoCargoInput" placeholder="Ex: Ferramenteiro, Torneiro Mecânico..."></div>
+      <button class="btn-success" onclick="adicionarCargo()">+ Adicionar</button>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Cargo</th><th>Ação</th></tr></thead>
+    <tbody id="tbodyCargos"><tr><td colspan="2" class="empty-msg">Carregando...</td></tr></tbody></table></div>
+  </div>`;
+  await _renderizarCargosPainelRH();
+}
+
+async function _renderizarCargosPainelRH() {
   try {
     _todosCargosAdmin = await db.listarCargos();
-    const el = document.getElementById('listaCargosModal');
-    if (!el) return;
-    el.innerHTML = _todosCargosAdmin.length
-      ? _todosCargosAdmin.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #f1f5f9">
-          <span style="font-size:13px;color:#1e3a5f">${c.nome}</span>
-          <button class="btn-icon danger" onclick="excluirCargoConfirm(${c.id},'${c.nome.replace(/'/g,"\'")}')">🗑️</button>
-        </div>`).join('')
-      : '<div class="empty-msg">Nenhum cargo cadastrado.</div>';
+    const tbody = document.getElementById('tbodyCargos');
+    if (!tbody) return;
+    tbody.innerHTML = _todosCargosAdmin.length
+      ? _todosCargosAdmin.map(c => `<tr>
+          <td><b>${c.nome}</b></td>
+          <td>
+            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoCargo(${c.id},'${c.nome.replace(/'/g,"\\'")}')">✏️</button>
+            <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirCargoConfirm(${c.id},'${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="2" class="empty-msg">Nenhum cargo cadastrado.</td></tr>';
   } catch(e) { toast('Erro ao carregar cargos.','erro'); }
 }
 
@@ -61,10 +67,45 @@ async function adicionarCargo() {
     if (typeof registrarLog === 'function') await registrarLog('cargos', res?.[0]?.id || nome, 'criar', null, null, nome);
     toast('Cargo adicionado!','sucesso');
     document.getElementById('novoCargoInput').value = '';
-    await _renderizarCargosModal();
+    await _renderizarCargosPainelRH();
     await carregarCargosGlobal();
   } catch(e) { toast('Erro ao adicionar. Talvez já exista.','erro'); }
 }
+
+function abrirEdicaoCargo(id, nomeAtual) {
+  const div = document.createElement('div');
+  div.id = 'modalEditCargoWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoCargo()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:400px">
+    <div class="modal-header"><h3>✏️ Editar Cargo</h3><button onclick="fecharEdicaoCargo()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nome do Cargo *</label><input type="text" id="editCargoNome" value="${nomeAtual.replace(/"/g,'&quot;')}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoCargo(${id},'${nomeAtual.replace(/'/g,"\\'")}')">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoCargo()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+async function salvarEdicaoCargo(id, nomeAntigo) {
+  const novoNome = document.getElementById('editCargoNome')?.value?.trim();
+  if (!novoNome) return toast('Informe o nome.','erro');
+  try {
+    await db.salvarCargo({ id, nome: novoNome });
+    if (typeof registrarLog === 'function' && novoNome !== nomeAntigo) {
+      await registrarLog('cargos', id, 'editar', 'nome', nomeAntigo, novoNome);
+    }
+    toast('Cargo atualizado!','sucesso');
+    fecharEdicaoCargo();
+    await _renderizarCargosPainelRH();
+    await carregarCargosGlobal();
+  } catch(e) { toast('Erro ao salvar. Talvez já exista outro cargo com esse nome.','erro'); }
+}
+
+function fecharEdicaoCargo() { document.getElementById('modalEditCargoWrap')?.remove(); }
 
 function excluirCargoConfirm(id, nome) {
   confirmarExclusao('Remover o cargo "' + nome + '"?', async () => {
@@ -72,14 +113,10 @@ function excluirCargoConfirm(id, nome) {
       await db.excluirCargo(id);
       if (typeof registrarLog === 'function') await registrarLog('cargos', id, 'excluir', null, nome, null);
       toast('Cargo removido!','sucesso');
-      await _renderizarCargosModal();
+      await _renderizarCargosPainelRH();
       await carregarCargosGlobal();
     } catch(e) { toast('Erro ao remover.','erro'); }
   });
-}
-
-function fecharGerenciarCargos() {
-  document.getElementById('modalCargosWrap')?.remove();
 }
 
 // ==========================================
@@ -664,6 +701,7 @@ function carregarPainelRH(aba) {
   else if (aba==='ausencias')   carregarFerias();
   else if (aba==='parciais')    carregarParciais();
   else if (aba==='bancoHoras')  { if (typeof inicializarBancoHoras==='function') inicializarBancoHoras(); }
+  else if (aba==='cargos')      { if (typeof carregarCargosPainelRH==='function') carregarCargosPainelRH(); }
 }
 
 // ==========================================
