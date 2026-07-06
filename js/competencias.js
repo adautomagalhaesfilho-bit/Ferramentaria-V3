@@ -101,8 +101,7 @@ async function carregarMatrizCompetencias(setor) {
 
     const setorMapeado = setor === 'Produção' ? ['Producao','Produção'] : [setor];
     const funcionarios = (todosFuncionarios||[]).filter(f =>
-      f.ativo && setorMapeado.includes(f.setor) &&
-      f.setor !== 'Supervisão' && f.cargo !== 'Supervisor' && f.cargo !== 'Encarregado'
+      f.ativo && setorMapeado.includes(f.setor)
     ).sort((a,b)=>a.nome.localeCompare(b.nome));
 
     const idsCompetencias = competencias.map(c=>c.id);
@@ -205,25 +204,25 @@ function renderizarMatrizCompetencias() {
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">🗺️ Matriz — clique numa célula para avaliar</div>
       <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="abrirGerenciarCompetencias()">⚙️ Gerenciar Competências</button>
     </div>
-    <div class="table-wrap">
-      <table style="border-collapse:separate;border-spacing:3px">
+    <div class="table-wrap" style="overflow-x:auto;max-width:100%">
+      <table style="border-collapse:separate;border-spacing:3px;table-layout:fixed">
         <thead>
           <tr>
-            <th style="text-align:left;min-width:160px">Funcionário</th>
-            ${competencias.map(c=>`<th style="writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;padding:8px 4px;max-height:120px;cursor:default" title="${c.nome}">${c.nome}</th>`).join('')}
-            <th style="font-size:11px">Média</th>
+            <th style="text-align:left;min-width:170px;width:170px;position:sticky;left:0;background:#fff;z-index:3">Funcionário</th>
+            ${competencias.map(c=>`<th style="writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;padding:10px 4px;height:130px;width:44px;min-width:44px;max-width:44px;white-space:nowrap;cursor:default;overflow:hidden" title="${c.nome}">${c.nome}</th>`).join('')}
+            <th style="font-size:11px;width:60px;min-width:60px;position:sticky;right:0;background:#fff;z-index:3">Média</th>
           </tr>
         </thead>
         <tbody>
           ${funcionarios.map(f => {
             const mediaF = mediaPorFuncionario.find(m=>m.funcionario.nome===f.nome);
             return `<tr>
-              <td style="font-weight:600;font-size:12px;color:#1e3a5f;cursor:pointer" onclick="abrirRadarFuncionario('${f.nome.replace(/'/g,"\\'")}')">👤 ${f.nome}</td>
+              <td style="font-weight:600;font-size:12px;color:#1e3a5f;cursor:pointer;position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap" onclick="abrirRadarFuncionario('${f.nome.replace(/'/g,"\\'")}')">👤 ${f.nome}</td>
               ${competencias.map(c => {
                 const av = _nivelAtual(f.nome, c.id);
                 const info = av ? _infoNivel(av.nivel) : { cor:'#cbd5e1', bg:'#f8fafc', label:'Não avaliado' };
                 const textoCelula = av ? (av.nivel === -1 ? 'N/A' : av.nivel) : '—';
-                return `<td style="text-align:center;padding:0">
+                return `<td style="text-align:center;padding:0;width:44px;min-width:44px">
                   <div style="width:36px;height:36px;background:${info.bg};border:2px solid ${info.cor}40;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:800;color:${info.cor};font-size:${av && av.nivel===-1?'10px':'13px'};margin:0 auto"
                     title="${f.nome} · ${c.nome}: ${info.label}"
                     onclick="abrirModalAvaliar('${f.nome.replace(/'/g,"\\'")}',${c.id},'${c.nome.replace(/'/g,"\\'")}')">
@@ -231,13 +230,13 @@ function renderizarMatrizCompetencias() {
                   </div>
                 </td>`;
               }).join('')}
-              <td style="text-align:center;font-weight:800;color:${cor}">${mediaF.avaliados>0?mediaF.media.toFixed(1):'—'}</td>
+              <td style="text-align:center;font-weight:800;color:${cor};position:sticky;right:0;background:#fff;z-index:1">${mediaF.avaliados>0?mediaF.media.toFixed(1):'—'}</td>
             </tr>`;
           }).join('')}
           <tr style="border-top:2px solid #e2e8f0">
-            <td style="font-weight:700;font-size:12px;color:#64748b">Média da Competência</td>
-            ${mediaPorCompetencia.map(m=>`<td style="text-align:center;font-weight:700;font-size:12px;color:${cor}">${m.avaliados>0?m.media.toFixed(1):'—'}</td>`).join('')}
-            <td></td>
+            <td style="font-weight:700;font-size:12px;color:#64748b;position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap">Média da Competência</td>
+            ${mediaPorCompetencia.map(m=>`<td style="text-align:center;font-weight:700;font-size:12px;color:${cor};width:44px;min-width:44px">${m.avaliados>0?m.media.toFixed(1):'—'}</td>`).join('')}
+            <td style="position:sticky;right:0;background:#fff"></td>
           </tr>
         </tbody>
       </table>
