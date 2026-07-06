@@ -129,6 +129,16 @@ body { display:flex; min-height:100vh; }
 }
 .btn-logout:hover { background:rgba(239,68,68,0.3); color:#fff; }
 
+.btn-trocar-senha {
+  margin:6px 8px 0; padding:9px 12px; flex-shrink:0;
+  background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.3);
+  border-radius:8px; color:#93c5fd;
+  font-size:12px; font-weight:600; cursor:pointer;
+  font-family:'Inter',sans-serif; transition:background 0.2s,color 0.2s;
+  display:flex; align-items:center; gap:6px; justify-content:center;
+}
+.btn-trocar-senha:hover { background:rgba(59,130,246,0.3); color:#fff; }
+
 /* ==========================================
    MAIN
    ========================================== */
