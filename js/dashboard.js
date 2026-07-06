@@ -40,7 +40,7 @@ function capMinutosPorTurno(turno) {
 function isSupervisor(nome, dados) {
   const funcRH = (dados.funcionarios || []).find(f => f.nome === nome);
   if (!funcRH) return false;
-  return funcRH.setor === 'Supervisão' || funcRH.cargo === 'Supervisor' || funcRH.cargo === 'Encarregado';
+  return funcRH.setor === 'Supervisão' || funcRH.cargo === 'Supervisor' || funcRH.cargo === 'Encarregado' || funcRH.cargo === 'Líder de Ferramentaria';
 }
 
 // ==========================================
