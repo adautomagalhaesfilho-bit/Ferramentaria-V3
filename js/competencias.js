@@ -486,20 +486,20 @@ function abrirGerenciarCompetencias() {
 
   const renderGrupo = (titulo, lista) => `
     <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:14px 0 8px;text-transform:uppercase">${titulo} (${lista.length})</div>
-    ${lista.length ? lista.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #f1f5f9">
-        <div>
-          <div style="font-size:13px;font-weight:600;color:#1e3a5f">${c.nome}</div>
-          ${c.descricao?`<div style="font-size:11px;color:#94a3b8">${c.descricao}</div>`:''}
+    ${lista.length ? lista.map(c => `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed #f1f5f9">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:600;color:#1e3a5f;word-break:break-word">${c.nome}</div>
+          ${c.descricao?`<div style="font-size:11px;color:#94a3b8;word-break:break-word;overflow-wrap:break-word;margin-top:2px">${c.descricao}</div>`:''}
         </div>
-        <button class="btn-icon danger" onclick="excluirCompetenciaConfirm(${c.id},'${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
+        <button class="btn-icon danger" style="flex-shrink:0" onclick="excluirCompetenciaConfirm(${c.id},'${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
       </div>`).join('') : '<div style="font-size:12px;color:#cbd5e1;padding:6px 0">Nenhuma cadastrada.</div>'}
   `;
 
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharGerenciarCompetencias()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:460px">
+  <div class="modal" style="display:block;max-width:460px;max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-header"><h3>⚙️ Competências — ${_setorAtivoComp}</h3><button onclick="fecharGerenciarCompetencias()">✕</button></div>
-    <div class="modal-body">
+    <div class="modal-body" style="overflow-y:auto;flex:1">
       ${renderGrupo('🔧 Técnicas', tecnicas)}
       ${renderGrupo('🤝 Comportamentais', comportamentais)}
     </div>
