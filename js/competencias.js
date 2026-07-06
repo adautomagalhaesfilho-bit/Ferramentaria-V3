@@ -52,7 +52,7 @@ async function inicializarCompetencias() {
       background:${_categoriaAtivaComp==='Comportamental'?'#1e3a5f':'#f1f5f9'};color:${_categoriaAtivaComp==='Comportamental'?'#fff':'#64748b'}">🤝 Comportamentais</button>
   </div>
   <div id="compLoader" class="loader-inline"><div class="spinner-sm"></div><span>Carregando matriz...</span></div>
-  <div id="compConteudo" style="display:none"></div>`;
+  <div id="compConteudo" style="display:none;overflow-x:hidden;max-width:100%"></div>`;
 
   await carregarMatrizCompetencias(_setorAtivoComp);
 }
@@ -199,17 +199,17 @@ function renderizarMatrizCompetencias() {
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" style="overflow-x:hidden;max-width:100%">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">🗺️ Matriz — clique numa célula para avaliar</div>
       <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="abrirGerenciarCompetencias()">⚙️ Gerenciar Competências</button>
     </div>
-    <div class="table-wrap" style="overflow-x:auto;max-width:100%">
+    <div class="table-wrap" id="matrizScrollWrap" style="overflow-x:auto;max-width:100%;scrollbar-width:auto">
       <table style="border-collapse:separate;border-spacing:3px;table-layout:fixed">
         <thead>
           <tr>
             <th style="text-align:left;min-width:170px;width:170px;position:sticky;left:0;background:#fff;z-index:3">Funcionário</th>
-            ${competencias.map(c=>`<th style="writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;padding:10px 4px;height:130px;width:44px;min-width:44px;max-width:44px;white-space:nowrap;cursor:default;overflow:hidden" title="${c.nome}">${c.nome}</th>`).join('')}
+            ${competencias.map(c=>`<th style="writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;padding:10px 4px;height:150px;width:44px;min-width:44px;max-width:44px;white-space:normal;word-break:break-word;line-height:1.2;cursor:default" title="${c.nome}">${c.nome}</th>`).join('')}
             <th style="font-size:11px;width:60px;min-width:60px;position:sticky;right:0;background:#fff;z-index:3">Média</th>
           </tr>
         </thead>
@@ -225,7 +225,7 @@ function renderizarMatrizCompetencias() {
                 return `<td style="text-align:center;padding:0;width:44px;min-width:44px">
                   <div style="width:36px;height:36px;background:${info.bg};border:2px solid ${info.cor}40;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:800;color:${info.cor};font-size:${av && av.nivel===-1?'10px':'13px'};margin:0 auto"
                     title="${f.nome} · ${c.nome}: ${info.label}"
-                    onclick="abrirModalAvaliar('${f.nome.replace(/'/g,"\\'")}',${c.id},'${c.nome.replace(/'/g,"\\'")}')">
+                    onclick="abrirPopoverAvaliar(event,'${f.nome.replace(/'/g,"\\'")}',${c.id},'${c.nome.replace(/'/g,"\\'")}')">
                     ${textoCelula}
                   </div>
                 </td>`;
@@ -359,76 +359,87 @@ function fecharRadarFuncionario() {
 // ==========================================
 // ✏️ AVALIAR (célula da matriz)
 // ==========================================
-function abrirModalAvaliar(funcionario, competenciaId, competenciaNome) {
+// ==========================================
+// ⚡ AVALIAÇÃO RÁPIDA — Popover de 1 clique (sem modal)
+// ==========================================
+function abrirPopoverAvaliar(evt, funcionario, competenciaId, competenciaNome) {
+  evt.stopPropagation();
+  fecharPopoverAvaliar();
+
   const avAtual = _nivelAtual(funcionario, competenciaId);
+  const rect = evt.currentTarget.getBoundingClientRect();
   const div = document.createElement('div');
-  div.id = 'modalAvaliarWrap';
+  div.id = 'popoverAvaliarWrap';
+  div.style.cssText = `position:fixed;z-index:2000;top:${rect.bottom+6}px;left:${Math.min(rect.left, window.innerWidth-260)}px;
+    background:#fff;border:1px solid var(--borda);border-radius:10px;box-shadow:0 12px 32px rgba(15,30,60,0.18);
+    padding:10px;width:240px`;
+
+  const botoesNivel = _NIVEIS_COMP.map(n => `
+    <button onclick="salvarAvaliacaoRapida('${funcionario.replace(/'/g,"\\'")}',${competenciaId},${n.v})"
+      style="flex:1;min-width:38px;padding:8px 0;border-radius:6px;border:2px solid ${avAtual?.nivel===n.v?n.cor:'#e2e8f0'};
+      background:${avAtual?.nivel===n.v?n.bg:'#fff'};color:${avAtual?.nivel===n.v?n.cor:'#64748b'};font-weight:800;font-size:13px;cursor:pointer"
+      title="${n.label}">${n.v}</button>`).join('');
+
   div.innerHTML = `
-  <div class="modal-overlay" onclick="fecharModalAvaliar()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:420px">
-    <div class="modal-header"><h3>🎯 Avaliar Competência</h3><button onclick="fecharModalAvaliar()">✕</button></div>
-    <div class="modal-body">
-      <div style="font-size:13px;color:#64748b;margin-bottom:4px">Funcionário</div>
-      <div style="font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:14px">${funcionario}</div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:4px">Competência</div>
-      <div style="font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:14px">${competenciaNome}</div>
-      <label>Nível *</label>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px" id="nivelBtns">
-        ${_NIVEIS_COMP.map(n => `<label style="cursor:pointer;border:2px solid ${avAtual?.nivel===n.v?n.cor:'#e2e8f0'};background:${avAtual?.nivel===n.v?n.bg:'#fff'};border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:${avAtual?.nivel===n.v?n.cor:'#64748b'}"
-          onclick="selecionarNivelAvaliacao(${n.v})">
-          <input type="radio" name="nivelAval" value="${n.v}" ${avAtual?.nivel===n.v?'checked':''} style="display:none">
-          <b>${n.v}</b> — ${n.label}
-        </label>`).join('')}
-        <div style="border-top:1px dashed #e2e8f0;margin:4px 0"></div>
-        <label style="cursor:pointer;border:2px dashed ${avAtual?.nivel===-1?_NAO_APLICA.cor:'#e2e8f0'};background:${avAtual?.nivel===-1?_NAO_APLICA.bg:'#fff'};border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:${avAtual?.nivel===-1?'#475569':'#94a3b8'}"
-          onclick="selecionarNivelAvaliacao(-1)">
-          <input type="radio" name="nivelAval" value="-1" ${avAtual?.nivel===-1?'checked':''} style="display:none">
-          🚫 Não se aplica <span style="font-size:11px;font-weight:400">(não conta na média)</span>
-        </label>
-      </div>
-      <input type="hidden" id="nivelSelecionado" value="${avAtual?.nivel ?? ''}">
-      <div class="form-group" style="margin-top:14px">
-        <label>Observação</label>
-        <input type="text" id="avalObs" placeholder="Opcional..." value="${(avAtual?.observacao||'').replace(/"/g,'&quot;')}">
-      </div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">${funcionario}</div>
+    <div style="font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${competenciaNome}</div>
+    <div style="display:flex;gap:4px;margin-bottom:6px">${botoesNivel}</div>
+    <button onclick="salvarAvaliacaoRapida('${funcionario.replace(/'/g,"\\'")}',${competenciaId},-1)"
+      style="width:100%;padding:6px 0;border-radius:6px;border:2px dashed ${avAtual?.nivel===-1?_NAO_APLICA.cor:'#e2e8f0'};
+      background:${avAtual?.nivel===-1?_NAO_APLICA.bg:'#fff'};color:#64748b;font-weight:600;font-size:11px;cursor:pointer;margin-bottom:6px">
+      🚫 Não se aplica
+    </button>
+    <div id="popoverObsWrap" style="display:${avAtual?.observacao?'block':'none'}">
+      <input type="text" id="popoverObsInput" placeholder="Observação..." value="${(avAtual?.observacao||'').replace(/"/g,'&quot;')}"
+        style="width:100%;font-size:11px;padding:6px 8px;border:1px solid var(--borda);border-radius:6px;margin-bottom:4px">
+      <button onclick="salvarObsRapida('${funcionario.replace(/'/g,"\\'")}',${competenciaId})"
+        style="width:100%;padding:5px 0;border-radius:6px;border:none;background:var(--azul,#0056b3);color:#fff;font-size:11px;font-weight:600;cursor:pointer">Salvar observação</button>
     </div>
-    <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarAvaliacao('${funcionario.replace(/'/g,"\\'")}',${competenciaId})">💾 Salvar</button>
-      <button class="btn-secondary" onclick="fecharModalAvaliar()">Cancelar</button>
+    <div id="popoverObsLink" style="text-align:center;display:${avAtual?.observacao?'none':'block'}">
+      <a href="javascript:void(0)" onclick="document.getElementById('popoverObsWrap').style.display='block';document.getElementById('popoverObsLink').style.display='none';document.getElementById('popoverObsInput')?.focus()"
+        style="font-size:11px;color:#94a3b8;text-decoration:underline">+ observação</a>
     </div>
-  </div>`;
+  `;
   document.body.appendChild(div);
+
+  setTimeout(() => {
+    document.addEventListener('click', _fecharPopoverAoClicarFora);
+  }, 10);
 }
 
-function selecionarNivelAvaliacao(v) {
-  document.getElementById('nivelSelecionado').value = v;
-  document.querySelectorAll('#nivelBtns label').forEach(lbl => {
-    const val = parseInt(lbl.querySelector('input')?.value);
-    const info = _infoNivel(val);
-    const ativo = val === v;
-    lbl.style.borderColor = ativo ? info.cor : '#e2e8f0';
-    lbl.style.background  = ativo ? info.bg  : '#fff';
-    lbl.style.color       = ativo ? info.cor : '#64748b';
-  });
+function _fecharPopoverAoClicarFora(e) {
+  const pop = document.getElementById('popoverAvaliarWrap');
+  if (pop && !pop.contains(e.target)) fecharPopoverAvaliar();
 }
 
-async function salvarAvaliacao(funcionario, competenciaId) {
-  const nivelStr = document.getElementById('nivelSelecionado')?.value;
-  if (nivelStr === '') return toast('Selecione o nível.','erro');
-  const nivel = parseInt(nivelStr);
-  const observacao = document.getElementById('avalObs')?.value?.trim() || null;
+function fecharPopoverAvaliar() {
+  document.getElementById('popoverAvaliarWrap')?.remove();
+  document.removeEventListener('click', _fecharPopoverAoClicarFora);
+}
+
+async function salvarAvaliacaoRapida(funcionario, competenciaId, nivel) {
+  const obsInput = document.getElementById('popoverObsInput');
+  const observacao = obsInput?.value?.trim() || null;
   try {
     await db.salvarAvaliacaoCompetencia({
       funcionario, competencia_id: competenciaId, nivel, observacao,
       avaliado_por: _sessao?.nome || null
     });
-    toast('Avaliação registrada!','sucesso');
-    fecharModalAvaliar();
-    await carregarMatrizCompetencias(_setorAtivoComp);
+    // Atualiza localmente sem recarregar tudo do zero — mais rápido para preenchimento em série
+    _dadosComp.avaliacoes.unshift({
+      funcionario, competencia_id: competenciaId, nivel, observacao,
+      avaliado_por: _sessao?.nome || null, avaliado_em: new Date().toISOString()
+    });
+    fecharPopoverAvaliar();
+    renderizarMatrizCompetencias();
   } catch(e) { toast('Erro ao salvar avaliação.','erro'); console.error(e); }
 }
 
-function fecharModalAvaliar() { document.getElementById('modalAvaliarWrap')?.remove(); }
+async function salvarObsRapida(funcionario, competenciaId) {
+  const av = _nivelAtual(funcionario, competenciaId);
+  const nivel = av ? av.nivel : 0;
+  await salvarAvaliacaoRapida(funcionario, competenciaId, nivel);
+}
 
 // ==========================================
 // ➕ GERENCIAR COMPETÊNCIAS (criar/excluir)
