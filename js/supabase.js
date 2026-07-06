@@ -96,7 +96,7 @@ const db = {
     // Supervisores — aparecem como opção em todos os setores para lançamento,
     // mas são excluídos dos cálculos de ocupação/produtividade no dashboard
     const funcSupervisores = funcionarios.filter(f =>
-      f.setor === 'Supervisão' || f.cargo === 'Supervisor' || f.cargo === 'Encarregado'
+      f.setor === 'Supervisão' || f.cargo === 'Supervisor' || f.cargo === 'Encarregado' || f.cargo === 'Líder de Ferramentaria'
     ).map(f => f.nome);
 
     // Funcionários com setor extra de apontamento — pertencem oficialmente a um setor (RH/Matriz de Competência)
