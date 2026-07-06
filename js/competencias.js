@@ -3,6 +3,7 @@
 // ==========================================
 
 var _setorAtivoComp = 'Usinagem';
+var _categoriaAtivaComp = 'Técnica'; // 'Técnica' ou 'Comportamental'
 var _dadosComp = { competencias: [], funcionarios: [], avaliacoes: [] };
 var _chartsComp = {};
 var _funcSelecionadoRadar = null;
@@ -36,11 +37,19 @@ async function inicializarCompetencias() {
     <h1>🎯 Matriz de Competência</h1>
     <button class="btn-primary" onclick="abrirModalNovaCompetencia()">+ Nova Competência</button>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="compSetorTabs">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" id="compSetorTabs">
     ${_SETORES_COMP.map(s => `<button onclick="mudarSetorCompetencia('${s}')"
       style="padding:8px 18px;border-radius:20px;border:2px solid ${s===_setorAtivoComp?_CORES_SETOR_COMP[s]:'#e2e8f0'};
       background:${s===_setorAtivoComp?_CORES_SETOR_COMP[s]:'#fff'};color:${s===_setorAtivoComp?'#fff':_CORES_SETOR_COMP[s]};
       font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s" id="tabComp_${s}">${s}</button>`).join('')}
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:20px" id="compCategoriaTabs">
+    <button onclick="mudarCategoriaCompetencia('Técnica')" id="catComp_Técnica"
+      style="padding:7px 16px;border-radius:8px;border:none;font-weight:700;font-size:12px;cursor:pointer;
+      background:${_categoriaAtivaComp==='Técnica'?'#1e3a5f':'#f1f5f9'};color:${_categoriaAtivaComp==='Técnica'?'#fff':'#64748b'}">🔧 Técnicas</button>
+    <button onclick="mudarCategoriaCompetencia('Comportamental')" id="catComp_Comportamental"
+      style="padding:7px 16px;border-radius:8px;border:none;font-weight:700;font-size:12px;cursor:pointer;
+      background:${_categoriaAtivaComp==='Comportamental'?'#1e3a5f':'#f1f5f9'};color:${_categoriaAtivaComp==='Comportamental'?'#fff':'#64748b'}">🤝 Comportamentais</button>
   </div>
   <div id="compLoader" class="loader-inline"><div class="spinner-sm"></div><span>Carregando matriz...</span></div>
   <div id="compConteudo" style="display:none"></div>`;
@@ -61,6 +70,18 @@ function mudarSetorCompetencia(setor) {
   carregarMatrizCompetencias(setor);
 }
 
+function mudarCategoriaCompetencia(categoria) {
+  _categoriaAtivaComp = categoria;
+  ['Técnica','Comportamental'].forEach(c => {
+    const btn = document.getElementById('catComp_'+c);
+    if (!btn) return;
+    const ativo = c === categoria;
+    btn.style.background = ativo ? '#1e3a5f' : '#f1f5f9';
+    btn.style.color      = ativo ? '#fff' : '#64748b';
+  });
+  carregarMatrizCompetencias(_setorAtivoComp);
+}
+
 // ==========================================
 // 📊 CARREGAR DADOS DA MATRIZ
 // ==========================================
@@ -71,10 +92,12 @@ async function carregarMatrizCompetencias(setor) {
   if (conteudo) conteudo.style.display = 'none';
 
   try {
-    const [competencias, todosFuncionarios] = await Promise.all([
+    const [todasCompetencias, todosFuncionarios] = await Promise.all([
       db.listarCompetencias(setor),
       db.listarFuncionarios()
     ]);
+
+    const competencias = (todasCompetencias||[]).filter(c => (c.categoria || 'Técnica') === _categoriaAtivaComp);
 
     const setorMapeado = setor === 'Produção' ? ['Producao','Produção'] : [setor];
     const funcionarios = (todosFuncionarios||[]).filter(f =>
@@ -82,10 +105,10 @@ async function carregarMatrizCompetencias(setor) {
       f.setor !== 'Supervisão' && f.cargo !== 'Supervisor' && f.cargo !== 'Encarregado'
     ).sort((a,b)=>a.nome.localeCompare(b.nome));
 
-    const idsCompetencias = (competencias||[]).map(c=>c.id);
+    const idsCompetencias = competencias.map(c=>c.id);
     const avaliacoes = await db.listarAvaliacoesPorCompetencias(idsCompetencias);
 
-    _dadosComp = { competencias: competencias||[], funcionarios, avaliacoes: avaliacoes||[] };
+    _dadosComp = { competencias: competencias||[], todasCompetencias: todasCompetencias||[], funcionarios, avaliacoes: avaliacoes||[] };
     renderizarMatrizCompetencias();
   } catch(e) {
     console.error(e);
@@ -114,7 +137,7 @@ function renderizarMatrizCompetencias() {
   if (!competencias.length) {
     el.innerHTML = `<div class="empty-state">
       <div style="font-size:48px">🎯</div>
-      <div>Nenhuma competência cadastrada para ${_setorAtivoComp}.</div>
+      <div>Nenhuma competência ${_categoriaAtivaComp==='Técnica'?'técnica':'comportamental'} cadastrada para ${_setorAtivoComp}.</div>
       <div style="margin-top:12px"><button class="btn-primary" onclick="abrirModalNovaCompetencia()">+ Cadastrar primeira competência</button></div>
     </div>`;
     return;
@@ -419,7 +442,17 @@ function abrirModalNovaCompetencia() {
   <div class="modal" style="display:block;max-width:440px">
     <div class="modal-header"><h3>+ Nova Competência — ${_setorAtivoComp}</h3><button onclick="fecharModalNovaCompetencia()">✕</button></div>
     <div class="modal-body">
-      <div class="form-group"><label>Nome da Competência *</label><input type="text" id="novaCompNome" placeholder="Ex: Operação CNC, Troca de Copo..."></div>
+      <div class="form-group"><label>Categoria *</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <label style="flex:1;cursor:pointer;border:2px solid ${_categoriaAtivaComp==='Técnica'?'#1e3a5f':'#e2e8f0'};background:${_categoriaAtivaComp==='Técnica'?'#f1f5f9':'#fff'};border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600">
+            <input type="radio" name="novaCompCategoria" value="Técnica" ${_categoriaAtivaComp==='Técnica'?'checked':''}> 🔧 Técnica
+          </label>
+          <label style="flex:1;cursor:pointer;border:2px solid ${_categoriaAtivaComp==='Comportamental'?'#1e3a5f':'#e2e8f0'};background:${_categoriaAtivaComp==='Comportamental'?'#f1f5f9':'#fff'};border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600">
+            <input type="radio" name="novaCompCategoria" value="Comportamental" ${_categoriaAtivaComp==='Comportamental'?'checked':''}> 🤝 Comportamental
+          </label>
+        </div>
+      </div>
+      <div class="form-group"><label>Nome da Competência *</label><input type="text" id="novaCompNome" placeholder="Ex: Operação CNC, Trabalho em Equipe..."></div>
       <div class="form-group"><label>Descrição</label><input type="text" id="novaCompDesc" placeholder="Opcional..."></div>
     </div>
     <div class="modal-footer">
@@ -433,9 +466,10 @@ function abrirModalNovaCompetencia() {
 async function salvarNovaCompetencia() {
   const nome = document.getElementById('novaCompNome')?.value?.trim();
   const descricao = document.getElementById('novaCompDesc')?.value?.trim() || null;
+  const categoria = document.querySelector('input[name="novaCompCategoria"]:checked')?.value || 'Técnica';
   if (!nome) return toast('Informe o nome da competência.','erro');
   try {
-    await db.salvarCompetencia({ setor: _setorAtivoComp, nome, descricao, ativo: true });
+    await db.salvarCompetencia({ setor: _setorAtivoComp, nome, descricao, categoria, ativo: true });
     toast('Competência adicionada!','sucesso');
     fecharModalNovaCompetencia();
     await carregarMatrizCompetencias(_setorAtivoComp);
@@ -447,19 +481,28 @@ function fecharModalNovaCompetencia() { document.getElementById('modalNovaCompWr
 function abrirGerenciarCompetencias() {
   const div = document.createElement('div');
   div.id = 'modalGerCompWrap';
-  const lista = _dadosComp.competencias;
+  const todas = _dadosComp.todasCompetencias || [];
+  const tecnicas = todas.filter(c => (c.categoria||'Técnica') === 'Técnica');
+  const comportamentais = todas.filter(c => c.categoria === 'Comportamental');
+
+  const renderGrupo = (titulo, lista) => `
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:14px 0 8px;text-transform:uppercase">${titulo} (${lista.length})</div>
+    ${lista.length ? lista.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #f1f5f9">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#1e3a5f">${c.nome}</div>
+          ${c.descricao?`<div style="font-size:11px;color:#94a3b8">${c.descricao}</div>`:''}
+        </div>
+        <button class="btn-icon danger" onclick="excluirCompetenciaConfirm(${c.id},'${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
+      </div>`).join('') : '<div style="font-size:12px;color:#cbd5e1;padding:6px 0">Nenhuma cadastrada.</div>'}
+  `;
+
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharGerenciarCompetencias()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px">
     <div class="modal-header"><h3>⚙️ Competências — ${_setorAtivoComp}</h3><button onclick="fecharGerenciarCompetencias()">✕</button></div>
     <div class="modal-body">
-      ${lista.length ? lista.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #f1f5f9">
-          <div>
-            <div style="font-size:13px;font-weight:600;color:#1e3a5f">${c.nome}</div>
-            ${c.descricao?`<div style="font-size:11px;color:#94a3b8">${c.descricao}</div>`:''}
-          </div>
-          <button class="btn-icon danger" onclick="excluirCompetenciaConfirm(${c.id},'${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
-        </div>`).join('') : '<div class="empty-msg">Nenhuma competência cadastrada.</div>'}
+      ${renderGrupo('🔧 Técnicas', tecnicas)}
+      ${renderGrupo('🤝 Comportamentais', comportamentais)}
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="fecharGerenciarCompetencias();abrirModalNovaCompetencia()">+ Nova</button>
