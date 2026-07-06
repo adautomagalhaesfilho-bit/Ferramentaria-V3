@@ -258,6 +258,70 @@ function fecharModalConf() {
   document.getElementById('modalConf').style.display = 'none';
   _excluirCallback = null;
 }
+
+// ==========================================
+// 🔑 TROCAR SENHA
+// ==========================================
+function abrirTrocaSenha() {
+  const div = document.createElement('div');
+  div.id = 'modalTrocaSenhaWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharTrocaSenha()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:420px">
+    <div class="modal-header"><h3>🔑 Trocar Senha</h3><button onclick="fecharTrocaSenha()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Senha Atual *</label><input type="password" id="tsSenhaAtual" placeholder="Digite sua senha atual"></div>
+      <div class="form-group"><label>Nova Senha *</label><input type="password" id="tsSenhaNova" placeholder="Mínimo 4 caracteres"></div>
+      <div class="form-group"><label>Confirmar Nova Senha *</label><input type="password" id="tsSenhaConfirma" placeholder="Repita a nova senha"
+        onkeydown="if(event.key==='Enter') salvarTrocaSenha()"></div>
+      <div id="tsErro" style="display:none;background:#fee2e2;border:1px solid #fecaca;color:#dc2626;padding:10px 12px;border-radius:8px;font-size:12px;margin-top:6px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" id="btnSalvarTrocaSenha" onclick="salvarTrocaSenha()">💾 Salvar Nova Senha</button>
+      <button class="btn-secondary" onclick="fecharTrocaSenha()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  setTimeout(() => document.getElementById('tsSenhaAtual')?.focus(), 50);
+}
+
+function fecharTrocaSenha() {
+  document.getElementById('modalTrocaSenhaWrap')?.remove();
+}
+
+function _mostrarErroTrocaSenha(msg) {
+  const el = document.getElementById('tsErro');
+  if (el) { el.innerText = msg; el.style.display = 'block'; }
+}
+
+async function salvarTrocaSenha() {
+  const atual    = document.getElementById('tsSenhaAtual')?.value || '';
+  const nova     = document.getElementById('tsSenhaNova')?.value || '';
+  const confirma = document.getElementById('tsSenhaConfirma')?.value || '';
+  const errEl = document.getElementById('tsErro');
+  if (errEl) errEl.style.display = 'none';
+
+  if (!atual || !nova || !confirma) return _mostrarErroTrocaSenha('Preencha todos os campos.');
+  if (nova.length < 4) return _mostrarErroTrocaSenha('A nova senha deve ter pelo menos 4 caracteres.');
+  if (nova !== confirma) return _mostrarErroTrocaSenha('A nova senha e a confirmação não coincidem.');
+  if (!_sessao?.id) return _mostrarErroTrocaSenha('Sessão inválida. Faça login novamente.');
+
+  const btn = document.getElementById('btnSalvarTrocaSenha');
+  if (btn) { btn.disabled = true; btn.innerText = 'Salvando...'; }
+  try {
+    const res = await db.trocarPropriaSenha(_sessao.id, atual, nova);
+    if (!res.ok) {
+      _mostrarErroTrocaSenha('Senha atual incorreta.');
+    } else {
+      toast('Senha atualizada com sucesso!', 'sucesso');
+      fecharTrocaSenha();
+    }
+  } catch(e) {
+    _mostrarErroTrocaSenha('Erro ao trocar senha. Tente novamente.');
+    console.error(e);
+  }
+  if (btn) { btn.disabled = false; btn.innerText = '💾 Salvar Nova Senha'; }
+}
 function executarExclusao() {
   const cb = _excluirCallback;
   fecharModalConf();
