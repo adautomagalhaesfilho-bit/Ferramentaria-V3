@@ -382,6 +382,19 @@ const db = {
     return await db._post('usuarios', payload);
   },
 
+  // Troca a própria senha — exige a senha atual correta antes de atualizar
+  trocarPropriaSenha: async function(userId, senhaAtual, senhaNova) {
+    const res = await db._get('usuarios', 'id=eq.' + userId, 'id,senha');
+    if (!res || !res.length) throw new Error('Usuário não encontrado.');
+    const hashAtualDigitada = await hashSenha(senhaAtual);
+    if (hashAtualDigitada !== res[0].senha) {
+      return { ok: false, motivo: 'senha_atual_incorreta' };
+    }
+    const novoHash = await hashSenha(senhaNova);
+    await db._patch('usuarios', 'id=eq.' + userId, { senha: novoHash });
+    return { ok: true };
+  },
+
   excluirUsuario: async function(id) {
     return await db._delete('usuarios', 'id=eq.' + id);
   },
