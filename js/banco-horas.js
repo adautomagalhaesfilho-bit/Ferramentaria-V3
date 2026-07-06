@@ -73,7 +73,7 @@ async function sincronizarHorasExtras() {
     (lancamentos||[]).forEach(l => {
       const f = (funcionarios||[]).find(fn=>fn.nome===l.funcionario);
       if (!f) return;
-      if (f.setor === 'Supervisão' || f.cargo === 'Supervisor' || f.cargo === 'Encarregado') return;
+      if (f.setor === 'Supervisão' || f.cargo === 'Supervisor' || f.cargo === 'Encarregado' || f.cargo === 'Líder de Ferramentaria') return;
       const turno = f.turno || '5x2';
       if (typeof funcTrabalhaEmDia !== 'function') return;
       if (funcTrabalhaEmDia(turno, l.data, feriadosArr)) return; // dia normal, não é hora extra
