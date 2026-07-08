@@ -432,6 +432,9 @@ function _criarCardPCM(m, info) {
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button onclick="abrirModalPendencias('${jobEsc}')"
           style="background:#fefce8;border:1px solid #fde68a;color:#92400e;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">✅ Pendências</button>
+        ${typeof podeRegistrarIntervencao === 'function' && podeRegistrarIntervencao() ? `
+        <button onclick="abrirModalIntervencao('${jobEsc}')"
+          style="background:#f0fdf4;border:1px solid #bbf7d0;color:#059669;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">🛠️ Intervenção</button>` : ''}
         <button onclick="abrirModalHistoricoLoc('${jobEsc}')"
           style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">📋 Histórico</button>
         <button onclick="gerarQRCode('${jobEsc}')"
