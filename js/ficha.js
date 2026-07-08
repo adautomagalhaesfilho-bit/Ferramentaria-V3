@@ -23,17 +23,19 @@ async function buscarFicha() {
   elConteudo.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando ficha...</span></div>';
   elConteudo.style.display = 'block';
   try {
-    const [res, localizacao, pendencias, histLoc, prodLancs] = await Promise.all([
+    const [res, localizacao, pendencias, histLoc, prodLancs, intervencoes] = await Promise.all([
       db.buscarFicha(job),
       db.buscarLocalizacao(job),
       db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(()=>[]),
       db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(()=>[]),
-      db._get('prod_lancamentos', 'molde=eq.' + encodeURIComponent(job) + '&order=data.asc', '*').catch(()=>[])
+      db._get('prod_lancamentos', 'molde=eq.' + encodeURIComponent(job) + '&order=data.asc', '*').catch(()=>[]),
+      db.listarIntervencoesPorJob(job).catch(()=>[])
     ]);
     res.localizacao  = localizacao;
     res.pendencias   = pendencias  || [];
     res.histLoc      = histLoc     || [];
     res.prodLancamentos = prodLancs || [];
+    res.intervencoes = intervencoes || [];
 
     // Histórico de alterações administrativas — só Admin
     res.logsAlteracao = [];
@@ -49,7 +51,7 @@ async function buscarFicha() {
     _lancsFicha     = res.lancamentos || [];
     _lancsProdFicha = res.prodLancamentos || [];
 
-    if (!_lancsFicha.length && !_lancsProdFicha.length) {
+    if (!_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length) {
       elConteudo.style.display = 'none';
       elVazio.style.display    = 'block';
       elVazio.innerHTML = '<div style="font-size:48px">🔍</div><div>Nenhum lançamento para "' + job + '"</div>';
@@ -183,6 +185,16 @@ function renderizarFicha(job, res) {
     <div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:16px">📜 Histórico de Alterações Administrativas (Admin)</div>
     ${typeof renderizarHistoricoItemHTML === 'function' ? renderizarHistoricoItemHTML(logsAlteracao) : '<div style="color:#94a3b8;font-size:12px">Indisponível.</div>'}
   </div>` : ''}
+
+  <div class="card" style="border-left:4px solid #059669">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="font-weight:700;color:#1e3a5f;font-size:15px">🛠️ Histórico de Intervenções</div>
+      ${typeof podeRegistrarIntervencao === 'function' && podeRegistrarIntervencao()
+        ? `<button class="btn-success" style="font-size:12px;padding:6px 14px" onclick="abrirModalIntervencao('${job.replace(/'/g,"\\'")}')">+ Registrar Intervenção</button>`
+        : ''}
+    </div>
+    <div id="fichaIntervencoes">${typeof renderizarIntervencoesHTML==='function' ? renderizarIntervencoesHTML(res.intervencoes||[], job) : ''}</div>
+  </div>
 
   <div class="card">
     <div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:16px">📅 Linha do Tempo</div>
