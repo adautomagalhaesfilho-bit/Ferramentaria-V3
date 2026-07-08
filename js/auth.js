@@ -32,6 +32,7 @@ function _temPermissao(key) {
     admin:      ['admin'],
     editar:     ['supervisor','gestor','admin'],
     competencias: ['supervisor','gestor','admin'],
+    intervencoes: ['supervisor','gestor','pcm','admin'],
   };
   return !!_PERM_PADRAO[key]?.includes(_sessao.perfil);
 }
