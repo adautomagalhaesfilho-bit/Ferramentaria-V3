@@ -431,6 +431,17 @@ const db = {
     return !!(res && res.length > 0);
   },
 
+  listarIntervencoesPorJob: async function(job) {
+    return await db._get('molde_intervencoes', 'job=eq.' + encodeURIComponent(job) + '&order=data.desc,criado_em.desc', '*');
+  },
+  salvarIntervencao: async function(dados) {
+    if (dados.id) return await db._patch('molde_intervencoes', 'id=eq.' + dados.id, dados);
+    return await db._post('molde_intervencoes', dados);
+  },
+  excluirIntervencao: async function(id) {
+    return await db._delete('molde_intervencoes', 'id=eq.' + id);
+  },
+
   listarCompetencias: async function(setor) {
     let filtro = 'ativo=eq.true&order=nome.asc';
     if (setor) filtro = 'setor=eq.' + encodeURIComponent(setor) + '&' + filtro;
