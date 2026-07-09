@@ -189,12 +189,12 @@ function abrirFormFuncionario() {
   div.id = 'modalFuncWrap';
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalFunc()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:560px">
+  <div class="modal" style="display:flex;flex-direction:column;max-width:560px;max-height:85vh">
     <div class="modal-header">
       <h3>👤 Novo Funcionário</h3>
       <button onclick="fecharModalFunc()">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="overflow-y:auto;flex:1">
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label>Nome Completo *</label>
@@ -501,12 +501,12 @@ function abrirEdicaoFuncionario(f) {
   div.id = 'modalEditFuncWrap';
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharEdicaoFunc()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:560px">
+  <div class="modal" style="display:flex;flex-direction:column;max-width:560px;max-height:85vh">
     <div class="modal-header">
       <h3>✏️ Editar — ${f.nome}</h3>
       <button onclick="fecharEdicaoFunc()">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="overflow-y:auto;flex:1">
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label>Nome Completo *</label>
