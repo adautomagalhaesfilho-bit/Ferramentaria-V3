@@ -567,28 +567,48 @@ async function enviarWhatsapp() {
   } else if (_setorAtivo==='Bancada') {
     t=`🛠️ *RELATÓRIO DIÁRIO — BANCADA*\n📅 ${diaSem}, ${dataBR}\n\n`;
     const grupos={};
+    const minutosPorMestra = {};
     _dadosApontamentos.forEach(i => {
       const mestra=((_listas?.mapaBancada||{})[i.tipo]||i.tipo||'Outros');
       if (!grupos[mestra]) grupos[mestra]={};
       if (!grupos[mestra][i.tipo]) grupos[mestra][i.tipo]=[];
       const chave = `${i.job||''}|${i.horaInicio||''}|${i.horaFim||''}|${i.descricao||''}`;
       const existente = grupos[mestra][i.tipo].find(x=>x._chave===chave);
-      if (existente) { existente._tecnicos.push(i.funcionario); }
-      else grupos[mestra][i.tipo].push({ ...i, _chave:chave, _tecnicos:[i.funcionario] });
+      if (existente) {
+        existente._tecnicos.push(i.funcionario);
+      } else {
+        grupos[mestra][i.tipo].push({ ...i, _chave:chave, _tecnicos:[i.funcionario] });
+        // Soma minutos só uma vez por lançamento agrupado (evita contar o mesmo serviço 2x por causa de múltiplos técnicos)
+        minutosPorMestra[mestra] = (minutosPorMestra[mestra]||0) + (i.minutos||0);
+      }
     });
+
     Object.keys(grupos).forEach(mestra => {
-      t+=sep+'\n📍 *'+mestra.toUpperCase()+'*\n\n';
+      t+=sep+'\n 📍 '+mestra.toUpperCase()+'\n'+sep+'\n';
       Object.keys(grupos[mestra]).forEach(tipo => {
         t+='→ '+tipo.toUpperCase()+'\n';
         grupos[mestra][tipo].forEach(i => {
-          t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ${icoStatus(i.status)} ${i.status||''}\n`;
-          t+=`  👤 ${i._tecnicos.join(', ')}`;
-          if (i.trocaCopo===true||i.trocaCopo==='true') t+=`\n  🔄 *Troca de Copo:* ${i.tipoCopo||'—'}${i.descricaoCopo?' — '+i.descricaoCopo:''}`;
+          const ehServico = i.job && (i.job.toUpperCase().startsWith('SV') || i.job.toUpperCase().startsWith('S/'));
+          const label = i.job ? (ehServico ? i.job : 'Molde: '+i.job) : (i.tipo||'').toUpperCase();
+          t+=`🛠️ ${label}  → ${icoStatus(i.status)} ${i.status||''}\n`;
+          t+=`👤 ${i._tecnicos.join(' / ')}\n`;
+          t+=`📝 ATIVIDADES: ${i.descricao||''}\n`;
+          if (i.trocaCopo===true||i.trocaCopo==='true') t+=`🔄 *Troca de Copo:* ${i.tipoCopo||'—'}${i.descricaoCopo?' — '+i.descricaoCopo:''}\n`;
           t+='\n';
         });
-        t+='\n';
       });
     });
+
+    // Resumo percentual por categoria mestra, baseado no tempo total do dia
+    const totalMinDia = Object.values(minutosPorMestra).reduce((a,b)=>a+b,0);
+    if (totalMinDia > 0) {
+      const resumoOrdenado = Object.entries(minutosPorMestra).sort((a,b)=>b[1]-a[1]);
+      t += sep+'\n📊 *RESUMO DO DIA — % POR ATIVIDADE*\n'+sep+'\n';
+      resumoOrdenado.forEach(([mestra, mins]) => {
+        const pct = Math.round(mins/totalMinDia*100);
+        t += `${mestra}: ${pct}%\n`;
+      });
+    }
   } else {
     t=`🎯 *RELATÓRIO DE PROJETOS*\n📅 ${diaSem}, ${dataBR}\n${sep}\n`;
     const areas={};
