@@ -152,9 +152,6 @@ function inicializarAutocompletes() {
   setupAC('fichaJobInput',        'fichaJobList',        jobs);
   setupAC('histJob',              'histJobList',         jobs);
   setupAC('prodFormMolde',        'prodFormMoldeList',   jobs);
-  setupAC('formTipoBancadaInput', 'formTipoBancadaList', _listas.tiposBancada || [], val => {
-    document.getElementById('formTipoBancada').value = val;
-  });
 
   // Busca de funcionário na página da Ficha do Funcionário
   const nomesFuncionarios = [...new Set([
@@ -221,28 +218,9 @@ function fecharModalFormProd() {
   if (o) { o.classList.remove('aberto'); document.body.style.overflow = ''; }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Fecha o modal apenas em clique REAL fora dele — não em arrastos de seleção de texto
-  // que terminam fora da caixa (mousedown dentro + mouseup fora não deve fechar).
-  let _mouseDownAlvoForm = null;
-  let _mouseDownAlvoProd = null;
-
-  const o = document.getElementById('modalFormOverlay');
-  if (o) {
-    o.addEventListener('mousedown', e => { _mouseDownAlvoForm = e.target; });
-    o.addEventListener('click', e => {
-      if (e.target === o && _mouseDownAlvoForm === o) fecharModalForm();
-    });
-  }
-
-  const op = document.getElementById('modalFormProdOverlay');
-  if (op) {
-    op.addEventListener('mousedown', e => { _mouseDownAlvoProd = e.target; });
-    op.addEventListener('click', e => {
-      if (e.target === op && _mouseDownAlvoProd === op) cancelarFormProducao();
-    });
-  }
-});
+// Os modais de lançamento (Usinagem/Bancada/Projeto e Produção) NÃO fecham mais
+// ao clicar fora — operadores estavam perdendo informações digitadas ao clicar
+// sem querer fora da área do formulário. Fecham só pelo X ou botão Cancelar.
 
 // ==========================================
 // 🗑️ MODAL CONFIRMAÇÃO
