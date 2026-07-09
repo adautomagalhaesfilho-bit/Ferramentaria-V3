@@ -6,6 +6,7 @@ var _setorAtivo = 'Usinagem';
 var _dadosApontamentos = [];
 var _statusForm = null;
 var _tecnicosSelecionados = [];
+var _tecnicosOriginaisIds = null; // usado ao editar grupo de Bancada — [{nome,id}]
 
 function abrirSetor(tela) {
   const mapa = { usinagem:'Usinagem', bancada:'Bancada', projeto:'Projeto' };
@@ -139,6 +140,7 @@ function abrirNovoApontamento() {
   document.getElementById('formSetor').value = _setorAtivo;
   _statusForm = null;
   _tecnicosSelecionados = [];
+  _tecnicosOriginaisIds = null;
   resetarForm();
   configurarCamposForm(_setorAtivo);
   carregarFuncionariosForm(_setorAtivo);
@@ -154,9 +156,28 @@ async function editarApontamento(idx) {
   document.getElementById('formId').value    = item.id;
   document.getElementById('formSetor').value = _setorAtivo;
   _statusForm = item.status || 'Em andamento';
-  _tecnicosSelecionados = [item.funcionario];
+  _tecnicosOriginaisIds = null;
+
+  // Calcula o grupo de técnicos (Bancada) antes, mas só ATRIBUI depois de
+  // resetarForm()/configurarCamposForm(), pois ambos zeram _tecnicosSelecionados
+  let novosTecnicos, novosIds = null;
+  if (_setorAtivo === 'Bancada') {
+    const chaveGrupo = l => `${l.job||''}|${l.tipo||''}|${l.horaInicio||''}|${l.horaFim||''}|${l.descricao||''}`;
+    const chave = chaveGrupo(item);
+    const grupo = _dadosApontamentos.filter(l => chaveGrupo(l) === chave);
+    novosTecnicos = grupo.map(g => g.funcionario);
+    novosIds = grupo.map(g => ({ nome: g.funcionario, id: g.id }));
+  } else {
+    novosTecnicos = [item.funcionario];
+  }
+
   resetarForm();
   configurarCamposForm(_setorAtivo);
+
+  _tecnicosSelecionados = novosTecnicos;
+  _tecnicosOriginaisIds = novosIds;
+  _renderizarTecnicosSelecionados();
+
   await carregarFuncionariosForm(_setorAtivo);
   document.getElementById('formData').value = item.data || '';
   await new Promise(r => setTimeout(r, 50));
@@ -169,8 +190,7 @@ async function editarApontamento(idx) {
     document.getElementById('formTempoAuto').value = item.tempoAuto  || '';
     document.getElementById('formAlmoco').checked  = !!item.descontaAlmoco;
   } else if (_setorAtivo==='Bancada') {
-    document.getElementById('formTipoBancadaInput').value = item.tipo || '';
-    document.getElementById('formTipoBancada').value      = item.tipo || '';
+    setSelect('formTipoBancada', item.tipo);
     document.getElementById('formHrIni').value = item.horaInicio || '';
     document.getElementById('formHrFim').value = item.horaFim    || '';
     const chkCopo = document.getElementById('formTrocaCopo');
@@ -183,7 +203,6 @@ async function editarApontamento(idx) {
     else if (item.tipoCopo === 'Embuchado') { const r=document.getElementById('formTipoCopoEmb'); if(r) r.checked=true; }
     const elDescCopo = document.getElementById('formDescCopo');
     if (elDescCopo) elDescCopo.value = item.descricaoCopo || '';
-    _tecnicosSelecionados = [item.funcionario];
     _renderizarTecnicosSelecionados();
   } else {
     setSelect('formArea', item.area);
@@ -273,8 +292,30 @@ async function salvarForm() {
       document.getElementById('formData').value = data;
       _statusForm = null; atualizarBotoesStatus();
     } else {
-      await db.atualizarLancamento(id, dados);
-      toast('Lançamento atualizado!','sucesso');
+      if (setor === 'Bancada' && _tecnicosOriginaisIds && _tecnicosOriginaisIds.length) {
+        // Edição de um grupo de Bancada com (possivelmente) múltiplos técnicos:
+        // atualiza quem continua, exclui quem foi removido, cria quem foi adicionado
+        const nomesAtuais = _tecnicosSelecionados;
+        const nomesOriginais = _tecnicosOriginaisIds.map(t => t.nome);
+
+        for (const orig of _tecnicosOriginaisIds) {
+          if (nomesAtuais.includes(orig.nome)) {
+            await db.atualizarLancamento(orig.id, { ...dados, funcionario: orig.nome });
+          } else {
+            await db.excluirLancamento(orig.id);
+          }
+        }
+        for (const nome of nomesAtuais) {
+          if (!nomesOriginais.includes(nome)) {
+            await db.salvarLancamento({ ...dados, funcionario: nome, trocaCopo:false, tipoCopo:null, descricaoCopo:null });
+          }
+        }
+        toast('Lançamento atualizado!','sucesso');
+      } else {
+        await db.atualizarLancamento(id, dados);
+        toast('Lançamento atualizado!','sucesso');
+      }
+      _tecnicosOriginaisIds = null;
       fecharModalForm();
     }
     const dt   = document.getElementById('apontData')?.value;
@@ -400,6 +441,7 @@ function configurarCamposForm(setor) {
     montarSelect('formTipoUsina', _listas.tipos||[]);
     montarSelect('formMotivo', _listas.motivos||[], 'Nenhum');
   } else if (setor==='Bancada') {
+    montarSelect('formTipoBancada', _listas.tiposBancada||[]);
     const sel = document.getElementById('formFuncBancada');
     if (sel) {
       sel.innerHTML = '<option value="">+ Adicionar técnico...</option>' +
@@ -479,7 +521,7 @@ function atualizarBotoesStatus() {
 }
 
 function resetarForm() {
-  ['formData','formFunc','formMaq','formTipoUsina','formMotivo','formTipoBancadaInput',
+  ['formData','formFunc','formMaq','formTipoUsina','formMotivo',
    'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim',
    'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada']
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
