@@ -95,6 +95,10 @@
           <span class="menu-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
           <span class="menu-txt">Feriados / RH</span>
         </div>
+        <div class="menu-item" id="menuProgramacaoFerias" onclick="irPara('programacaoFerias', this)">
+          <span class="menu-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg></span>
+          <span class="menu-txt">Programação de Férias</span>
+        </div>
         <div class="menu-item" id="menuUsuarios" onclick="irPara('usuarios', this)">
           <span class="menu-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
           <span class="menu-txt">Usuários</span>
@@ -374,6 +378,11 @@
       <div id="painelParciais" class="painel-rh"></div>
       <div id="painelBancoHoras" class="painel-rh"></div>
       <div id="painelCargos" class="painel-rh"></div>
+    </div>
+
+    <!-- PROGRAMAÇÃO DE FÉRIAS -->
+    <div class="tela" id="telaFeriasCalendario">
+      <div id="telaProgramacaoFerias"></div>
     </div>
 
     <!-- MATRIZ DE COMPETÊNCIA -->
@@ -718,6 +727,7 @@
 <script src="js/banco-horas.js?v=1"></script>
 <script src="js/competencias.js?v=1"></script>
 <script src="js/intervencoes.js?v=1"></script>
+<script src="js/ferias-calendario.js?v=1"></script>
 <script src="js/ficha-injetora.js?v=1"></script>
 <script src="js/ficha-funcionario.js?v=1"></script>
 <script src="js/app.js?v=2"></script>
