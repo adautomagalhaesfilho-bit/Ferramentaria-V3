@@ -82,23 +82,21 @@ function renderizarApontamentos() {
     const grupos = {};
     dados.forEach(item => {
       const chave = `${item.job||''}|${item.tipo||''}|${item.horaInicio||''}|${item.horaFim||''}|${item.descricao||''}`;
-      if (!grupos[chave]) grupos[chave] = { ...item, _tecnicos:[item.funcionario], _ids:[item.id], _idxs:[] };
+      if (!grupos[chave]) grupos[chave] = { ...item, _tecnicos:[item.funcionario], _ids:[item.id] };
       else { grupos[chave]._tecnicos.push(item.funcionario); grupos[chave]._ids.push(item.id); }
-    });
-    dados.forEach((item, idx) => {
-      const chave = `${item.job||''}|${item.tipo||''}|${item.horaInicio||''}|${item.horaFim||''}|${item.descricao||''}`;
-      grupos[chave]._idxs.push(idx);
     });
     linhas = Object.values(grupos);
   }
 
   tbody.innerHTML = linhas.map(item => {
-    const origIdx = _setorAtivo==='Bancada' ? item._idxs[0] : _dadosApontamentos.indexOf(item);
     const cor = corStatus(item.status);
     const ico = icoStatus(item.status);
     const stTxt = `<span style="color:${cor};font-weight:600;font-size:12px">${ico} ${item.status||'Em andamento'}</span>`;
+    // Usa sempre o ID real do lançamento para localizar o item a editar — nunca uma posição de
+    // array, que fica incorreta assim que um filtro é aplicado (ex: filtro por funcionário)
+    const idEditar = _setorAtivo==='Bancada' ? item._ids[0] : item.id;
     const acoes = podeEditar()
-      ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarApontamento(${origIdx})">✏️</button>
+      ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarApontamentoPorId(${idEditar})">✏️</button>
          <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${_setorAtivo==='Bancada'?JSON.stringify(item._ids||[item.id]).replace(/"/g,"'"):item.id})">🗑️</button>`
       : '';
 
@@ -148,6 +146,14 @@ function abrirNovoApontamento() {
   document.getElementById('tituloForm').innerText = 'Novo Lançamento — ' + _setorAtivo;
   document.getElementById('btnSalvarForm').innerText = '💾 Salvar Lançamento';
   abrirModalForm();
+}
+
+// Resolve o índice correto em _dadosApontamentos pelo ID real do lançamento —
+// evita editar o item errado quando um filtro (ex: por funcionário) está aplicado
+function editarApontamentoPorId(id) {
+  const idx = _dadosApontamentos.findIndex(l => l.id === id);
+  if (idx === -1) return toast('Lançamento não encontrado.','erro');
+  editarApontamento(idx);
 }
 
 async function editarApontamento(idx) {
@@ -255,6 +261,16 @@ function _adicionarTecnico() {
   _tecnicosSelecionados.push(val);
   sel.selectedIndex = 0;
   _renderizarTecnicosSelecionados();
+
+  // Auto-preenchimento: busca o último apontamento desse técnico na Bancada
+  // e preenche a Hora Início se ainda estiver vazia (e for do mesmo dia)
+  const hrIniEl = document.getElementById('formHrIni');
+  const data = document.getElementById('formData')?.value;
+  if (hrIniEl && !hrIniEl.value && data) {
+    db.buscarUltimoApontamento(val, data, 'Bancada').then(res => {
+      if (res.horaFim && !hrIniEl.value) hrIniEl.value = res.horaFim;
+    }).catch(()=>{});
+  }
 }
 
 function _removerTecnico(idx) {
