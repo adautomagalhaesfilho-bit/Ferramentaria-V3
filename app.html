@@ -185,7 +185,7 @@
       <div id="wppArea" style="display:none" class="card">
         <label style="color:#059669;font-weight:600;font-size:12px">OBSERVAÇÕES PARA O RELATÓRIO</label>
         <div style="display:flex;gap:10px;margin-top:8px">
-          <textarea id="wppObs" rows="2" style="flex:1;resize:vertical"></textarea>
+          <textarea id="wppObs" rows="4" style="flex:1;resize:vertical;min-height:90px"></textarea>
           <button class="btn-wpp" onclick="enviarWhatsapp()">💬 Enviar Relatório</button>
         </div>
       </div>
@@ -574,7 +574,7 @@
       <!-- 10. DESCRIÇÃO -->
       <div class="form-group">
         <label>Descrição *</label>
-        <textarea id="formDesc" rows="3" placeholder="Descreva o que foi feito..."></textarea>
+        <textarea id="formDesc" rows="6" style="resize:vertical;min-height:120px" placeholder="Descreva o que foi feito..."></textarea>
       </div>
 
       <button class="btn-primary btn-full" id="btnSalvarForm" onclick="salvarForm()">💾 Salvar Lançamento</button>
@@ -625,13 +625,13 @@
         </div>
         <div class="form-group"><label>Atividade</label><select id="prodFormAtividade"><option value="">Selecione o tipo primeiro...</option></select></div>
       </div>
-      <div class="form-group"><label>Descrição da Ação Realizada</label><textarea id="prodFormDesc" rows="3" placeholder="Descreva o trabalho realizado..."></textarea></div>
+      <div class="form-group"><label>Descrição da Ação Realizada</label><textarea id="prodFormDesc" rows="6" style="resize:vertical;min-height:120px" placeholder="Descreva o trabalho realizado..."></textarea></div>
       <div class="form-row" style="gap:24px;align-items:center">
         <label class="checkbox-label flag-maquina-parada"><input type="checkbox" id="prodFormMaqParada"> 🔴 Máquina Parada <span class="badge-nao-planejada">não planejada</span></label>
         <label class="checkbox-label"><input type="checkbox" id="prodFormTemOS" onchange="toggleOS()"> 📋 Tem OS</label>
       </div>
       <div class="form-group" id="grupoOS" style="display:none"><label>Número da OS</label><input type="text" id="prodFormNumOS" placeholder="Ex: OS-2026-001"></div>
-      <div class="form-group"><label>Observações</label><textarea id="prodFormObs" rows="2"></textarea></div>
+      <div class="form-group"><label>Observações</label><textarea id="prodFormObs" rows="4" style="resize:vertical;min-height:90px"></textarea></div>
       <button class="btn-primary btn-full" id="btnSalvarProd" onclick="salvarFormProducao()">💾 Salvar Lançamento</button>
     </div>
   </div>
