@@ -252,9 +252,10 @@ const db = {
     return res && res.length > 0 ? res[0].descricao : '';
   },
 
-  buscarUltimoApontamento: async function(funcionario, data) {
+  buscarUltimoApontamento: async function(funcionario, data, setor) {
+    const setorFiltro = setor || 'Usinagem';
     const res = await db._get('lancamentos',
-      'setor=eq.Usinagem&funcionario=eq.' + encodeURIComponent(funcionario) +
+      'setor=eq.' + setorFiltro + '&funcionario=eq.' + encodeURIComponent(funcionario) +
       '&order=data.desc,hora_fim.desc&limit=1', 'hora_fim,maquina,data');
     if (!res || res.length === 0) return {};
     const ultimo = res[0];
