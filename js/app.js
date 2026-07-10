@@ -72,6 +72,7 @@ var _mapaTelaEl = {
   auditoria:    'telaAuditoria',
   fichaFuncionario: 'telaFichaFuncionario',
   competencias: 'telaCompetencias',
+  programacaoFerias: 'telaFeriasCalendario',
 };
 
 var _mapaTitulos = {
@@ -93,6 +94,7 @@ var _mapaTitulos = {
   auditoria:    'Log de Alterações',
   fichaFuncionario: 'Ficha do Funcionário',
   competencias: 'Matriz de Competência',
+  programacaoFerias: 'Programação de Férias',
 };
 
 function irPara(tela, elMenu) {
@@ -126,6 +128,7 @@ function _irParaSemHistory(tela, elMenu) {
     else if (tela === 'pcm')          { inicializarPCM(); }
     else if (tela === 'auditoria')    { carregarLogAlteracoes(); }
     else if (tela === 'competencias') { if (typeof inicializarCompetencias==='function') inicializarCompetencias(); }
+    else if (tela === 'programacaoFerias') { if (typeof inicializarProgramacaoFerias==='function') inicializarProgramacaoFerias(); }
   }, 50);
 }
 
