@@ -508,6 +508,7 @@ const db = {
       tecnicos: dados.tecnicos, molde: dados.molde || null,
       injetora: dados.injetora, tipo: dados.tipo,
       atividade: dados.atividade || null, descricao: dados.descricao || null,
+      status: dados.status || 'Em andamento',
       maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
       numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null
     });
@@ -521,6 +522,7 @@ const db = {
       tecnicos: dados.tecnicos, molde: dados.molde || null,
       injetora: dados.injetora, tipo: dados.tipo,
       atividade: dados.atividade || null, descricao: dados.descricao || null,
+      status: dados.status || 'Em andamento',
       maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
       numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null
     });
