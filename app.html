@@ -214,7 +214,7 @@
       <div class="card">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Horários</th><th>Técnico(s)</th><th>Injetora</th><th>Tipo</th><th>Atividade</th><th>Molde</th><th>Flags</th><th>Descrição</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Data</th><th>Injetora</th><th>Molde</th><th>Atividade</th><th>Descrição</th><th>Horários</th><th>Técnico(s)</th><th>Status</th><th>Ações</th></tr></thead>
             <tbody id="tbodyProducao"><tr><td colspan="9" class="empty-msg">Selecione a data para carregar.</td></tr></tbody>
           </table>
         </div>
@@ -602,10 +602,18 @@
       <div class="modal-form-section">
         <div class="modal-form-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> Técnicos</div>
         <div id="prodTecnicosWrap" class="tecnicos-wrap"></div>
-        <select id="prodTecnicoSelect" onchange="adicionarTecnico()"><option value="">+ Adicionar técnico...</option></select>
+        <div class="autocomplete-wrap">
+          <input type="text" id="prodTecnicoInput" placeholder="Busque ou selecione o técnico...">
+          <div class="autocomplete-list" id="prodTecnicoInputList"></div>
+        </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Injetora *</label><select id="prodFormInjetora"><option value="">Selecione...</option></select></div>
+        <div class="form-group"><label>Injetora *</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="prodFormInjetora" placeholder="Busque ou digite a injetora...">
+            <div class="autocomplete-list" id="prodFormInjetoraList"></div>
+          </div>
+        </div>
         <div class="form-group"><label>Molde</label>
           <div class="autocomplete-wrap">
             <input type="text" id="prodFormMolde" placeholder="Opcional...">
@@ -626,6 +634,14 @@
         <div class="form-group"><label>Atividade</label><select id="prodFormAtividade"><option value="">Selecione o tipo primeiro...</option></select></div>
       </div>
       <div class="form-group"><label>Descrição da Ação Realizada</label><textarea id="prodFormDesc" rows="6" style="resize:vertical;min-height:120px" placeholder="Descreva o trabalho realizado..."></textarea></div>
+      <div class="modal-form-section">
+        <div class="modal-form-section-title">Status</div>
+        <div class="status-btns">
+          <button type="button" class="btn-status" id="btnProdAndamento" onclick="selecionarStatusProd('Em andamento')">🟠 Em Andamento</button>
+          <button type="button" class="btn-status" id="btnProdPausado" onclick="selecionarStatusProd('Pausado')">🟡 Pausado</button>
+          <button type="button" class="btn-status" id="btnProdFinalizado" onclick="selecionarStatusProd('Finalizado')">🟢 Finalizado</button>
+        </div>
+      </div>
       <div class="form-row" style="gap:24px;align-items:center">
         <label class="checkbox-label flag-maquina-parada"><input type="checkbox" id="prodFormMaqParada"> 🔴 Máquina Parada <span class="badge-nao-planejada">não planejada</span></label>
         <label class="checkbox-label"><input type="checkbox" id="prodFormTemOS" onchange="toggleOS()"> 📋 Tem OS</label>
