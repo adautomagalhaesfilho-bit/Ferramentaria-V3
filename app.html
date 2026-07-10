@@ -591,36 +591,30 @@
     </div>
     <div class="modal-form-body">
       <input type="hidden" id="prodFormId">
+
+      <!-- 1. DATA -->
       <div class="modal-form-section">
-        <div class="modal-form-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Data e Horário</div>
-        <div class="form-row">
-          <div class="form-group"><label>Data *</label><input type="date" id="prodFormData"></div>
-          <div class="form-group"><label>Hora Início</label><input type="time" id="prodFormHrIni"></div>
-          <div class="form-group"><label>Hora Fim</label><input type="time" id="prodFormHrFim"></div>
-        </div>
+        <div class="modal-form-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Data</div>
+        <div class="form-group" style="margin-bottom:0"><label>Data *</label><input type="date" id="prodFormData"></div>
       </div>
-      <div class="modal-form-section">
-        <div class="modal-form-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> Técnicos</div>
-        <div id="prodTecnicosWrap" class="tecnicos-wrap"></div>
+
+      <!-- 2. MÁQUINA / INJETORA -->
+      <div class="form-group"><label>Injetora *</label>
         <div class="autocomplete-wrap">
-          <input type="text" id="prodTecnicoInput" placeholder="Busque ou selecione o técnico...">
-          <div class="autocomplete-list" id="prodTecnicoInputList"></div>
+          <input type="text" id="prodFormInjetora" placeholder="Busque ou digite a injetora...">
+          <div class="autocomplete-list" id="prodFormInjetoraList"></div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Injetora *</label>
-          <div class="autocomplete-wrap">
-            <input type="text" id="prodFormInjetora" placeholder="Busque ou digite a injetora...">
-            <div class="autocomplete-list" id="prodFormInjetoraList"></div>
-          </div>
-        </div>
-        <div class="form-group"><label>Molde</label>
-          <div class="autocomplete-wrap">
-            <input type="text" id="prodFormMolde" placeholder="Opcional...">
-            <div class="autocomplete-list" id="prodFormMoldeList"></div>
-          </div>
+
+      <!-- 3. MOLDE -->
+      <div class="form-group"><label>Molde</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="prodFormMolde" placeholder="Opcional...">
+          <div class="autocomplete-list" id="prodFormMoldeList"></div>
         </div>
       </div>
+
+      <!-- 4. ATIVIDADE (com Tipo de Manutenção, que a define) -->
       <div class="form-row">
         <div class="form-group"><label>Tipo de Manutenção *</label>
           <select id="prodFormTipo" onchange="atualizarAtividades()">
@@ -633,7 +627,29 @@
         </div>
         <div class="form-group"><label>Atividade</label><select id="prodFormAtividade"><option value="">Selecione o tipo primeiro...</option></select></div>
       </div>
+
+      <!-- 5. DESCRIÇÃO -->
       <div class="form-group"><label>Descrição da Ação Realizada</label><textarea id="prodFormDesc" rows="6" style="resize:vertical;min-height:120px" placeholder="Descreva o trabalho realizado..."></textarea></div>
+
+      <!-- 6. HORA -->
+      <div class="modal-form-section">
+        <div class="modal-form-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Horário</div>
+        <div class="form-row">
+          <div class="form-group"><label>Hora Início</label><input type="time" id="prodFormHrIni"></div>
+          <div class="form-group"><label>Hora Fim</label><input type="time" id="prodFormHrFim"></div>
+        </div>
+      </div>
+
+      <!-- 7. TÉCNICO -->
+      <div class="modal-form-section">
+        <div class="modal-form-section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> Técnicos</div>
+        <div id="prodTecnicosWrap" class="tecnicos-wrap"></div>
+        <div class="autocomplete-wrap">
+          <input type="text" id="prodTecnicoInput" placeholder="Busque ou selecione o técnico...">
+          <div class="autocomplete-list" id="prodTecnicoInputList"></div>
+        </div>
+      </div>
+
       <div class="modal-form-section">
         <div class="modal-form-section-title">Status</div>
         <div class="status-btns">
