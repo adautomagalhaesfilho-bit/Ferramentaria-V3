@@ -20,6 +20,9 @@ const _PALETA_FERIAS = [
 ];
 
 const _NOMES_MES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const _SETORES_FERIAS = ['Todos','Usinagem','Bancada','Projeto','Produção'];
+const _CORES_SETOR_FERIAS = { Todos:'#1e3a5f', Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', 'Produção':'#10b981' };
+var _setorAtivoFerias = 'Todos';
 
 // ==========================================
 // 🚀 INICIALIZAÇÃO
@@ -36,6 +39,12 @@ async function inicializarProgramacaoFerias() {
       <button class="btn-secondary" style="padding:6px 12px" onclick="mudarAnoFerias(1)">▶</button>
       <button class="btn-primary" style="margin-left:12px" onclick="abrirNovaFeriasRapida()">+ Nova Férias</button>
     </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="setorFeriasTabs">
+    ${_SETORES_FERIAS.map(s => `<button onclick="mudarSetorFerias('${s}')" id="tabFerias_${s}"
+      style="padding:7px 16px;border-radius:20px;border:2px solid ${s===_setorAtivoFerias?_CORES_SETOR_FERIAS[s]:'#e2e8f0'};
+      background:${s===_setorAtivoFerias?_CORES_SETOR_FERIAS[s]:'#fff'};color:${s===_setorAtivoFerias?'#fff':_CORES_SETOR_FERIAS[s]};
+      font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s">${s}</button>`).join('')}
   </div>
   <div class="cards-row" id="resumoFeriasCards"></div>
   <div id="loaderFerias" class="loader-inline"><div class="spinner-sm"></div><span>Carregando calendário...</span></div>
@@ -60,6 +69,19 @@ function mudarAnoFerias(delta) {
   carregarFeriasAno();
 }
 
+function mudarSetorFerias(setor) {
+  _setorAtivoFerias = setor;
+  _SETORES_FERIAS.forEach(s => {
+    const btn = document.getElementById('tabFerias_'+s);
+    if (!btn) return;
+    const ativo = s === setor;
+    btn.style.borderColor = ativo ? _CORES_SETOR_FERIAS[s] : '#e2e8f0';
+    btn.style.background  = ativo ? _CORES_SETOR_FERIAS[s] : '#fff';
+    btn.style.color       = ativo ? '#fff' : _CORES_SETOR_FERIAS[s];
+  });
+  carregarFeriasAno();
+}
+
 // ==========================================
 // 📊 CARREGAR DADOS DO ANO
 // ==========================================
@@ -79,13 +101,22 @@ async function carregarFeriasAno() {
     const anoFim = `${_anoAtualFerias}-12-31`;
     const registrosDoAno = _registrosFerias.filter(r => r.inicio <= anoFim && r.fim >= anoIni);
 
-    _atribuirCoresFerias(registrosDoAno);
+    // Conflito é calculado com TODOS os registros do ano (não só os do setor visível),
+    // já que a comparação em si já é restrita ao mesmo setor internamente
     _calcularConflitos(registrosDoAno);
-    _montarItensPorDia(registrosDoAno);
 
-    renderizarResumoFerias(registrosDoAno);
+    // Exibição (calendário, cards, lista) mostra só o setor da aba selecionada
+    const setorMapeado = _setorAtivoFerias === 'Produção' ? ['Producao','Produção'] : [_setorAtivoFerias];
+    const registrosFiltrados = _setorAtivoFerias === 'Todos'
+      ? registrosDoAno
+      : registrosDoAno.filter(r => setorMapeado.includes(r._setor));
+
+    _atribuirCoresFerias(registrosFiltrados);
+    _montarItensPorDia(registrosFiltrados);
+
+    renderizarResumoFerias(registrosFiltrados);
     renderizarCalendarioFerias();
-    await renderizarListaFeriasAno(registrosDoAno);
+    await renderizarListaFeriasAno(registrosFiltrados);
   } catch(e) {
     toast('Erro ao carregar programação de férias.','erro');
     console.error(e);
