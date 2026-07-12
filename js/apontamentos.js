@@ -302,10 +302,13 @@ async function salvarForm() {
         toast('Lançamento salvo!','sucesso');
       }
       const data = document.getElementById('formData').value;
+      const funcionarioAnterior = setor !== 'Bancada' ? dados.funcionario : null;
       _tecnicosSelecionados = [];
       resetarForm(); configurarCamposForm(setor);
       await carregarFuncionariosForm(setor);
       document.getElementById('formData').value = data;
+      // Mantém o técnico selecionado (Usinagem/Projeto) — agiliza lançamentos seguidos da mesma pessoa
+      if (funcionarioAnterior) setSelect('formFunc', funcionarioAnterior);
       _statusForm = null; atualizarBotoesStatus();
     } else {
       if (setor === 'Bancada' && _tecnicosOriginaisIds && _tecnicosOriginaisIds.length) {
