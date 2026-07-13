@@ -308,7 +308,12 @@ async function salvarForm() {
       await carregarFuncionariosForm(setor);
       document.getElementById('formData').value = data;
       // Mantém o técnico selecionado (Usinagem/Projeto) — agiliza lançamentos seguidos da mesma pessoa
-      if (funcionarioAnterior) setSelect('formFunc', funcionarioAnterior);
+      // e dispara o onchange manualmente para já puxar a última máquina/hora dele (setSelect não dispara eventos)
+      if (funcionarioAnterior) {
+        setSelect('formFunc', funcionarioAnterior);
+        const selFunc = document.getElementById('formFunc');
+        if (selFunc && typeof selFunc.onchange === 'function') selFunc.onchange();
+      }
       _statusForm = null; atualizarBotoesStatus();
     } else {
       if (setor === 'Bancada' && _tecnicosOriginaisIds && _tecnicosOriginaisIds.length) {
