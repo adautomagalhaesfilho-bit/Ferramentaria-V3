@@ -414,7 +414,7 @@ async function carregarFichaFuncionarioPorId(id, origem) {
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>
-          <button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}')">🗑️ Excluir</button>
+          <button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}','${(f.nome||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>
         </div>
       </div>
     </div>
@@ -685,11 +685,14 @@ function fecharModalTrocaTurno() {
   document.getElementById('modalTrocaTurnoWrap')?.remove();
 }
 
-async function excluirFuncConfirm(id, origem) {
+async function excluirFuncConfirm(id, origem, nome) {
   confirmarExclusao('Remover este funcionário?', async () => {
     try {
       if (origem==='Producao') await db.excluirProdTecnico(id);
       else await db.excluirFuncionario(id);
+      if (typeof registrarLog === 'function') {
+        await registrarLog(origem==='Producao' ? 'prod_tecnicos' : 'funcioraios', id, 'excluir', null, nome || null, null);
+      }
       toast('Removido!','sucesso');
       // Se a exclusão veio da página da ficha, volta para a lista de Funcionários
       if (_fichaFuncAtual && _fichaFuncAtual.id === id) {
@@ -705,7 +708,7 @@ async function excluirFuncConfirm(id, origem) {
 
 // Mantém compatibilidade com chamada antiga
 function editarFuncAdmin(f) { abrirEdicaoFuncionario(f); }
-async function excluirFuncAdmin(id, origem) { excluirFuncConfirm(id, origem); }
+async function excluirFuncAdmin(id, origem, nome) { excluirFuncConfirm(id, origem, nome); }
 
 // ==========================================
 // 📅 RH (Feriados / Ausências / Atrasos)
