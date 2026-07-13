@@ -414,7 +414,7 @@ async function carregarFichaFuncionarioPorId(id, origem) {
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>
-          <button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}','${(f.nome||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>
+          ${typeof isAdmin === 'function' && isAdmin() ? `<button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}','${(f.nome||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>` : ''}
         </div>
       </div>
     </div>
@@ -686,6 +686,10 @@ function fecharModalTrocaTurno() {
 }
 
 async function excluirFuncConfirm(id, origem, nome) {
+  if (typeof isAdmin !== 'function' || !isAdmin()) {
+    toast('Apenas administradores podem excluir funcionários.','erro');
+    return;
+  }
   confirmarExclusao('Remover este funcionário?', async () => {
     try {
       if (origem==='Producao') await db.excluirProdTecnico(id);
