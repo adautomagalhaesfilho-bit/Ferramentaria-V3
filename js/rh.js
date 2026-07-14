@@ -1011,6 +1011,9 @@ async function salvarEdicaoParcial(id) {
   try {
     await db.salvarParcial({ id, funcionario, data, inicio, fim, motivo, obs });
     toast('Atualizado!','sucesso');
+    if (typeof sincronizarDebitoParcial === 'function') {
+      await sincronizarDebitoParcial({ id, funcionario, data, inicio, fim, motivo });
+    }
     fecharEdicaoParcial();
     await _renderizarParciais();
   } catch(e) { toast('Erro ao salvar.','erro'); }
@@ -1088,9 +1091,13 @@ async function salvarParcial() {
       try { imagemUrl=await _uploadImagemParcial(file,func,dt); const s=document.getElementById('parcUploadStatus'); if(s) s.innerText='✅ Enviada!'; }
       catch(e) { console.error(e); toast('Imagem não enviada, mas registro salvo.','erro'); }
     }
-    await db.salvarParcial({ funcionario:func, data:dt, inicio:ini||null, fim:fim||null,
+    const res = await db.salvarParcial({ funcionario:func, data:dt, inicio:ini||null, fim:fim||null,
       motivo, obs:document.getElementById('parcObs')?.value||null, imagem_url:imagemUrl });
     toast('Registrado!','sucesso');
+    if (typeof sincronizarDebitoParcial === 'function') {
+      const novoId = res && res[0] ? res[0].id : null;
+      if (novoId) await sincronizarDebitoParcial({ id:novoId, funcionario:func, data:dt, inicio:ini||null, fim:fim||null, motivo });
+    }
     ['parcFunc','parcData','parcIni','parcFim','parcObs'].forEach(id=>{ const el=document.getElementById(id); if(el){if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';} });
     removerImagemParcial();
     await _renderizarParciais();
@@ -1100,7 +1107,11 @@ async function salvarParcial() {
 
 function excluirParcialConfirm(id) {
   confirmarExclusao('Excluir este registro?', async()=>{
-    try { await db.excluirParcial(id); toast('Removido!','sucesso'); await _renderizarParciais(); }
+    try {
+      await db.excluirParcial(id);
+      if (typeof removerDebitoParcial === 'function') await removerDebitoParcial(id);
+      toast('Removido!','sucesso'); await _renderizarParciais();
+    }
     catch(e) { toast('Erro.','erro'); }
   });
 }
