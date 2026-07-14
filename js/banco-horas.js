@@ -33,24 +33,43 @@ function _paraMinutosDoDia(hstr) {
   return h*60 + m;
 }
 
-// Mescla intervalos sobrepostos/adjacentes e retorna o total de minutos ÚNICOS trabalhados
-// (evita contar 2x quando o operador tem lançamentos simultâneos em máquinas diferentes)
-function _mesclarIntervalos(intervalos) {
-  if (!intervalos.length) return 0;
+// Mescla intervalos sobrepostos/adjacentes e retorna os BLOCOS mesclados (ordenados, sem sobreposição)
+function _mesclarIntervalosArray(intervalos) {
+  if (!intervalos.length) return [];
   const ordenados = intervalos.slice().sort((a,b)=>a[0]-b[0]);
-  let total = 0;
+  const resultado = [];
   let [curIni, curFim] = ordenados[0];
   for (let i=1; i<ordenados.length; i++) {
     const [ini, fim] = ordenados[i];
     if (ini <= curFim) {
-      if (fim > curFim) curFim = fim; // estende o intervalo atual
+      if (fim > curFim) curFim = fim;
     } else {
-      total += (curFim - curIni);
+      resultado.push([curIni, curFim]);
       curIni = ini; curFim = fim;
     }
   }
-  total += (curFim - curIni);
-  return total;
+  resultado.push([curIni, curFim]);
+  return resultado;
+}
+
+// Mescla intervalos sobrepostos/adjacentes e retorna o total de minutos ÚNICOS trabalhados
+// (evita contar 2x quando o operador tem lançamentos simultâneos em máquinas diferentes)
+function _mesclarIntervalos(intervalos) {
+  return _mesclarIntervalosArray(intervalos).reduce((soma, [ini, fim]) => soma + (fim - ini), 0);
+}
+
+// Dado os blocos mesclados de um dia e o horário oficial do turno (em minutos desde 00:00),
+// retorna quantos minutos ficaram FORA do expediente (chegou mais cedo + saiu mais tarde).
+// O tempo dentro do próprio horário do turno não conta aqui (isso é jornada normal).
+function _minutosForaDoTurno(blocosMesclados, entradaMin, saidaMin) {
+  let fora = 0;
+  blocosMesclados.forEach(([ini, fim]) => {
+    const overlapIni = Math.max(ini, entradaMin);
+    const overlapFim = Math.min(fim, saidaMin);
+    const dentroTurno = Math.max(0, overlapFim - overlapIni);
+    fora += (fim - ini) - dentroTurno;
+  });
+  return fora;
 }
 
 async function sincronizarHorasExtras() {
@@ -60,12 +79,24 @@ async function sincronizarHorasExtras() {
   const btn = document.getElementById('btnSincHE');
   if (btn) { btn.disabled = true; btn.innerText = 'Sincronizando...'; }
   try {
-    const [lancamentos, funcionarios, feriados] = await Promise.all([
+    const [lancamentos, funcionarios, feriados, turnos] = await Promise.all([
       db._get('lancamentos', 'data=gte.'+ini+'&data=lte.'+fim, 'funcionario,data,minutos,hora_inicio,hora_fim'),
       db._get('funcionarios', 'ativo=eq.true', '*'),
-      db._get('feriados', '', 'data')
+      db._get('feriados', '', 'data'),
+      db._get('turnos', 'ativo=eq.true', 'nome,hora_entrada,hora_saida')
     ]);
     const feriadosArr = (feriados||[]).map(f=>f.data);
+
+    // Mapa turno -> horário oficial de entrada/saída (em minutos desde 00:00), vindo da tabela `turnos`
+    const turnoHorario = {};
+    (turnos||[]).forEach(t => {
+      const eMin = _paraMinutosDoDia(t.hora_entrada);
+      let sMin = _paraMinutosDoDia(t.hora_saida);
+      if (eMin !== null && sMin !== null) {
+        if (sMin <= eMin) sMin += 1440; // turno atravessa meia-noite
+        turnoHorario[t.nome] = { entrada: eMin, saida: sMin };
+      }
+    });
 
     // Agrupa por funcionário+dia, guardando os INTERVALOS de horário (não só a soma bruta)
     // para não contar duas vezes quando o operador trabalha em mais de uma máquina ao mesmo tempo.
@@ -76,10 +107,10 @@ async function sincronizarHorasExtras() {
       if (f.setor === 'Supervisão' || f.cargo === 'Supervisor' || f.cargo === 'Encarregado' || f.cargo === 'Líder de Ferramentaria') return;
       const turno = f.turno || '5x2';
       if (typeof funcTrabalhaEmDia !== 'function') return;
-      if (funcTrabalhaEmDia(turno, l.data, feriadosArr)) return; // dia normal, não é hora extra
+      const diaDaEscala = funcTrabalhaEmDia(turno, l.data, feriadosArr);
 
       const key = l.funcionario + '|' + l.data;
-      if (!porDia[key]) porDia[key] = { funcionario:l.funcionario, data:l.data, intervalos:[] };
+      if (!porDia[key]) porDia[key] = { funcionario:l.funcionario, data:l.data, turno, diaDaEscala, intervalos:[] };
 
       const iniMin = _paraMinutosDoDia(l.hora_inicio);
       let fimMin   = _paraMinutosDoDia(l.hora_fim);
@@ -92,16 +123,30 @@ async function sincronizarHorasExtras() {
     let criados = 0, ignorados = 0;
     for (const key of Object.keys(porDia)) {
       const item = porDia[key];
-      const minutosReais = _mesclarIntervalos(item.intervalos);
-      if (minutosReais <= 0) continue;
+      const blocos = _mesclarIntervalosArray(item.intervalos);
+
+      let minutosExtra, descricao;
+      if (!item.diaDaEscala) {
+        // Dia fora da escala normal (folga/fim de semana/feriado) — tudo que foi trabalhado é hora extra
+        minutosExtra = blocos.reduce((s,[i,f])=>s+(f-i), 0);
+        descricao = 'Trabalho em dia fora da escala normal (horários sobrepostos mesclados)';
+      } else {
+        // Dia normal de trabalho — só conta hora extra o que passou do horário oficial do turno
+        // (chegou mais cedo e/ou saiu mais tarde do que hora_entrada/hora_saida da tabela turnos)
+        const horario = turnoHorario[item.turno];
+        if (!horario) continue; // turno sem horário cadastrado em `turnos` — não dá pra calcular, pula
+        minutosExtra = _minutosForaDoTurno(blocos, horario.entrada, horario.saida);
+        descricao = 'Hora extra por lançamento fora do horário do turno (entrada antecipada e/ou saída após o expediente)';
+      }
+
+      if (!minutosExtra || minutosExtra <= 0) continue;
       const refId = 'HE-' + item.funcionario + '-' + item.data;
       const jaExiste = await db.buscarBancoHorasPorReferencia(refId);
       if (jaExiste) { ignorados++; continue; }
       await db.salvarBancoHoras({
         funcionario: item.funcionario, data: item.data, tipo: 'Credito',
-        origem: 'Hora Extra Automática', minutos: minutosReais,
-        descricao: 'Trabalho em dia fora da escala normal (horários sobrepostos mesclados)',
-        referencia_id: refId, criado_por: _sessao?.nome || null
+        origem: 'Hora Extra Automática', minutos: minutosExtra,
+        descricao, referencia_id: refId, criado_por: _sessao?.nome || null
       });
       criados++;
     }
