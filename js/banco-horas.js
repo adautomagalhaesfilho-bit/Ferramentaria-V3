@@ -157,6 +157,63 @@ async function sincronizarHorasExtras() {
 }
 
 // ==========================================
+// ➖ DÉBITO AUTOMÁTICO — Saída Antecipada / Banco de Horas (aba Atrasos do RH)
+// ==========================================
+// Regra combinada com o usuário:
+//   - Saída SEM retorno  -> débito = do horário de saída registrado até o fim do expediente do turno
+//   - Saída COM retorno  -> débito = tempo que ficou ausente (retorno - saída)
+// Chamada em toda criação/edição de um "parcial" (rh_parciais). Usa referencia_id 'PARC-<id>'
+// para não duplicar e para poder recalcular quando o registro é editado.
+async function sincronizarDebitoParcial(parcial) {
+  try {
+    const motivosComDebito = ['Saída Antecipada', 'Banco de Horas'];
+    if (!parcial || !motivosComDebito.includes(parcial.motivo) || !parcial.id || !parcial.inicio) return;
+
+    const refId = 'PARC-' + parcial.id;
+    // Remove débito anterior deste registro (caso de edição) antes de recalcular
+    const existentes = await db._get('banco_horas', 'referencia_id=eq.'+encodeURIComponent(refId), 'id');
+    for (const ex of (existentes||[])) await db.excluirBancoHoras(ex.id);
+
+    const iniMin = _paraMinutosDoDia(parcial.inicio);
+    if (iniMin === null) return;
+    let minutosDebito = 0;
+    let descricao;
+
+    if (parcial.fim) {
+      // Saída com retorno no mesmo dia — débito é só o tempo ausente
+      const fimMin = _paraMinutosDoDia(parcial.fim);
+      if (fimMin === null) return;
+      minutosDebito = fimMin - iniMin;
+      descricao = 'Ausência com retorno no mesmo dia (débito automático — ' + parcial.motivo + ')';
+    } else {
+      // Saída sem retorno — débito vai até o fim do expediente do turno dela
+      const funcRow = await db._get('funcionarios', 'nome=eq.'+encodeURIComponent(parcial.funcionario), 'turno');
+      const turnoNome = (funcRow && funcRow[0] && funcRow[0].turno) || '5x2';
+      const turnoRow = await db._get('turnos', 'nome=eq.'+encodeURIComponent(turnoNome)+'&ativo=eq.true', 'hora_saida');
+      const saidaTurno = (turnoRow && turnoRow[0]) ? _paraMinutosDoDia(turnoRow[0].hora_saida) : null;
+      if (saidaTurno === null) return;
+      minutosDebito = saidaTurno - iniMin;
+      descricao = 'Saída antecipada sem retorno — débito até o fim do expediente (automático)';
+    }
+
+    if (minutosDebito <= 0) return;
+    await db.salvarBancoHoras({
+      funcionario: parcial.funcionario, data: parcial.data, tipo: 'Debito',
+      origem: parcial.motivo, minutos: minutosDebito, descricao,
+      referencia_id: refId, criado_por: _sessao?.nome || null
+    });
+  } catch(e) { console.error('Erro ao sincronizar débito do parcial:', e); }
+}
+
+// Remove o débito de banco de horas vinculado a um "parcial" excluído
+async function removerDebitoParcial(parcialId) {
+  try {
+    const existentes = await db._get('banco_horas', 'referencia_id=eq.'+encodeURIComponent('PARC-'+parcialId), 'id');
+    for (const ex of (existentes||[])) await db.excluirBancoHoras(ex.id);
+  } catch(e) { console.error('Erro ao remover débito do parcial:', e); }
+}
+
+// ==========================================
 // ➖ DÉBITO AUTOMÁTICO — Folga Compensatória
 // ==========================================
 async function registrarDebitoFolgaCompensatoria(funcionario, inicio, fim, feriasId) {
