@@ -185,7 +185,7 @@ async function editarProd(id) {
   document.getElementById('prodFormMolde').value = item.molde || '';
   setSelectP('prodFormTipo', item.tipo);
   atualizarAtividades();
-  setTimeout(() => setSelectP('prodFormAtividade', item.atividade), 150);
+  setTimeout(() => { setSelectP('prodFormAtividade', item.atividade); atualizarCamposSetup(); }, 150);
   document.getElementById('prodFormDesc').value  = item.descricao || '';
   document.getElementById('prodFormMaqParada').checked = !!item.maquina_parada;
   document.getElementById('prodFormTemOS').checked     = !!item.tem_os;
@@ -203,7 +203,9 @@ function cancelarFormProducao() { fecharModalFormProd(); }
 
 function preencherFormProducao() {
   // Injetora — clica para escolher OU digita para filtrar (igual Job)
-  setupAC('prodFormInjetora', 'prodFormInjetoraList', _injetoras.map(i=>i.nome));
+  setupAC('prodFormInjetora', 'prodFormInjetoraList', _injetoras.map(i=>i.nome), () => {
+    if (typeof _prefillMoldeAtualDaInjetora === 'function') _prefillMoldeAtualDaInjetora();
+  });
 
   // Técnico — clica para escolher OU digita para filtrar (igual Job)
   setupAC('prodTecnicoInput', 'prodTecnicoInputList', _tecnicosProducao.map(t=>t.nome), val => {
@@ -244,6 +246,96 @@ function atualizarAtividades() {
   if (!sel) return;
   const ativs = _categoriasProd[tipo] || [];
   sel.innerHTML = '<option value="">Selecione a atividade...</option>' + ativs.map(a=>`<option value="${a}">${a}</option>`).join('');
+  atualizarCamposSetup();
+}
+
+// ==========================================
+// 🗂️ MOVIMENTAÇÃO AUTOMÁTICA DE MOLDE (Setup) — integra com o PCM
+// ==========================================
+// Regras combinadas com o usuário:
+//   Troca de Molde        -> mostra Molde Atual (sai p/ Ferramentaria) + Molde Novo (entra na injetora)
+//   Instalação de Molde   -> só Molde Novo (injetora estava vazia)
+//   Remoção de Molde      -> só Molde Atual (sai p/ Ferramentaria, injetora fica vazia)
+//   Transferência de Molde-> só Outra Injetora (troca cruzada automática, sem digitar nome de molde)
+//   Troca de Gaveta / Troca de Postiço -> nenhum campo extra (exceção, não mexe em localização)
+const _ATIVIDADES_SETUP_COM_MOLDE_ATUAL  = ['Troca de Molde', 'Remoção de Molde'];
+const _ATIVIDADES_SETUP_COM_MOLDE_NOVO   = ['Troca de Molde', 'Instalação de Molde'];
+const _ATIVIDADES_SETUP_COM_OUTRA_INJET  = ['Transferência de Molde'];
+
+function atualizarCamposSetup() {
+  const tipo = document.getElementById('prodFormTipo')?.value;
+  const atividade = document.getElementById('prodFormAtividade')?.value;
+  const mostrarAtual = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade);
+  const mostrarNovo  = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_NOVO.includes(atividade);
+  const mostrarOutra = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade);
+
+  const grupoWrap  = document.getElementById('grupoSetupMolde');
+  const grupoAtual = document.getElementById('grupoSetupMoldeAtual');
+  const grupoNovo  = document.getElementById('grupoSetupMoldeNovo');
+  const grupoOutra = document.getElementById('grupoSetupOutraInjetora');
+  if (grupoWrap)  grupoWrap.style.display  = (mostrarAtual || mostrarNovo || mostrarOutra) ? '' : 'none';
+  if (grupoAtual) grupoAtual.style.display = mostrarAtual ? '' : 'none';
+  if (grupoNovo)  grupoNovo.style.display  = mostrarNovo  ? '' : 'none';
+  if (grupoOutra) grupoOutra.style.display = mostrarOutra ? '' : 'none';
+
+  // Autocomplete dos campos (molde vem da lista de jobs; outra injetora vem da lista de injetoras)
+  if (_listas) setupAC('prodFormMoldeAtual', 'prodFormMoldeAtualList', _listas.jobs || []);
+  if (_listas) setupAC('prodFormMoldeNovo',  'prodFormMoldeNovoList',  _listas.jobs || []);
+  setupAC('prodFormOutraInjetora', 'prodFormOutraInjetoraList', _injetoras.map(i=>i.nome));
+
+  // Pré-preenche "Molde Atual" com o que já está cadastrado na injetora selecionada (só ajuda, continua editável)
+  if (mostrarAtual) _prefillMoldeAtualDaInjetora();
+}
+
+async function _prefillMoldeAtualDaInjetora() {
+  const injetora = document.getElementById('prodFormInjetora')?.value?.trim();
+  const campoAtual = document.getElementById('prodFormMoldeAtual');
+  if (!injetora || !campoAtual || campoAtual.value) return; // não sobrescreve se já tem algo digitado
+  try {
+    const moldeAtual = await db.buscarMoldeNaInjetora(injetora);
+    if (moldeAtual) campoAtual.value = moldeAtual;
+  } catch(e) { /* silencioso — campo continua editável manualmente */ }
+}
+
+// Move o(s) molde(s) no PCM automaticamente conforme a atividade de Setup do lançamento salvo
+async function processarMovimentacaoSetupPCM(dados) {
+  if (dados.tipo !== 'Setup') return;
+  const injetora = dados.injetora;
+  const usuario  = _sessao?.nome || null;
+  const agora    = (dados.data || new Date().toISOString().split('T')[0]) + 'T00:00:00';
+
+  async function mover(job, localizacao, maquina, obs) {
+    if (!job) return;
+    await db.salvarLocalizacao({ job, localizacao, maquina, observacao: obs, atualizado_por: usuario, atualizado_em: agora });
+    await db._post('molde_localizacao_historico', {
+      job, localizacao, maquina: maquina || null, observacao: obs || null,
+      movido_em: agora, movido_por: usuario
+    });
+  }
+
+  try {
+    if (dados.atividade === 'Troca de Molde') {
+      if (dados.moldeAtual) await mover(dados.moldeAtual, 'Na Ferramentaria', null, `Saiu da injetora ${injetora} (Troca de Molde)`);
+      if (dados.moldeNovo)  await mover(dados.moldeNovo,  'Em Máquina', injetora, `Entrou na injetora ${injetora} (Troca de Molde)`);
+    } else if (dados.atividade === 'Instalação de Molde') {
+      if (dados.moldeNovo) await mover(dados.moldeNovo, 'Em Máquina', injetora, `Instalado na injetora ${injetora}`);
+    } else if (dados.atividade === 'Remoção de Molde') {
+      if (dados.moldeAtual) await mover(dados.moldeAtual, 'Na Ferramentaria', null, `Removido da injetora ${injetora}`);
+    } else if (dados.atividade === 'Transferência de Molde') {
+      const outra = dados.outraInjetora;
+      if (!outra) return;
+      const [moldeDaqui, moldeDeLa] = await Promise.all([
+        db.buscarMoldeNaInjetora(injetora),
+        db.buscarMoldeNaInjetora(outra)
+      ]);
+      if (moldeDaqui) await mover(moldeDaqui, 'Em Máquina', outra, `Transferido da injetora ${injetora} para ${outra}`);
+      if (moldeDeLa)  await mover(moldeDeLa,  'Em Máquina', injetora, `Transferido da injetora ${outra} para ${injetora}`);
+    }
+    // Troca de Gaveta / Troca de Postiço -> exceção, não mexe em localização nenhuma
+  } catch(e) {
+    console.error('Erro ao mover molde automaticamente (Setup):', e);
+    toast('Lançamento salvo, mas houve erro ao atualizar a localização do molde no PCM.', 'erro');
+  }
 }
 
 function toggleOS() {
@@ -275,15 +367,29 @@ async function salvarFormProducao() {
   if (!_tecnicosSelecionadosProd.length) return toast('Adicione ao menos um técnico.','erro');
   const injetora = document.getElementById('prodFormInjetora')?.value?.trim();
   const tipo     = document.getElementById('prodFormTipo')?.value;
+  const atividade = document.getElementById('prodFormAtividade')?.value || null;
   if (!injetora) return toast('Selecione a injetora.','erro');
   if (!tipo)     return toast('Selecione o tipo de manutenção.','erro');
+
+  const moldeAtual     = document.getElementById('prodFormMoldeAtual')?.value?.trim() || null;
+  const moldeNovo      = document.getElementById('prodFormMoldeNovo')?.value?.trim()  || null;
+  const outraInjetora  = document.getElementById('prodFormOutraInjetora')?.value?.trim() || null;
+
+  // Validações específicas das atividades de Setup que mexem no PCM
+  if (tipo === 'Setup') {
+    if (_ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade) && !moldeAtual) return toast('Informe o molde atual (que está saindo).','erro');
+    if (_ATIVIDADES_SETUP_COM_MOLDE_NOVO.includes(atividade)  && !moldeNovo)  return toast('Informe o molde novo (que vai entrar).','erro');
+    if (_ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade) && !outraInjetora) return toast('Selecione a outra injetora da transferência.','erro');
+  }
+
   const dados = {
     data:          document.getElementById('prodFormData')?.value,
     horaInicio:    document.getElementById('prodFormHrIni')?.value || null,
     horaFim:       document.getElementById('prodFormHrFim')?.value || null,
     tecnicos:      _tecnicosSelecionadosProd.join(', '),
     injetora, molde: document.getElementById('prodFormMolde')?.value || null,
-    tipo, atividade: document.getElementById('prodFormAtividade')?.value || null,
+    tipo, atividade,
+    moldeAtual, moldeNovo, outraInjetora,
     descricao:     document.getElementById('prodFormDesc')?.value || null,
     status:        _statusFormProd || 'Em andamento',
     maquinaParada: document.getElementById('prodFormMaqParada')?.checked,
@@ -296,6 +402,8 @@ async function salvarFormProducao() {
   try {
     if (!id) {
       await db.salvarProdLancamento(dados);
+      // Movimentação automática de molde no PCM — só em lançamentos NOVOS (edição não repete a movimentação)
+      await processarMovimentacaoSetupPCM(dados);
       toast('Lançamento salvo!','sucesso');
       const data = dados.data;
       _tecnicosSelecionadosProd = [];
@@ -321,11 +429,13 @@ async function excluirProd(id) {
 
 function resetarFormProducao() {
   ['prodFormData','prodFormHrIni','prodFormHrFim','prodFormInjetora','prodFormMolde',
-   'prodFormTipo','prodFormAtividade','prodFormDesc','prodFormNumOS','prodFormObs','prodTecnicoInput']
+   'prodFormTipo','prodFormAtividade','prodFormDesc','prodFormNumOS','prodFormObs','prodTecnicoInput',
+   'prodFormMoldeAtual','prodFormMoldeNovo','prodFormOutraInjetora']
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
   const mp=document.getElementById('prodFormMaqParada'); if(mp) mp.checked=false;
   const os=document.getElementById('prodFormTemOS');     if(os) os.checked=false;
   const go=document.getElementById('grupoOS');           if(go) go.style.display='none';
+  atualizarCamposSetup();
   _tecnicosSelecionadosProd = [];
   renderizarTecnicos();
   const btn=document.getElementById('btnSalvarProd'); if(btn) btn.innerText='💾 Salvar Lançamento';
@@ -337,4 +447,3 @@ function setSelectP(id, val) {
   if(sel.tagName !== 'SELECT') { sel.value = val; return; }
   for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===val){sel.selectedIndex=i;return;}
 }
-
