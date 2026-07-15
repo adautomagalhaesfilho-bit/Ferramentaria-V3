@@ -111,7 +111,7 @@ async function inicializarPCM() {
   <div class="page-header">
     <h1>🗂️ PCM — Controle de Moldes</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <input type="text" id="pcmBusca" placeholder="Buscar molde..." oninput="filtrarPCM()" style="width:200px">
+      <input type="text" id="pcmBusca" placeholder="Buscar por molde ou injetora..." oninput="filtrarPCM()" style="width:220px">
       <button class="btn-primary" onclick="abrirModalLocalizacao(null)">+ Registrar Localização</button>
     </div>
   </div>
@@ -376,7 +376,7 @@ function filtrarPCM() {
   const busca = (document.getElementById('pcmBusca')?.value||'').toUpperCase();
   const filtrado = _dadosPCM.filter(m => {
     if (_filtroLocPCM !== 'Todos' && m.localizacao !== _filtroLocPCM) return false;
-    if (busca && !m.job.toUpperCase().includes(busca)) return false;
+    if (busca && !m.job.toUpperCase().includes(busca) && !(m.maquina||'').toUpperCase().includes(busca)) return false;
     return true;
   });
   renderizarListaPCM(filtrado);
