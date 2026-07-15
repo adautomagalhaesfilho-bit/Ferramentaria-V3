@@ -281,6 +281,12 @@
           <div class="filtro-item"><label>FIM</label><input type="date" id="histFim"></div>
           <div class="filtro-item"><label>FUNCIONÁRIO</label><select id="histFunc"></select></div>
           <div class="filtro-item"><label>TIPO</label><select id="histTipo"></select></div>
+          <div class="filtro-item" id="grupoHistInjetora" style="display:none"><label>INJETORA</label>
+            <div class="autocomplete-wrap">
+              <input type="text" id="histInjetora" placeholder="Buscar injetora...">
+              <div class="autocomplete-list" id="histInjetoraList"></div>
+            </div>
+          </div>
           <div class="filtro-item"><label>JOB</label>
             <div class="autocomplete-wrap">
               <input type="text" id="histJob" placeholder="Buscar job...">
@@ -634,7 +640,29 @@
             <option value="Inspeção">Inspeção</option>
           </select>
         </div>
-        <div class="form-group"><label>Atividade</label><select id="prodFormAtividade"><option value="">Selecione o tipo primeiro...</option></select></div>
+        <div class="form-group"><label>Atividade</label><select id="prodFormAtividade" onchange="atualizarCamposSetup()"><option value="">Selecione o tipo primeiro...</option></select></div>
+      </div>
+
+      <!-- 4b. CAMPOS AUTOMÁTICOS DE MOVIMENTAÇÃO DE MOLDE (só aparecem conforme a Atividade de Setup) -->
+      <div class="form-row" id="grupoSetupMolde" style="display:none">
+        <div class="form-group" id="grupoSetupMoldeAtual" style="display:none"><label>Molde Atual (que está saindo) *</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="prodFormMoldeAtual" placeholder="Qual molde está na injetora agora...">
+            <div class="autocomplete-list" id="prodFormMoldeAtualList"></div>
+          </div>
+        </div>
+        <div class="form-group" id="grupoSetupMoldeNovo" style="display:none"><label>Molde Novo (que vai entrar) *</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="prodFormMoldeNovo" placeholder="Qual molde vai entrar...">
+            <div class="autocomplete-list" id="prodFormMoldeNovoList"></div>
+          </div>
+        </div>
+        <div class="form-group" id="grupoSetupOutraInjetora" style="display:none"><label>Outra Injetora (troca) *</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="prodFormOutraInjetora" placeholder="Com qual injetora vai trocar...">
+            <div class="autocomplete-list" id="prodFormOutraInjetoraList"></div>
+          </div>
+        </div>
       </div>
 
       <!-- 5. DESCRIÇÃO -->
