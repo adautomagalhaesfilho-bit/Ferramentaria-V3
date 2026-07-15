@@ -621,15 +621,7 @@
         </div>
       </div>
 
-      <!-- 3. MOLDE -->
-      <div class="form-group"><label>Molde</label>
-        <div class="autocomplete-wrap">
-          <input type="text" id="prodFormMolde" placeholder="Opcional...">
-          <div class="autocomplete-list" id="prodFormMoldeList"></div>
-        </div>
-      </div>
-
-      <!-- 4. ATIVIDADE (com Tipo de Manutenção, que a define) -->
+      <!-- 3. TIPO DE MANUTENÇÃO / ATIVIDADE -->
       <div class="form-row">
         <div class="form-group"><label>Tipo de Manutenção *</label>
           <select id="prodFormTipo" onchange="atualizarAtividades()">
@@ -641,6 +633,14 @@
           </select>
         </div>
         <div class="form-group"><label>Atividade</label><select id="prodFormAtividade" onchange="atualizarCamposSetup()"><option value="">Selecione o tipo primeiro...</option></select></div>
+      </div>
+
+      <!-- 4. MOLDE -->
+      <div class="form-group"><label>Molde</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="prodFormMolde" placeholder="Opcional...">
+          <div class="autocomplete-list" id="prodFormMoldeList"></div>
+        </div>
       </div>
 
       <!-- 4b. CAMPOS AUTOMÁTICOS DE MOVIMENTAÇÃO DE MOLDE (só aparecem conforme a Atividade de Setup) -->
@@ -661,6 +661,12 @@
           <div class="autocomplete-wrap">
             <input type="text" id="prodFormOutraInjetora" placeholder="Com qual injetora vai trocar...">
             <div class="autocomplete-list" id="prodFormOutraInjetoraList"></div>
+          </div>
+        </div>
+        <div class="form-group" id="grupoSetupMoldeOutraInjetora" style="display:none"><label>Molde na Outra Injetora *</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="prodFormMoldeOutraInjetora" placeholder="Preenche automático ao escolher a injetora...">
+            <div class="autocomplete-list" id="prodFormMoldeOutraInjetoraList"></div>
           </div>
         </div>
       </div>
