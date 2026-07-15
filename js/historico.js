@@ -65,6 +65,13 @@ async function atualizarFiltrosHistorico() {
   document.getElementById('histTbody').innerHTML =
     '<tr><td colspan="8" class="empty-msg">Use os filtros acima para buscar.</td></tr>';
   document.getElementById('histResumo').style.display = 'none';
+
+  // Campo de Injetora só faz sentido pra Produção
+  const grupoInjetora = document.getElementById('grupoHistInjetora');
+  if (grupoInjetora) grupoInjetora.style.display = (setor === 'Producao') ? '' : 'none';
+  if (setor === 'Producao' && _listas) {
+    setupAC('histInjetora', 'histInjetoraList', (_injetoras||[]).map(i=>i.nome));
+  }
 }
 
 async function buscarHistorico() {
@@ -74,6 +81,7 @@ async function buscarHistorico() {
   const func  = document.getElementById('histFunc').value;
   const tipo  = document.getElementById('histTipo').value;
   const job   = document.getElementById('histJob').value;
+  const injetora = document.getElementById('histInjetora')?.value?.trim() || '';
 
   if (!ini||!fim) return toast('Informe o período.','erro');
   if (ini>fim)    return toast('Data inicial maior que a final.','erro');
@@ -100,6 +108,9 @@ async function buscarHistorico() {
       }
       if (job) {
         dados = dados.filter(l => l.molde && l.molde.toUpperCase().includes(job.toUpperCase()));
+      }
+      if (injetora) {
+        dados = dados.filter(l => l.injetora && l.injetora.toUpperCase().includes(injetora.toUpperCase()));
       }
       _dadosHistorico = dados;
       renderizarHistoricoProducao(dados, ini, fim);
