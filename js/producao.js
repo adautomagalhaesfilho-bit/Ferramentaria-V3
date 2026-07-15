@@ -273,15 +273,19 @@ function atualizarCamposSetup() {
   const grupoAtual = document.getElementById('grupoSetupMoldeAtual');
   const grupoNovo  = document.getElementById('grupoSetupMoldeNovo');
   const grupoOutra = document.getElementById('grupoSetupOutraInjetora');
+  const grupoMoldeOutra = document.getElementById('grupoSetupMoldeOutraInjetora');
   if (grupoWrap)  grupoWrap.style.display  = (mostrarAtual || mostrarNovo || mostrarOutra) ? '' : 'none';
   if (grupoAtual) grupoAtual.style.display = mostrarAtual ? '' : 'none';
   if (grupoNovo)  grupoNovo.style.display  = mostrarNovo  ? '' : 'none';
   if (grupoOutra) grupoOutra.style.display = mostrarOutra ? '' : 'none';
+  if (grupoMoldeOutra) grupoMoldeOutra.style.display = mostrarOutra ? '' : 'none';
 
   // Autocomplete dos campos (molde vem da lista de jobs; outra injetora vem da lista de injetoras)
   if (_listas) setupAC('prodFormMoldeAtual', 'prodFormMoldeAtualList', _listas.jobs || []);
   if (_listas) setupAC('prodFormMoldeNovo',  'prodFormMoldeNovoList',  _listas.jobs || []);
-  setupAC('prodFormOutraInjetora', 'prodFormOutraInjetoraList', _injetoras.map(i=>i.nome));
+  if (_listas) setupAC('prodFormMoldeOutraInjetora', 'prodFormMoldeOutraInjetoraList', _listas.jobs || []);
+  // Ao escolher a "outra injetora", puxa automaticamente qual molde está instalado nela (editável se PCM estiver errado)
+  setupAC('prodFormOutraInjetora', 'prodFormOutraInjetoraList', _injetoras.map(i=>i.nome), () => _prefillMoldeDaOutraInjetora());
 
   // Pré-preenche "Molde Atual" com o que já está cadastrado na injetora selecionada (só ajuda, continua editável)
   if (mostrarAtual) _prefillMoldeAtualDaInjetora();
@@ -294,6 +298,17 @@ async function _prefillMoldeAtualDaInjetora() {
   try {
     const moldeAtual = await db.buscarMoldeNaInjetora(injetora);
     if (moldeAtual) campoAtual.value = moldeAtual;
+  } catch(e) { /* silencioso — campo continua editável manualmente */ }
+}
+
+async function _prefillMoldeDaOutraInjetora() {
+  const outraInjetora = document.getElementById('prodFormOutraInjetora')?.value?.trim();
+  const campo = document.getElementById('prodFormMoldeOutraInjetora');
+  if (!outraInjetora || !campo) return;
+  try {
+    const molde = await db.buscarMoldeNaInjetora(outraInjetora);
+    campo.value = molde || '';
+    if (!molde) toast('Nenhum molde encontrado nessa injetora no PCM — confira manualmente.', 'erro');
   } catch(e) { /* silencioso — campo continua editável manualmente */ }
 }
 
@@ -324,10 +339,9 @@ async function processarMovimentacaoSetupPCM(dados) {
     } else if (dados.atividade === 'Transferência de Molde') {
       const outra = dados.outraInjetora;
       if (!outra) return;
-      const [moldeDaqui, moldeDeLa] = await Promise.all([
-        db.buscarMoldeNaInjetora(injetora),
-        db.buscarMoldeNaInjetora(outra)
-      ]);
+      // Molde da outra injetora vem do campo (auto-preenchido, mas o usuário pode ter corrigido manualmente)
+      const moldeDeLa  = dados.moldeOutraInjetora || await db.buscarMoldeNaInjetora(outra);
+      const moldeDaqui = await db.buscarMoldeNaInjetora(injetora);
       if (moldeDaqui) await mover(moldeDaqui, 'Em Máquina', outra, `Transferido da injetora ${injetora} para ${outra}`);
       if (moldeDeLa)  await mover(moldeDeLa,  'Em Máquina', injetora, `Transferido da injetora ${outra} para ${injetora}`);
     }
@@ -374,6 +388,7 @@ async function salvarFormProducao() {
   const moldeAtual     = document.getElementById('prodFormMoldeAtual')?.value?.trim() || null;
   const moldeNovo      = document.getElementById('prodFormMoldeNovo')?.value?.trim()  || null;
   const outraInjetora  = document.getElementById('prodFormOutraInjetora')?.value?.trim() || null;
+  const moldeOutraInjetora = document.getElementById('prodFormMoldeOutraInjetora')?.value?.trim() || null;
 
   // Validações específicas das atividades de Setup que mexem no PCM
   if (tipo === 'Setup') {
@@ -389,7 +404,7 @@ async function salvarFormProducao() {
     tecnicos:      _tecnicosSelecionadosProd.join(', '),
     injetora, molde: document.getElementById('prodFormMolde')?.value || null,
     tipo, atividade,
-    moldeAtual, moldeNovo, outraInjetora,
+    moldeAtual, moldeNovo, outraInjetora, moldeOutraInjetora,
     descricao:     document.getElementById('prodFormDesc')?.value || null,
     status:        _statusFormProd || 'Em andamento',
     maquinaParada: document.getElementById('prodFormMaqParada')?.checked,
@@ -430,7 +445,7 @@ async function excluirProd(id) {
 function resetarFormProducao() {
   ['prodFormData','prodFormHrIni','prodFormHrFim','prodFormInjetora','prodFormMolde',
    'prodFormTipo','prodFormAtividade','prodFormDesc','prodFormNumOS','prodFormObs','prodTecnicoInput',
-   'prodFormMoldeAtual','prodFormMoldeNovo','prodFormOutraInjetora']
+   'prodFormMoldeAtual','prodFormMoldeNovo','prodFormOutraInjetora','prodFormMoldeOutraInjetora']
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
   const mp=document.getElementById('prodFormMaqParada'); if(mp) mp.checked=false;
   const os=document.getElementById('prodFormTemOS');     if(os) os.checked=false;
