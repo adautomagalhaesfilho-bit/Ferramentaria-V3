@@ -559,6 +559,14 @@ const db = {
     return res && res.length > 0 ? res[0] : null;
   },
 
+  // Busca reversa: dado o nome de uma injetora, retorna qual job/molde está alocado nela agora (ou null se vazia)
+  buscarMoldeNaInjetora: async function(maquina) {
+    if (!maquina) return null;
+    const res = await db._get('molde_localizacao',
+      'maquina=eq.' + encodeURIComponent(maquina) + '&localizacao=eq.' + encodeURIComponent('Em Máquina'), 'job');
+    return res && res.length > 0 ? res[0].job : null;
+  },
+
   _formatarLancamento: function(l) {
     return {
       id:             l.id,
