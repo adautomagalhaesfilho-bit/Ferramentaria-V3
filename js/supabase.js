@@ -209,11 +209,11 @@ const db = {
   salvarLancamento: async function(dados) {
     const mins = db._calcularMinutos(dados.horaInicio, dados.horaFim, dados.descontaAlmoco);
     const reg = {
-      data: dados.data, setor: dados.setor, funcionario: dados.funcionario,
+      data: dados.data, setor: dados.setor, funcionario: dados.funcionario || null,
       job: dados.job || null, tipo: dados.tipo || null, area: dados.area || null,
       descricao: dados.descricao || null, status: dados.status || 'Em andamento',
       hora_inicio: dados.horaInicio || null, hora_fim: dados.horaFim || null,
-      minutos: mins, maquina: dados.maquina || null,
+      minutos: mins, maquina: dados.maquina || null, motivo: dados.motivo || null,
       tempo_auto: dados.tempoAuto || null,
       desconto_almoco: !!dados.descontaAlmoco, turno: dados.turno || null,
       troca_copo:     !!dados.trocaCopo,
@@ -228,11 +228,11 @@ const db = {
   atualizarLancamento: async function(id, dados) {
     const mins = db._calcularMinutos(dados.horaInicio, dados.horaFim, dados.descontaAlmoco);
     return await db._patch('lancamentos', 'id=eq.' + id, {
-      data: dados.data, setor: dados.setor, funcionario: dados.funcionario,
+      data: dados.data, setor: dados.setor, funcionario: dados.funcionario || null,
       job: dados.job || null, tipo: dados.tipo || null, area: dados.area || null,
       descricao: dados.descricao || null, status: dados.status || 'Em andamento',
       hora_inicio: dados.horaInicio || null, hora_fim: dados.horaFim || null,
-      minutos: mins, maquina: dados.maquina || null,
+      minutos: mins, maquina: dados.maquina || null, motivo: dados.motivo || null,
       tempo_auto: dados.tempoAuto || null,
       desconto_almoco: !!dados.descontaAlmoco,
       troca_copo:      !!dados.trocaCopo,
@@ -584,6 +584,7 @@ const db = {
       minutos:        l.minutos || 0,
       hrProd:         db._fmtMin(l.minutos || 0),
       maquina:        l.maquina,
+      motivo:         l.motivo,
       tempoAuto:      l.tempo_auto,
       turno:          l.turno,
       descontaAlmoco: l.desconto_almoco,
