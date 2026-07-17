@@ -119,16 +119,130 @@ function renderizarDashAtivo(aba) {
   else if (aba==='bancada')  desenharSetor('Bancada', ini, fim);
   else if (aba==='projeto')  desenharProjeto(ini, fim);
   else if (aba==='producao') desenharProducao(ini, fim);
+  else if (aba==='pcm')       desenharPCM(ini, fim);
+}
+
+// Gera o texto "▲ 8% vs período anterior" (ou ▼), colorindo verde/vermelho.
+// invertido=true quando "maior" é ruim (ex: Horas Paradas) — inverte as cores.
+function _deltaHtml(atual, anterior, invertido) {
+  if (!anterior) return '<span style="font-size:11px;color:#94a3b8">sem período anterior p/ comparar</span>';
+  const diff = atual - anterior;
+  if (diff === 0) return '<span style="font-size:11px;color:#94a3b8">— igual ao período anterior</span>';
+  const pct = Math.round(Math.abs(diff) / anterior * 100);
+  const subiu = diff > 0;
+  const bom = invertido ? !subiu : subiu;
+  const cor = bom ? '#059669' : '#b91c1c';
+  const seta = subiu ? '▲' : '▼';
+  return `<span style="font-size:11px;color:${cor};font-weight:600">${seta} ${pct}% vs período anterior</span>`;
+}
+
+// Moldes parados na Ferramentaria há 5+ dias (usado na Geral e na aba PCM)
+function _calcularMoldesParados() {
+  return (_dadosDash.moldeLocalizacao||[])
+    .filter(m => m.localizacao === 'Na Ferramentaria' && m.atualizado_em)
+    .map(m => ({ job: m.job, dias: Math.floor((new Date() - new Date(m.atualizado_em)) / 86400000) }))
+    .filter(m => m.dias >= 5)
+    .sort((a,b) => b.dias - a.dias);
 }
 
 // ==========================================
-// 🌐 VISÃO GERAL
+// 📦 PCM — Movimentação de Moldes / Setups
 // ==========================================
+function desenharPCM(ini, fim) {
+  const div = document.getElementById('dashPcm');
+  if (!div || !_dadosDash) return;
+  const prod    = (_dadosDash.prodLancamentos||[]).filter(p=>p.tipo==='Setup');
+  const prodAnt = (_dadosDash.prodLancamentosAnteriores||[]).filter(p=>p.tipo==='Setup');
+  const historico = _dadosDash.moldeHistorico || [];
+
+  const tempoMedio = prod.length ? Math.round(prod.reduce((a,p)=>a+(p.minutos||0),0)/prod.length) : 0;
+  const moldesParados = _calcularMoldesParados();
+
+  // Molde que mais andou no período (mais movimentações no histórico de localização)
+  const porJobMov = {};
+  historico.forEach(h => { if(!h.job) return; porJobMov[h.job]=(porJobMov[h.job]||0)+1; });
+  const moldeMaisAndou = Object.entries(porJobMov).sort((a,b)=>b[1]-a[1])[0];
+
+  // Setups por atividade (Troca de Molde, Instalação, Remoção, Transferência)
+  const porAtividade = {};
+  prod.forEach(p => { const a=p.atividade||'Outros'; porAtividade[a]=(porAtividade[a]||0)+1; });
+  const atividades = Object.entries(porAtividade).sort((a,b)=>b[1]-a[1]);
+
+  // Injetoras com mais trocas
+  const porInjetora = {};
+  prod.forEach(p => { if(!p.injetora) return; porInjetora[p.injetora]=(porInjetora[p.injetora]||0)+1; });
+  const injetoras = Object.entries(porInjetora).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  let html = `<div class="cards-row">
+    ${metricCard('🔁','Setups no Período',prod.length,_deltaHtml(prod.length, prodAnt.length),'#0056b3')}
+    ${metricCard('⏱️','Tempo Médio por Setup',tempoMedio+'min','todos os tipos','#8b5cf6')}
+    ${metricCard('⚠️','Parados na Ferramentaria',moldesParados.length,'há 5+ dias','#ef4444')}
+    ${metricCard('🔀','Molde que Mais Andou',moldeMaisAndou?moldeMaisAndou[0]:'—',moldeMaisAndou?moldeMaisAndou[1]+' movimentações':'sem movimentação no período','#10b981')}
+  </div>`;
+
+  if (moldesParados.length) {
+    html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div style="font-weight:700;color:#b91c1c;font-size:14px;margin-bottom:10px">⚠️ Moldes Parados na Ferramentaria</div>
+      ${moldesParados.map(m=>`<div style="display:flex;justify-content:space-between;font-size:13px;color:#b91c1c;padding:4px 0;border-bottom:1px dashed #fecaca">
+        <span>${m.job}</span><span style="font-weight:600">${m.dias} dias</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  if (atividades.length || injetoras.length) {
+    html += `<div style="display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-bottom:16px" class="grafico-card">
+      <div>
+        <div class="grafico-titulo">📦 Setups por Tipo</div>
+        <div style="height:220px">${atividades.length?'<canvas id="chartPcmTipo"></canvas>':'<div class="empty-msg">Sem setups no período.</div>'}</div>
+      </div>
+      <div>
+        <div class="grafico-titulo">⚙️ Injetoras com Mais Trocas</div>
+        <div style="height:220px">${injetoras.length?'<canvas id="chartPcmInjetoras"></canvas>':'<div class="empty-msg">Sem trocas no período.</div>'}</div>
+      </div>
+    </div>`;
+  }
+  div.innerHTML = html;
+
+  const paleta = ['#0056b3','#10b981','#f59e0b','#8b5cf6','#ef4444','#0891b2','#6366f1','#ec4899'];
+  setTimeout(() => {
+    if (atividades.length) {
+      criarChart('chartPcmTipo', { type:'doughnut',
+        data:{ labels:atividades.map(a=>a[0]), datasets:[{ data:atividades.map(a=>a[1]), backgroundColor:paleta }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'bottom', labels:{boxWidth:10,font:{size:11}}} } }
+      });
+    }
+    if (injetoras.length) {
+      criarChart('chartPcmInjetoras', { type:'bar',
+        data:{ labels:injetoras.map(i=>i[0]), datasets:[{ data:injetoras.map(i=>i[1]), backgroundColor:'#0056b3', borderRadius:6 }] },
+        options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+          plugins:{ legend:{display:false}, datalabels:{anchor:'end',align:'end',color:'#1e3a5f',font:{weight:'bold'}} },
+          scales:{ x:{beginAtZero:true,ticks:{stepSize:1}} }
+        }
+      });
+    }
+  }, 100);
+}
 function desenharGeral(ini, fim) {
   const div = document.getElementById('dashGeral');
   if (!div || !_dadosDash) return;
-  const lancs = _dadosDash.lancamentos || [];
-  const prod  = _dadosDash.prodLancamentos || [];
+  const lancs    = _dadosDash.lancamentos || [];
+  const lancsAnt = _dadosDash.lancamentosAnteriores || [];
+  const prod     = _dadosDash.prodLancamentos || [];
+  const prodAnt  = _dadosDash.prodLancamentosAnteriores || [];
+
+  // "Parada de Máquina" não é trabalho produtivo — some vira o card próprio
+  const lancsProdutivos    = lancs.filter(l => l.tipo !== 'Parada de Máquina');
+  const lancsProdutivosAnt = lancsAnt.filter(l => l.tipo !== 'Parada de Máquina');
+  const totalMinsParada    = lancs.filter(l => l.tipo === 'Parada de Máquina').reduce((a,l)=>a+(l.minutos||0),0);
+  const totalMinsParadaAnt = lancsAnt.filter(l => l.tipo === 'Parada de Máquina').reduce((a,l)=>a+(l.minutos||0),0);
+  const motivoParadaPredominante = (() => {
+    const porMotivo = {};
+    lancs.filter(l=>l.tipo==='Parada de Máquina').forEach(l=>{ const m=l.motivo||'Sem motivo'; porMotivo[m]=(porMotivo[m]||0)+(l.minutos||0); });
+    const top = Object.entries(porMotivo).sort((a,b)=>b[1]-a[1])[0];
+    if (!top || totalMinsParada===0) return '';
+    return Math.round(top[1]/totalMinsParada*100) + '% ' + top[0];
+  })();
+
   const porSetor = {};
   lancs.forEach(l => {
     const s = l.setor||'Outros';
@@ -136,26 +250,81 @@ function desenharGeral(ini, fim) {
     porSetor[s].count++; porSetor[s].mins += l.minutos||0;
     if (l.job) porSetor[s].jobs.add(l.job);
   });
-  const totalMins   = lancs.reduce((a,l)=>a+(l.minutos||0),0);
-  const totalJobs   = new Set(lancs.filter(l=>l.job).map(l=>l.job)).size;
-  const totalProd   = prod.length;
-  const prodParadas = prod.filter(p=>p.maquina_parada).length;
+
+  const totalMins    = lancsProdutivos.reduce((a,l)=>a+(l.minutos||0),0);
+  const totalMinsAnt = lancsProdutivosAnt.reduce((a,l)=>a+(l.minutos||0),0);
+  const totalJobs    = new Set(lancs.filter(l=>l.job).map(l=>l.job)).size;
+
+  // Manutenção (Preventiva/Corretiva na Produção) separada de Setup — não confundir os dois
+  const manutProd    = prod.filter(p=>p.tipo==='Preventiva'||p.tipo==='Corretiva').length;
+  const manutProdAnt = prodAnt.filter(p=>p.tipo==='Preventiva'||p.tipo==='Corretiva').length;
+  const setupsProd    = prod.filter(p=>p.tipo==='Setup').length;
+  const setupsProdAnt = prodAnt.filter(p=>p.tipo==='Setup').length;
+
+  // Banco de horas: saldo líquido do período selecionado (créditos - débitos)
+  const bancoHoras = _dadosDash.bancoHoras || [];
+  const bancoPeriodo = bancoHoras.filter(b => b.data >= ini && b.data <= fim);
+  const saldoPeriodoMin = bancoPeriodo.reduce((a,b) => a + (b.tipo==='Credito' ? (b.minutos||0) : -(b.minutos||0)), 0);
+
+  // Saldo acumulado (todo o histórico) por funcionário — pra achar quem está no negativo
+  const saldoPorFunc = {};
+  bancoHoras.forEach(b => {
+    const f = b.funcionario; if (!f) return;
+    saldoPorFunc[f] = (saldoPorFunc[f]||0) + (b.tipo==='Credito' ? (b.minutos||0) : -(b.minutos||0));
+  });
+  const funcsNegativos = Object.entries(saldoPorFunc).filter(([,m]) => m <= -600); // -10h ou mais negativo
+
+  // Ausentes hoje (data real de hoje, não o período do filtro)
+  const hoje = new Date().toISOString().split('T')[0];
+  const ausentesHoje = (_dadosDash.ferias||[]).filter(f => hoje >= f.inicio && hoje <= f.fim);
+
+  // Moldes parados na Ferramentaria há 5+ dias
+  const moldesParados = _calcularMoldesParados();
+
+  // Máquinas Principais da Usinagem sem nenhum apontamento produtivo no período
+  const maquinasTipo = (typeof _listas !== 'undefined' && _listas?.maquinasTipo) || {};
+  const nomesMaquinasPrincipais = Object.keys(_dadosDash.capacidadesMaquinas||{}).filter(m => maquinasTipo[m] !== 'Secundaria');
+  const maquinasComApontamento = new Set(lancsProdutivos.filter(l=>l.setor==='Usinagem'&&l.maquina).map(l=>l.maquina));
+  const maquinasSemApontamento = nomesMaquinasPrincipais.filter(m => !maquinasComApontamento.has(m));
+
   const cors = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
   const icos = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐' };
 
+  // Moldes mais trabalhados — remove categorias genéricas de serviço (ex: "SV - Bancada")
   const porMolde = {};
-  lancs.filter(l=>l.job).forEach(l => { if(!porMolde[l.job]) porMolde[l.job]=0; porMolde[l.job]+=(l.minutos||0); });
+  lancs.filter(l=>l.job && !/^SV\s*-/i.test(l.job)).forEach(l => { if(!porMolde[l.job]) porMolde[l.job]=0; porMolde[l.job]+=(l.minutos||0); });
   const topMoldes = Object.entries(porMolde).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   let html = `<div class="cards-row">
-    ${metricCard('📋','Total de Lançamentos',lancs.length,'no período','#0056b3')}
-    ${metricCard('⏱️','Horas Produtivas',fmtMin(totalMins),'todos os setores','#10b981')}
+    ${metricCard('📋','Total de Lançamentos',lancs.length,_deltaHtml(lancs.length, lancsAnt.length),'#0056b3')}
+    ${metricCard('⏱️','Horas Produtivas',fmtMin(totalMins),_deltaHtml(totalMins, totalMinsAnt),'#10b981')}
     ${metricCard('🔩','Jobs Trabalhados',totalJobs,'moldes únicos','#8b5cf6')}
-    ${metricCard('🏭','Manutenções',totalProd,'Produção/Setup','#f59e0b',prodParadas?`<span style="background:#fee2e2;color:#b91c1c;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">${prodParadas} paradas</span>`:'')}
-  </div><div class="cards-row">`;
+    ${metricCard('🔧','Manutenções (Produção)',manutProd,_deltaHtml(manutProd, manutProdAnt),'#f59e0b')}
+  </div><div class="cards-row">
+    ${metricCard('🔴','Horas Paradas',fmtMin(totalMinsParada),totalMinsParada>0?(_deltaHtml(totalMinsParada, totalMinsParadaAnt, true)+(motivoParadaPredominante?` · ${motivoParadaPredominante}`:'')):'nenhuma no período','#ef4444')}
+    ${metricCard('🏦','Banco de Horas',(saldoPeriodoMin>=0?'+':'')+fmtMin(Math.abs(saldoPeriodoMin)),'saldo líquido do período',saldoPeriodoMin>=0?'#10b981':'#ef4444')}
+    ${metricCard('📅','Ausentes Hoje',ausentesHoje.length,ausentesHoje.length?ausentesHoje.map(a=>a.motivo).join(', '):'ninguém de férias/licença','#0891b2')}
+    ${metricCard('📦','Setups (Produção)',setupsProd,_deltaHtml(setupsProd, setupsProdAnt),'#6366f1')}
+  </div>`;
 
+  // Painel "Precisa de Atenção" — só aparece se houver algo relevante
+  const temAtencao = maquinasSemApontamento.length || funcsNegativos.length || moldesParados.length;
+  if (temAtencao) {
+    html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:10px">⚠️ Precisa de Atenção</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#92400e">
+        ${maquinasSemApontamento.length ? `<div>• ${maquinasSemApontamento.length} máquina${maquinasSemApontamento.length>1?'s':''} Principal${maquinasSemApontamento.length>1?'is':''} sem apontamento no período: <b>${maquinasSemApontamento.join(', ')}</b></div>` : ''}
+        ${funcsNegativos.length ? `<div>• ${funcsNegativos.length} funcionário${funcsNegativos.length>1?'s':''} com banco de horas negativo (10h+): <b>${funcsNegativos.map(([n,m])=>n+' ('+fmtMin(Math.abs(m))+')').join(', ')}</b></div>` : ''}
+        ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>m.job+' ('+m.dias+'d)').join(', ')}</b></div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  html += `<div class="cards-row">`;
   ['Usinagem','Bancada','Projeto'].forEach(s => {
     const d = porSetor[s] || { count:0, mins:0, jobs:new Set() };
+    const funcsSetor = (_dadosDash.funcionarios||[]).filter(f => f.setor === s).length;
+    const horasPorPessoa = funcsSetor > 0 ? Math.round(d.mins/60/funcsSetor*10)/10 : null;
     html += `<div class="metric-card" style="border-left-color:${cors[s]}">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="width:36px;height:36px;background:${cors[s]}20;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">${icos[s]}</div>
@@ -163,6 +332,7 @@ function desenharGeral(ini, fim) {
       </div>
       <div style="font-size:20px;font-weight:700;color:${cors[s]}">${d.mins>0?fmtMin(d.mins):'—'}</div>
       <div style="font-size:12px;color:#64748b;margin-top:4px">${d.count} lançamentos · ${d.jobs.size} jobs</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px">${horasPorPessoa!==null?horasPorPessoa+'h por pessoa':'sem meta de horas'}</div>
     </div>`;
   });
   html += `</div>`;
