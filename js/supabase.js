@@ -185,14 +185,27 @@ const db = {
   },
 
   buscarDashboard: async function(dataIni, dataFim) {
-    const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas, prodLanc] = await Promise.all([
+    // Período anterior de mesmo tamanho, usado pra calcular as variações (▲/▼) dos cards
+    const diasPeriodo = Math.round((new Date(dataFim+'T12:00:00') - new Date(dataIni+'T12:00:00')) / 86400000) + 1;
+    const iniAntD = new Date(dataIni+'T12:00:00'); iniAntD.setDate(iniAntD.getDate() - diasPeriodo);
+    const fimAntD = new Date(dataIni+'T12:00:00'); fimAntD.setDate(fimAntD.getDate() - 1);
+    const iniAnt = iniAntD.toISOString().split('T')[0];
+    const fimAnt = fimAntD.toISOString().split('T')[0];
+
+    const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas, prodLanc,
+           lancamentosAnt, prodLancAnt, bancoHoras, moldeLocalizacao, moldeHistorico] = await Promise.all([
       db._get('lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
       db._get('feriados', '', 'data'),
       db._get('ferias', '', '*'),
       db._get('funcionarios', 'ativo=eq.true&order=nome.asc', '*'),
       db._get('rh_parciais', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
       db._get('maquinas', 'ativo=eq.true&order=nome.asc', '*'),
-      db._get('prod_lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*')
+      db._get('prod_lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
+      db._get('lancamentos', 'data=gte.' + iniAnt + '&data=lte.' + fimAnt, '*'),
+      db._get('prod_lancamentos', 'data=gte.' + iniAnt + '&data=lte.' + fimAnt, '*'),
+      db._get('banco_horas', '', '*'),
+      db._get('molde_localizacao', '', '*'),
+      db._get('molde_localizacao_historico', 'movido_em=gte.' + dataIni + '&movido_em=lte.' + dataFim + 'T23:59:59', '*')
     ]);
     const capMaquinas = {};
     (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno, tipo: m.tipo || 'Principal' }; });
@@ -203,7 +216,17 @@ const db = {
       funcionarios:        funcionarios || [],
       parciais:            parciais || [],
       capacidadesMaquinas: capMaquinas,
-      prodLancamentos:     prodLanc || []
+      prodLancamentos:     prodLanc || [],
+      // Período anterior (mesmo tamanho de dias) — só pra comparação nos cards
+      lancamentosAnteriores:     (lancamentosAnt || []).map(db._formatarLancamento),
+      prodLancamentosAnteriores: prodLancAnt || [],
+      // Banco de horas completo (histórico todo) — usado pro saldo líquido do período
+      // e pra achar quem está no negativo acumulado (não é só do mês)
+      bancoHoras:          bancoHoras || [],
+      // Estado atual de cada molde (pra achar quem está parado na Ferramentaria)
+      moldeLocalizacao:    moldeLocalizacao || [],
+      // Movimentações de molde no período (pra aba PCM: quem mais andou)
+      moldeHistorico:      moldeHistorico || []
     };
   },
 
