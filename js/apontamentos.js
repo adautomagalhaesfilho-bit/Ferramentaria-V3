@@ -641,10 +641,11 @@ async function carregarFuncionariosForm(setor) {
   if (!sel) return;
   sel.innerHTML = '<option value="">Carregando...</option>';
   try {
-    const todos = await db.listarFuncionarios();
-    const funcs = todos.filter(f => f.setor===setor && !f.demissao).map(f=>f.nome);
-    const lista = funcs.length>0 ? funcs :
-      (setor==='Usinagem'?_listas?.funcionarios:_listas?.funcProjeto)||[];
+    // Usa sempre _listas (já mescla setor principal + supervisores + setor extra de
+    // apontamento) — nunca reconsultar e filtrar só pelo setor principal aqui,
+    // senão funcionários com setor extra (ex: Bancada que também lança na Usinagem)
+    // ficam de fora do formulário mesmo aparecendo no filtro da tela.
+    const lista = (setor==='Usinagem' ? _listas?.funcionarios : _listas?.funcProjeto) || [];
     sel.innerHTML = '<option value="">Selecione...</option>' + lista.map(f=>`<option value="${f}">${f}</option>`).join('');
 
     if (setor==='Usinagem') {
