@@ -86,7 +86,7 @@ const db = {
   obterListas: async function() {
     const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
       db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'nome,setor,turno,cargo,setor_apontamento_extra'),
-      db._get('maquinas', 'ativo=eq.true&order=nome.asc', 'nome,turno,cap_liquida'),
+      db._get('maquinas', 'ativo=eq.true&order=nome.asc', 'nome,turno,cap_liquida,tipo'),
       db._get('jobs', 'ativo=eq.true&order=nome.asc', 'nome'),
       db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
       db._get('motivos_parada', 'ativo=eq.true', 'nome'),
@@ -137,6 +137,7 @@ const db = {
       funcProducao:    funcProducao,
       funcSupervisores: funcSupervisores,
       maquinas:        maquinas.map(m => m.nome),
+      maquinasTipo:    Object.fromEntries(maquinas.map(m => [m.nome, m.tipo || 'Principal'])),
       jobs:            jobs.map(j => j.nome),
       tipos:           tiposUsina,
       tiposBancada:    tiposBancada,
@@ -194,7 +195,7 @@ const db = {
       db._get('prod_lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*')
     ]);
     const capMaquinas = {};
-    (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno }; });
+    (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno, tipo: m.tipo || 'Principal' }; });
     return {
       lancamentos:         (lancamentos || []).map(db._formatarLancamento),
       feriados:            (feriados || []).map(f => f.data),
