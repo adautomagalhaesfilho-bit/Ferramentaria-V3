@@ -177,14 +177,14 @@ function desenharPCM(ini, fim) {
     ${metricCard('🔁','Setups no Período',prod.length,_deltaHtml(prod.length, prodAnt.length),'#0056b3')}
     ${metricCard('⏱️','Tempo Médio por Setup',tempoMedio+'min','todos os tipos','#8b5cf6')}
     ${metricCard('⚠️','Parados na Ferramentaria',moldesParados.length,'há 5+ dias','#ef4444')}
-    ${metricCard('🔀','Molde que Mais Andou',moldeMaisAndou?moldeMaisAndou[0]:'—',moldeMaisAndou?moldeMaisAndou[1]+' movimentações':'sem movimentação no período','#10b981')}
+    ${metricCard('🔀','Molde que Mais Andou',moldeMaisAndou?`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${moldeMaisAndou[0].replace(/'/g,"\\'")}')">${moldeMaisAndou[0]}</span>`:'—',moldeMaisAndou?moldeMaisAndou[1]+' movimentações':'sem movimentação no período','#10b981')}
   </div>`;
 
   if (moldesParados.length) {
     html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin-bottom:16px">
       <div style="font-weight:700;color:#b91c1c;font-size:14px;margin-bottom:10px">⚠️ Moldes Parados na Ferramentaria</div>
       ${moldesParados.map(m=>`<div style="display:flex;justify-content:space-between;font-size:13px;color:#b91c1c;padding:4px 0;border-bottom:1px dashed #fecaca">
-        <span>${m.job}</span><span style="font-weight:600">${m.dias} dias</span>
+        <span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${m.job.replace(/'/g,"\\'")}')">${m.job}</span><span style="font-weight:600">${m.dias} dias</span>
       </div>`).join('')}
     </div>`;
   }
@@ -315,7 +315,7 @@ function desenharGeral(ini, fim) {
       <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#92400e">
         ${maquinasSemApontamento.length ? `<div>• ${maquinasSemApontamento.length} máquina${maquinasSemApontamento.length>1?'s':''} Principal${maquinasSemApontamento.length>1?'is':''} sem apontamento no período: <b>${maquinasSemApontamento.join(', ')}</b></div>` : ''}
         ${funcsNegativos.length ? `<div>• ${funcsNegativos.length} funcionário${funcsNegativos.length>1?'s':''} com banco de horas negativo (10h+): <b>${funcsNegativos.map(([n,m])=>n+' ('+fmtMin(Math.abs(m))+')').join(', ')}</b></div>` : ''}
-        ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>m.job+' ('+m.dias+'d)').join(', ')}</b></div>` : ''}
+        ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${m.job.replace(/'/g,"\\'")}')">${m.job}</span> (${m.dias}d)`).join(', ')}</b></div>` : ''}
       </div>
     </div>`;
   }
