@@ -95,7 +95,8 @@ function alternarVisaoApontamento(visao) {
 }
 
 // Agrupa os lançamentos do dia por máquina, mostrando de cara quais estão
-// cobertas e quais ficaram sem nenhum apontamento (empilha tudo por máquina).
+// cobertas e quais ficaram sem nenhum apontamento — formato de lista/tabela,
+// com uma linha de divisão por máquina (não cards).
 function renderizarApontamentosPorMaquina() {
   const div = document.getElementById('divApontamentosPorMaquina');
   if (!div) return;
@@ -118,54 +119,58 @@ function renderizarApontamentosPorMaquina() {
     return;
   }
 
-  // Máquinas com apontamento primeiro, depois as vazias — dentro de cada grupo, Principal antes de Secundária
+  // Máquinas com apontamento primeiro, depois as vazias — dentro de cada grupo, ordem alfabética
   const ordenadas = nomesMaquinas.slice().sort((a,b) => {
     const aVazia = porMaquina[a].length === 0, bVazia = porMaquina[b].length === 0;
     if (aVazia !== bVazia) return aVazia ? 1 : -1;
     return a.localeCompare(b);
   });
 
-  div.innerHTML = `<div class="cards-grid-maquinas">${ordenadas.map(maq => {
+  const linhaItem = item => {
+    const cor = corStatus(item.status);
+    const ico = icoStatus(item.status);
+    const stTxt = `<span style="color:${cor};font-weight:600;font-size:12px">${ico} ${item.status||'Em andamento'}</span>`;
+    const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '<span style="color:#f59e0b">⏳</span>');
+    const job = item.job ? `<b>${item.job}</b>` : '<span style="color:#aaa">—</span>';
+    const tecnico = typeof nomeTecnicoClicavel==='function' ? nomeTecnicoClicavel(item.funcionario) : (item.funcionario||'<span style="color:#94a3b8">— sem operador</span>');
+    const tipoTxt = item.tipo==='Parada de Máquina' ? `🔴 Parada — ${item.motivo||'—'}` : (item.tipo||'—');
+    const acoes = podeEditar()
+      ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarApontamentoPorId(${item.id})">✏️</button>
+         <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${item.id})">🗑️</button>`
+      : '';
+    return `<tr><td>${job}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td>${tipoTxt}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
+  };
+
+  const linhaCabecalhoMaquina = maq => {
     const itens = porMaquina[maq];
     const ehSecundaria = maquinasTipo[maq] === 'Secundaria';
     const vazia = itens.length === 0;
-
-    let corBorda, corBg, statusTxt;
-    if (!vazia) { corBorda = '#10b981'; corBg = '#f0fdf4'; statusTxt = `<span style="color:#059669;font-weight:700">✅ ${itens.length} lançamento${itens.length>1?'s':''}</span>`; }
-    else if (ehSecundaria) { corBorda = '#e2e8f0'; corBg = '#fafafa'; statusTxt = '<span style="color:#94a3b8">— Sem uso hoje</span>'; }
-    else { corBorda = '#ef4444'; corBg = '#fef2f2'; statusTxt = '<span style="color:#b91c1c;font-weight:700">🔴 Sem apontamento hoje</span>'; }
-
     const badgeTipo = ehSecundaria
-      ? '<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:6px">SECUNDÁRIA</span>' : '';
+      ? '<span style="font-size:10px;background:#e2e8f0;color:#64748b;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:6px">SECUNDÁRIA</span>' : '';
 
-    const corpoItens = itens.map(item => {
-      const cor = corStatus(item.status);
-      const ico = icoStatus(item.status);
-      const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '⏳');
-      const idEditar = item.id;
-      const acoes = podeEditar()
-        ? `<button class="btn-warning" style="padding:2px 6px;font-size:10px;margin-right:3px" onclick="editarApontamentoPorId(${idEditar})">✏️</button>
-           <button class="btn-danger" style="padding:2px 6px;font-size:10px" onclick="excluirApontamentoConfirm(${item.id})">🗑️</button>`
-        : '';
-      return `<div style="background:#fff;border-radius:6px;padding:8px 10px;margin-bottom:6px;border:1px solid #e2e8f0">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
-          <div style="font-size:12px;font-weight:600;color:#1e3a5f">${item.job || (item.tipo==='Parada de Máquina' ? '🔴 '+ (item.motivo||'Parada') : (item.tipo||'—'))}</div>
-          <div style="font-size:10px;color:${cor};font-weight:600;white-space:nowrap">${ico} ${item.status||''}</div>
-        </div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'— sem operador')} · ${hr}</div>
-        ${item.tipo && item.tipo !== 'Parada de Máquina' ? `<div style="font-size:11px;color:#94a3b8">${item.tipo}</div>` : ''}
-        <div style="margin-top:4px">${acoes}</div>
-      </div>`;
-    }).join('');
+    let statusTxt, bg;
+    if (!vazia) { bg='#f0fdf4'; statusTxt = `<span style="color:#059669;font-weight:700">✅ ${itens.length} lançamento${itens.length>1?'s':''}</span>`; }
+    else if (ehSecundaria) { bg='#fafafa'; statusTxt = '<span style="color:#94a3b8">— Sem uso hoje</span>'; }
+    else { bg='#fef2f2'; statusTxt = '<span style="color:#b91c1c;font-weight:700">🔴 Sem apontamento hoje</span>'; }
 
-    return `<div style="background:${corBg};border:2px solid ${corBorda};border-radius:10px;padding:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-weight:700;color:#1e3a5f;font-size:14px">⚙️ ${maq}${badgeTipo}</div>
+    return `<tr style="background:${bg}"><td colspan="7" style="padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div style="font-weight:700;color:#1e3a5f;font-size:13px">⚙️ ${maq}${badgeTipo}</div>
+        <div style="font-size:12px">${statusTxt}</div>
       </div>
-      <div style="font-size:12px;margin-bottom:${vazia?'0':'10px'}">${statusTxt}</div>
-      ${!vazia ? corpoItens : ''}
-    </div>`;
-  }).join('')}</div>`;
+    </td></tr>`;
+  };
+
+  const linhas = ordenadas.map(maq => linhaCabecalhoMaquina(maq) + porMaquina[maq].map(linhaItem).join('')).join('');
+
+  div.innerHTML = `<div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Job</th><th>Técnico</th><th>Horários</th><th>Tipo</th><th>Descrição</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+  </div>`;
 }
 
 function renderizarApontamentos() {
