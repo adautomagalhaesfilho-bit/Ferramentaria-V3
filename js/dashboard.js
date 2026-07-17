@@ -229,8 +229,13 @@ function desenharSetor(setor, ini, fim) {
   const totalMins = lancs.reduce((a,l)=>a+(l.minutos||0),0);
   const totalJobs = new Set(lancs.filter(l=>l.job).map(l=>l.job)).size;
 
+  // "Parada de Máquina" não é trabalho produtivo — fica de fora das métricas de
+  // ocupação (pessoas/máquinas) e das horas produtivas, mas continua contando
+  // como lançamento e aparece no painel próprio de paradas mais abaixo.
+  const lancsProdutivos = lancs.filter(l => l.tipo !== 'Parada de Máquina');
+
   // Exclui supervisores das horas produtivas do setor (têm função administrativa)
-  const lancsSemSupervisor = lancs.filter(l => !isSupervisor(l.funcionario, _dadosDash));
+  const lancsSemSupervisor = lancsProdutivos.filter(l => !isSupervisor(l.funcionario, _dadosDash));
   const totalMinsSemSup = lancsSemSupervisor.reduce((a,l)=>a+(l.minutos||0),0);
 
   const horasExtras = lancsSemSupervisor.filter(l => {
@@ -254,7 +259,22 @@ function desenharSetor(setor, ini, fim) {
   const pctEquipe = totalMeta>0?Math.round(totalMinsSemSup/totalMeta*100):0;
 
   const porMaq = {};
-  if(setor==='Usinagem') lancs.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; if(!porMaq[l.maquina]) porMaq[l.maquina]=0; porMaq[l.maquina]+=l.minutos||0; });
+  if(setor==='Usinagem') lancsProdutivos.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; if(!porMaq[l.maquina]) porMaq[l.maquina]=0; porMaq[l.maquina]+=l.minutos||0; });
+
+  // Paradas de Máquina — agrupa por máquina e motivo pra expor no dashboard
+  // ex: "Torno 3 — 60h paradas: 40h Falta de Demanda, 20h Manutenção Corretiva"
+  const porMaqMotivo = {};
+  let totalMinsParada = 0;
+  if (setor === 'Usinagem') {
+    lancs.filter(l => l.tipo === 'Parada de Máquina').forEach(l => {
+      const maq = l.maquina || 'Sem Máquina';
+      const motivo = l.motivo || 'Sem motivo';
+      if (!porMaqMotivo[maq]) porMaqMotivo[maq] = {};
+      if (!porMaqMotivo[maq][motivo]) porMaqMotivo[maq][motivo] = 0;
+      porMaqMotivo[maq][motivo] += l.minutos || 0;
+      totalMinsParada += l.minutos || 0;
+    });
+  }
 
   // Máquinas compartilhadas entre setores (ex: Solda Tig/Mig usadas pela Bancada)
   // devem contar na ocupação de máquinas da Usinagem, independente de quem lançou
@@ -351,6 +371,13 @@ function desenharSetor(setor, ini, fim) {
       <div class="metric-label">Horas Extras</div>
       <div class="metric-sub">fora do expediente</div>
     </div>
+    ${setor==='Usinagem' ? `
+    <div class="metric-card" id="cardHorasParadas" style="border-left-color:#ef4444;display:${totalMinsParada>0?'':'none'}">
+      <div class="metric-icon">🔴</div>
+      <div class="metric-valor" id="valHorasParadas" style="color:#ef4444">${fmtMin(totalMinsParada)}</div>
+      <div class="metric-label">Horas Paradas</div>
+      <div class="metric-sub">máquinas sem produção</div>
+    </div>` : ''}
   </div>`;
 
   const opOrdenados = [...opEntries].sort((a,b)=>a.nome.localeCompare(b.nome));
@@ -392,6 +419,37 @@ function desenharSetor(setor, ini, fim) {
         </div>
       </div>
       <div id="listaOcupacaoMaquinas">${_renderBarrasMaquinas(porMaq)}</div>
+    </div>`;
+  }
+
+  if (setor==='Usinagem' && totalMinsParada > 0) {
+    const maqsParada = Object.keys(porMaqMotivo).sort((a,b) => {
+      const totalA = Object.values(porMaqMotivo[a]).reduce((x,y)=>x+y,0);
+      const totalB = Object.values(porMaqMotivo[b]).reduce((x,y)=>x+y,0);
+      return totalB - totalA;
+    });
+    const paletaMotivo = ['#ef4444','#f59e0b','#8b5cf6','#0ea5e9','#10b981','#ec4899','#64748b','#14b8a6','#f97316','#6366f1','#84cc16','#eab308'];
+    html+=`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+        <div style="font-weight:700;color:#1e3a5f;font-size:15px">🔴 Paradas de Máquina</div>
+        <div style="font-size:12px;color:#94a3b8">Total no período: <strong style="color:#b91c1c">${fmtMin(totalMinsParada)}</strong></div>
+      </div>
+      ${maqsParada.map(maq => {
+        const motivos = Object.entries(porMaqMotivo[maq]).sort((a,b)=>b[1]-a[1]);
+        const totalMaq = motivos.reduce((a,[,m])=>a+m,0);
+        return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-weight:600;color:#1e3a5f;font-size:13px">⚙️ ${maq}</div>
+            <div style="font-size:13px;font-weight:700;color:#b91c1c">${fmtMin(totalMaq)} parada${totalMaq>0?'s':''}</div>
+          </div>
+          <div style="display:flex;height:10px;border-radius:6px;overflow:hidden;background:#f1f5f9;margin-bottom:8px">
+            ${motivos.map(([,m],i)=>`<div style="width:${totalMaq>0?(m/totalMaq*100):0}%;background:${paletaMotivo[i%paletaMotivo.length]}"></div>`).join('')}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${motivos.map(([motivo,m],i)=>`<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:${paletaMotivo[i%paletaMotivo.length]}20;color:${paletaMotivo[i%paletaMotivo.length]};font-weight:600">${motivo}: ${fmtMin(m)}</span>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
     </div>`;
   }
 
