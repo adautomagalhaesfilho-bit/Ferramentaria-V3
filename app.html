@@ -456,6 +456,7 @@
         <div class="form-group" id="grupoFuncSimples" style="margin-bottom:0">
           <select id="formFunc"><option value="">Selecione...</option></select>
           <div id="avisoFunc" class="aviso-info" style="display:none">Buscando último apontamento...</div>
+          <div id="avisoFuncOpcional" style="display:none;font-size:11px;color:#94a3b8;margin-top:4px">Opcional — máquina parada não tem operador</div>
         </div>
         <div class="form-group" id="grupoFuncBancada" style="display:none;margin-bottom:0">
           <label>Adicionar Técnico</label>
@@ -471,7 +472,7 @@
 
       <!-- 3. MÁQUINA -->
       <div id="grupoMaquina" style="display:none" class="form-group">
-        <label>Máquina *</label>
+        <label id="labelMaquina">Máquina *</label>
         <select id="formMaq"><option value="">Selecione...</option></select>
       </div>
 
@@ -479,10 +480,10 @@
       <div id="grupoTipoUsina" style="display:none" class="form-row">
         <div class="form-group">
           <label>Tipo de Serviço *</label>
-          <select id="formTipoUsina"><option value="">Selecione...</option></select>
+          <select id="formTipoUsina" onchange="atualizarCamposParadaMaquina()"><option value="">Selecione...</option></select>
         </div>
         <div class="form-group">
-          <label>Motivo de Parada</label>
+          <label id="labelMotivo">Motivo de Parada</label>
           <select id="formMotivo"><option value="Nenhum">Nenhum</option></select>
         </div>
       </div>
