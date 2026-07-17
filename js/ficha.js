@@ -51,10 +51,10 @@ async function buscarFicha() {
     _lancsFicha     = res.lancamentos || [];
     _lancsProdFicha = res.prodLancamentos || [];
 
-    if (!_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length) {
+    if (!res.jobExiste && !_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length && !res.histLoc.length && !res.localizacao) {
       elConteudo.style.display = 'none';
       elVazio.style.display    = 'block';
-      elVazio.innerHTML = '<div style="font-size:48px">🔍</div><div>Nenhum lançamento para "' + job + '"</div>';
+      elVazio.innerHTML = '<div style="font-size:48px">🔍</div><div>Nenhum molde encontrado com o nome "' + job + '"</div>';
       return;
     }
     renderizarFicha(job, res);
