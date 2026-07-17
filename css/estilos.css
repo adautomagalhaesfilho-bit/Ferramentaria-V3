@@ -189,6 +189,7 @@ body { display:flex; min-height:100vh; }
   margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);
 }
 .cards-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+.cards-grid-maquinas { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; margin-bottom:16px; }
 .metric-card {
   flex:1; min-width:160px; background:#fff; border-radius:12px;
   border:1px solid var(--borda); border-left:4px solid var(--azul);
