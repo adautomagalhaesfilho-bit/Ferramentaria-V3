@@ -174,11 +174,16 @@
       </div>
       <div class="filtros-bar">
         <div class="filtro-item"><label>DATA</label><input type="date" id="apontData" onchange="buscarApontamentos()"></div>
-        <div class="filtro-item"><label>FUNCIONÁRIO</label><select id="apontFunc" onchange="renderizarApontamentos()"><option value="Todos">Todos</option></select></div>
+        <div class="filtro-item"><label>FUNCIONÁRIO</label><select id="apontFunc" onchange="atualizarTelaApontamentos()"><option value="Todos">Todos</option></select></div>
         <div class="filtro-item" id="filtroMaqWrap" style="display:none"><label>MÁQUINA</label><select id="apontMaq" onchange="buscarApontamentos()"><option value="Todas">Todas</option></select></div>
+        <div class="filtro-item" id="toggleVisaoWrap" style="display:none;align-self:flex-end">
+          <button id="btnVisaoMaquina" class="btn-secondary" style="font-size:12px;padding:7px 14px" onclick="alternarVisaoApontamento('maquina')">🏭 Por Máquina</button>
+          <button id="btnVisaoLista" class="btn-secondary" style="font-size:12px;padding:7px 14px" onclick="alternarVisaoApontamento('lista')">📋 Lista</button>
+        </div>
       </div>
       <div id="apontLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Buscando lançamentos...</span></div>
-      <div class="card">
+      <div id="divApontamentosPorMaquina" style="display:none"></div>
+      <div class="card" id="cardTabelaApontamentos">
         <div class="table-wrap">
           <table id="tabelaApontamentos">
             <thead id="theadApontamentos"></thead>
