@@ -533,7 +533,7 @@ async function _carregarMaquinasLista() {
     if (!el) return;
     el.innerHTML = _todasMaquinasAdmin.map(m=>`<div class="lista-item">
       <div class="lista-item-info">
-        <div class="lista-item-nome">${m.nome}</div>
+        <div class="lista-item-nome">${m.nome} ${(m.tipo==='Secundaria') ? '<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:4px">SECUNDÁRIA</span>' : ''}</div>
         <div class="lista-item-sub">Turno: ${m.turno||'ADM'} | Cap: ${m.cap_liquida||508} min/dia</div>
       </div>
       <div class="lista-item-acoes">
@@ -572,6 +572,13 @@ function abrirEdicaoMaquina(id) {
         </select>
       </div>
       <div class="form-group"><label>Capacidade Líquida (min/dia)</label><input type="number" id="editMaqCap" value="${m.cap_liquida||508}"></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="editMaqTipo">
+          <option value="Principal" ${(m.tipo||'Principal')==='Principal'?'selected':''}>Principal</option>
+          <option value="Secundaria" ${m.tipo==='Secundaria'?'selected':''}>Secundária</option>
+        </select>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Secundária não segue meta de ocupação diária — só mede horas de uso no mês</div>
+      </div>
       <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="editMaqAtivo" ${m.ativo?'checked':''}> Ativa</label></div>
     </div>
     <div class="modal-footer">
@@ -589,13 +596,15 @@ async function salvarEdicaoMaquina(id) {
   const novoNome  = document.getElementById('editMaqNome')?.value?.trim();
   const novoTurno = document.getElementById('editMaqTurno')?.value;
   const novaCap   = parseInt(document.getElementById('editMaqCap')?.value) || 508;
+  const novoTipo  = document.getElementById('editMaqTipo')?.value || 'Principal';
   const novoAtivo = document.getElementById('editMaqAtivo')?.checked;
   if (!novoNome) return toast('Informe o nome.','erro');
   try {
-    await db.salvarMaquina({ id, nome: novoNome, turno: novoTurno, cap_liquida: novaCap, ativo: novoAtivo });
+    await db.salvarMaquina({ id, nome: novoNome, turno: novoTurno, cap_liquida: novaCap, tipo: novoTipo, ativo: novoAtivo });
     if (m.nome !== novoNome) await registrarLog('maquinas', id, 'editar', 'nome', m.nome, novoNome);
     if (m.turno !== novoTurno) await registrarLog('maquinas', id, 'editar', 'turno', m.turno, novoTurno);
     if (m.cap_liquida !== novaCap) await registrarLog('maquinas', id, 'editar', 'capacidade', m.cap_liquida, novaCap);
+    if ((m.tipo||'Principal') !== novoTipo) await registrarLog('maquinas', id, 'editar', 'tipo', m.tipo||'Principal', novoTipo);
     if (m.ativo !== novoAtivo) await registrarLog('maquinas', id, 'editar', 'ativo', m.ativo?'Ativa':'Inativa', novoAtivo?'Ativa':'Inativa');
     toast('Atualizada!','sucesso');
     fecharEdicaoMaquina(); carregarMaquinasAdmin();
