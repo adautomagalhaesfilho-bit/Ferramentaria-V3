@@ -191,10 +191,12 @@ async function editarApontamento(idx) {
   if (_setorAtivo==='Usinagem') {
     setSelect('formMaq', item.maquina);
     setSelect('formTipoUsina', item.tipo);
+    setSelect('formMotivo', item.motivo || 'Nenhum');
     document.getElementById('formHrIni').value     = item.horaInicio || '';
     document.getElementById('formHrFim').value     = item.horaFim    || '';
     document.getElementById('formTempoAuto').value = item.tempoAuto  || '';
     document.getElementById('formAlmoco').checked  = !!item.descontaAlmoco;
+    atualizarCamposParadaMaquina();
   } else if (_setorAtivo==='Bancada') {
     setSelect('formTipoBancada', item.tipo);
     document.getElementById('formHrIni').value = item.horaInicio || '';
@@ -372,6 +374,29 @@ function excluirApontamentoConfirm(ids) {
   });
 }
 
+// ==========================================
+// 🔴 PARADA DE MÁQUINA (Usinagem) — regras de obrigatoriedade dinâmicas
+// ==========================================
+// Quando o Tipo de Serviço é "Parada de Máquina":
+//   - Máquina continua obrigatória (precisa saber qual ficou parada)
+//   - Técnico deixa de ser obrigatório (máquina parada não tem operador)
+//   - Motivo de Parada passa a ser obrigatório (por que ficou parada)
+// Nos demais tipos: Técnico obrigatório, Máquina agora é OPCIONAL
+// (permite lançamentos gerais sem máquina definida — organização de setor,
+// programação CAM, etc.)
+function atualizarCamposParadaMaquina() {
+  const tipo = document.getElementById('formTipoUsina')?.value;
+  const ehParada = tipo === 'Parada de Máquina';
+
+  const labelMaquina = document.getElementById('labelMaquina');
+  const labelMotivo  = document.getElementById('labelMotivo');
+  const avisoOpcional = document.getElementById('avisoFuncOpcional');
+
+  if (labelMaquina) labelMaquina.innerText = ehParada ? 'Máquina *' : 'Máquina';
+  if (labelMotivo)  labelMotivo.innerText  = ehParada ? 'Motivo de Parada *' : 'Motivo de Parada';
+  if (avisoOpcional) avisoOpcional.style.display = ehParada ? '' : 'none';
+}
+
 function coletarDadosForm(setor) {
   const data      = document.getElementById('formData').value;
   const job       = document.getElementById('formJob').value;
@@ -380,27 +405,38 @@ function coletarDadosForm(setor) {
   if (!data)      { toast('Informe a data.','erro');        return null; }
   if (!descricao) { toast('Preencha a descrição.','erro');  return null; }
 
+  // Usinagem com tipo "Parada de Máquina": técnico não é obrigatório
+  const tipoUsinaAntecipado = setor === 'Usinagem' ? document.getElementById('formTipoUsina')?.value : null;
+  const ehParadaDeMaquina = tipoUsinaAntecipado === 'Parada de Máquina';
+
   let funcionario = '';
   if (setor === 'Bancada') {
     if (!_tecnicosSelecionados.length) { toast('Adicione pelo menos um técnico.','erro'); return null; }
     funcionario = _tecnicosSelecionados[0];
   } else {
     funcionario = document.getElementById('formFunc').value;
-    if (!funcionario) { toast('Selecione o funcionário.','erro'); return null; }
+    if (!funcionario && !ehParadaDeMaquina) { toast('Selecione o funcionário.','erro'); return null; }
   }
 
-  const dados = { data, setor, funcionario, job, descricao, status };
+  const dados = { data, setor, funcionario: funcionario || null, job, descricao, status };
 
   if (setor==='Usinagem') {
     const maquina = document.getElementById('formMaq')?.value;
     const tipo    = document.getElementById('formTipoUsina')?.value;
+    const motivo  = document.getElementById('formMotivo')?.value;
     const hrIni   = document.getElementById('formHrIni')?.value;
     const hrFim   = document.getElementById('formHrFim')?.value;
-    if (!maquina) { toast('Selecione a máquina.','erro');         return null; }
     if (!tipo)    { toast('Selecione o tipo de serviço.','erro'); return null; }
+    if (tipo === 'Parada de Máquina') {
+      if (!maquina) { toast('Selecione a máquina.','erro'); return null; }
+      if (!motivo || motivo === 'Nenhum') { toast('Selecione o motivo da parada.','erro'); return null; }
+    }
+    // Máquina agora é opcional pros demais tipos (lançamentos gerais sem máquina definida)
     if (!hrIni)   { toast('Informe a hora de início.','erro');    return null; }
     Object.assign(dados, {
-      maquina, tipo, horaInicio:hrIni, horaFim:hrFim,
+      maquina: maquina || null, tipo,
+      motivo: tipo === 'Parada de Máquina' ? motivo : null,
+      horaInicio:hrIni, horaFim:hrFim,
       descontaAlmoco: document.getElementById('formAlmoco')?.checked,
       tempoAuto:      document.getElementById('formTempoAuto')?.value
     });
@@ -556,6 +592,7 @@ function resetarForm() {
   const r2  = document.getElementById('formTipoCopoEmb');  if(r2) r2.checked=false;
   _tecnicosSelecionados = [];
   _renderizarTecnicosSelecionados();
+  if (typeof atualizarCamposParadaMaquina === 'function') atualizarCamposParadaMaquina();
   document.getElementById('btnSalvarForm').innerText='💾 Salvar Lançamento';
 }
 
