@@ -261,6 +261,16 @@ function desenharSetor(setor, ini, fim) {
   const porMaq = {};
   if(setor==='Usinagem') lancsProdutivos.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; if(!porMaq[l.maquina]) porMaq[l.maquina]=0; porMaq[l.maquina]+=l.minutos||0; });
 
+  // Separa máquinas Principais (seguem meta de ocupação diária) das Secundárias
+  // (só medimos quanto tempo foram usadas no período, sem meta/percentual)
+  const maquinasTipo = (typeof _listas !== 'undefined' && _listas?.maquinasTipo) || {};
+  const porMaqPrincipal = {};
+  const porMaqSecundaria = {};
+  Object.entries(porMaq).forEach(([maq, mins]) => {
+    if (maquinasTipo[maq] === 'Secundaria') porMaqSecundaria[maq] = mins;
+    else porMaqPrincipal[maq] = mins;
+  });
+
   // Paradas de Máquina — agrupa por máquina e motivo pra expor no dashboard
   // ex: "Torno 3 — 60h paradas: 40h Falta de Demanda, 20h Manutenção Corretiva"
   const porMaqMotivo = {};
@@ -294,7 +304,7 @@ function desenharSetor(setor, ini, fim) {
     if(d.getDay()!==0&&d.getDay()!==6&&!feriados.includes(ds)) diasUteis++;
   }
   const capTotal  = 528 * diasUteis;
-  const numMaq    = Object.keys(porMaq).length;
+  const numMaq    = Object.keys(porMaqPrincipal).length;
   const capBancada = setor==='Bancada' ? calcularCapBancada(ini, fim, _dadosDash) : 0;
   const pctBancada = capBancada>0?Math.round(totalMinsSemSup/capBancada*100):0;
 
@@ -316,15 +326,15 @@ function desenharSetor(setor, ini, fim) {
 
   // Guarda estado completo para os filtros estilo Excel
   _dashEstado = {
-    opEntries, porMaq, cor, capTotal, capBancada, setor,
+    opEntries, porMaq: porMaqPrincipal, cor, capTotal, capBancada, setor,
     funcionarios: _dadosDash.funcionarios||[],
     feriados: feriados,
     lancsSemSupervisor,
     filtroPessoas:  new Set(opEntries.map(o=>o.nome)),
-    filtroMaquinas: new Set(Object.keys(porMaq))
+    filtroMaquinas: new Set(Object.keys(porMaqPrincipal))
   };
 
-  const pctMaqInicial = numMaq>0?Math.round(Object.values(porMaq).reduce((a,b)=>a+b,0)/(capTotal*numMaq)*100):0;
+  const pctMaqInicial = numMaq>0?Math.round(Object.values(porMaqPrincipal).reduce((a,b)=>a+b,0)/(capTotal*numMaq)*100):0;
 
   let html=`<div class="cards-row">
     <div class="metric-card" style="border-left-color:${cor}">
@@ -401,7 +411,7 @@ function desenharSetor(setor, ini, fim) {
   </div>`;
 
   if(setor==='Usinagem'&&numMaq>0){
-    const maqOrdenadas = Object.keys(porMaq).sort();
+    const maqOrdenadas = Object.keys(porMaqPrincipal).sort();
     html+=`<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
         <div style="font-weight:700;color:#1e3a5f;font-size:15px">🤖 Ocupação das Máquinas</div>
@@ -418,7 +428,20 @@ function desenharSetor(setor, ini, fim) {
           </div>
         </div>
       </div>
-      <div id="listaOcupacaoMaquinas">${_renderBarrasMaquinas(porMaq)}</div>
+      <div id="listaOcupacaoMaquinas">${_renderBarrasMaquinas(porMaqPrincipal)}</div>
+    </div>`;
+  }
+
+  // Máquinas Secundárias — sem meta de ocupação, só medimos quanto tempo foram usadas no período
+  if (setor === 'Usinagem' && Object.keys(porMaqSecundaria).length > 0) {
+    const secOrdenadas = Object.entries(porMaqSecundaria).sort((a,b)=>b[1]-a[1]);
+    html+=`<div class="card">
+      <div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:6px">🔧 Máquinas Secundárias — Uso no Período</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:16px">Não seguem meta diária de ocupação — aqui só medimos quanto tempo cada uma foi usada</div>
+      ${secOrdenadas.map(([maq,mins]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <div style="font-weight:600;color:#1e3a5f;font-size:13px">⚙️ ${maq}</div>
+        <div style="font-size:13px;font-weight:700;color:#64748b">${fmtMin(mins)} usado${mins>0?'s':''}</div>
+      </div>`).join('')}
     </div>`;
   }
 
