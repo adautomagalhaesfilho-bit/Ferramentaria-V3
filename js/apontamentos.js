@@ -7,10 +7,12 @@ var _dadosApontamentos = [];
 var _statusForm = null;
 var _tecnicosSelecionados = [];
 var _tecnicosOriginaisIds = null; // usado ao editar grupo de Bancada — [{nome,id}]
+var _visaoApontamento = 'maquina'; // 'maquina' (padrão, só Usinagem) ou 'lista'
 
 function abrirSetor(tela) {
   const mapa = { usinagem:'Usinagem', bancada:'Bancada', projeto:'Projeto' };
   _setorAtivo = mapa[tela] || 'Usinagem';
+  _visaoApontamento = 'maquina'; // sempre volta pra visão padrão ao trocar de setor
   const icos  = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐' };
   const el = document.getElementById('tituloApontamentos');
   if (el) el.innerText = icos[_setorAtivo] + ' Apontamentos — ' + _setorAtivo;
@@ -49,12 +51,121 @@ async function buscarApontamentos() {
   document.getElementById('wppArea').style.display = 'none';
   try {
     _dadosApontamentos = await db.buscarLancamentosDia(_setorAtivo, dt, maq);
-    renderizarApontamentos();
+    atualizarTelaApontamentos();
   } catch(e) {
     document.getElementById('tbodyApontamentos').innerHTML = '<tr><td colspan="8" class="empty-msg">Erro ao buscar dados.</td></tr>';
     toast('Erro ao buscar lançamentos.','erro');
   }
   if (loader) loader.style.display = 'none';
+}
+
+// ==========================================
+// 🏭 VISÃO POR MÁQUINA (padrão da Usinagem) x 📋 VISÃO EM LISTA
+// ==========================================
+// Chama sempre os dois renders (tabela sempre roda, é barato e mantém o
+// relatório de WhatsApp funcionando) e só alterna qual container fica visível.
+function atualizarTelaApontamentos() {
+  renderizarApontamentos();
+  if (_setorAtivo === 'Usinagem') renderizarApontamentosPorMaquina();
+  aplicarVisibilidadeVisaoApontamento();
+}
+
+function aplicarVisibilidadeVisaoApontamento() {
+  const podeAlternar = _setorAtivo === 'Usinagem';
+  const wrap = document.getElementById('toggleVisaoWrap');
+  if (wrap) wrap.style.display = podeAlternar ? 'flex' : 'none';
+
+  const divMaq      = document.getElementById('divApontamentosPorMaquina');
+  const cardTabela  = document.getElementById('cardTabelaApontamentos');
+  const mostrarMaquina = podeAlternar && _visaoApontamento === 'maquina';
+  if (divMaq)     divMaq.style.display     = mostrarMaquina ? '' : 'none';
+  if (cardTabela) cardTabela.style.display = mostrarMaquina ? 'none' : '';
+
+  const btnM = document.getElementById('btnVisaoMaquina');
+  const btnL = document.getElementById('btnVisaoLista');
+  if (btnM) btnM.className = 'btn-' + (_visaoApontamento==='maquina' ? 'primary' : 'secondary');
+  if (btnL) btnL.className = 'btn-' + (_visaoApontamento==='lista'   ? 'primary' : 'secondary');
+  if (btnM) btnM.style.cssText = 'font-size:12px;padding:7px 14px';
+  if (btnL) btnL.style.cssText = 'font-size:12px;padding:7px 14px';
+}
+
+function alternarVisaoApontamento(visao) {
+  _visaoApontamento = visao;
+  aplicarVisibilidadeVisaoApontamento();
+}
+
+// Agrupa os lançamentos do dia por máquina, mostrando de cara quais estão
+// cobertas e quais ficaram sem nenhum apontamento (empilha tudo por máquina).
+function renderizarApontamentosPorMaquina() {
+  const div = document.getElementById('divApontamentosPorMaquina');
+  if (!div) return;
+  const funcFiltro = document.getElementById('apontFunc')?.value || 'Todos';
+  const dados = _dadosApontamentos.filter(i => funcFiltro==='Todos' || i.funcionario===funcFiltro);
+
+  const maquinasTipo = (_listas && _listas.maquinasTipo) || {};
+  const nomesMaquinas = ((_listas && _listas.maquinas) || []).filter(m => m !== 'Sem Máquina').sort();
+
+  const porMaquina = {};
+  nomesMaquinas.forEach(m => porMaquina[m] = []);
+  dados.forEach(item => {
+    const maq = item.maquina || null;
+    if (!maq || !porMaquina[maq]) return; // "sem máquina" não entra nesta visão (é a exceção de organização/CAM)
+    porMaquina[maq].push(item);
+  });
+
+  if (!nomesMaquinas.length) {
+    div.innerHTML = '<div class="card"><div class="empty-msg">Nenhuma máquina cadastrada.</div></div>';
+    return;
+  }
+
+  // Máquinas com apontamento primeiro, depois as vazias — dentro de cada grupo, Principal antes de Secundária
+  const ordenadas = nomesMaquinas.slice().sort((a,b) => {
+    const aVazia = porMaquina[a].length === 0, bVazia = porMaquina[b].length === 0;
+    if (aVazia !== bVazia) return aVazia ? 1 : -1;
+    return a.localeCompare(b);
+  });
+
+  div.innerHTML = `<div class="cards-grid-maquinas">${ordenadas.map(maq => {
+    const itens = porMaquina[maq];
+    const ehSecundaria = maquinasTipo[maq] === 'Secundaria';
+    const vazia = itens.length === 0;
+
+    let corBorda, corBg, statusTxt;
+    if (!vazia) { corBorda = '#10b981'; corBg = '#f0fdf4'; statusTxt = `<span style="color:#059669;font-weight:700">✅ ${itens.length} lançamento${itens.length>1?'s':''}</span>`; }
+    else if (ehSecundaria) { corBorda = '#e2e8f0'; corBg = '#fafafa'; statusTxt = '<span style="color:#94a3b8">— Sem uso hoje</span>'; }
+    else { corBorda = '#ef4444'; corBg = '#fef2f2'; statusTxt = '<span style="color:#b91c1c;font-weight:700">🔴 Sem apontamento hoje</span>'; }
+
+    const badgeTipo = ehSecundaria
+      ? '<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:6px">SECUNDÁRIA</span>' : '';
+
+    const corpoItens = itens.map(item => {
+      const cor = corStatus(item.status);
+      const ico = icoStatus(item.status);
+      const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '⏳');
+      const idEditar = item.id;
+      const acoes = podeEditar()
+        ? `<button class="btn-warning" style="padding:2px 6px;font-size:10px;margin-right:3px" onclick="editarApontamentoPorId(${idEditar})">✏️</button>
+           <button class="btn-danger" style="padding:2px 6px;font-size:10px" onclick="excluirApontamentoConfirm(${item.id})">🗑️</button>`
+        : '';
+      return `<div style="background:#fff;border-radius:6px;padding:8px 10px;margin-bottom:6px;border:1px solid #e2e8f0">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+          <div style="font-size:12px;font-weight:600;color:#1e3a5f">${item.job || (item.tipo==='Parada de Máquina' ? '🔴 '+ (item.motivo||'Parada') : (item.tipo||'—'))}</div>
+          <div style="font-size:10px;color:${cor};font-weight:600;white-space:nowrap">${ico} ${item.status||''}</div>
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'— sem operador')} · ${hr}</div>
+        ${item.tipo && item.tipo !== 'Parada de Máquina' ? `<div style="font-size:11px;color:#94a3b8">${item.tipo}</div>` : ''}
+        <div style="margin-top:4px">${acoes}</div>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:${corBg};border:2px solid ${corBorda};border-radius:10px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:700;color:#1e3a5f;font-size:14px">⚙️ ${maq}${badgeTipo}</div>
+      </div>
+      <div style="font-size:12px;margin-bottom:${vazia?'0':'10px'}">${statusTxt}</div>
+      ${!vazia ? corpoItens : ''}
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function renderizarApontamentos() {
@@ -347,7 +458,7 @@ async function salvarForm() {
     const dt   = document.getElementById('apontData')?.value;
     const maqF = document.getElementById('apontMaq')?.value || 'Todas';
     _dadosApontamentos = await db.buscarLancamentosDia(setor, dt, maqF);
-    renderizarApontamentos();
+    atualizarTelaApontamentos();
   } catch(e) {
     toast('Erro ao salvar lançamento.','erro'); console.error(e);
   }
