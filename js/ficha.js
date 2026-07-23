@@ -41,7 +41,7 @@ async function buscarFicha() {
     _lancsFicha     = res.lancamentos || [];
     _lancsProdFicha = res.prodLancamentos || [];
 
-    if (!res.jobExiste && !_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length && !res.histLoc.length && !res.localizacao) {
+    if (!res.jobExiste && !_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length && !res.histLoc.length && !res.localizacao && !(res.anexos&&res.anexos.length)) {
       elConteudo.style.display = 'none';
       elVazio.style.display    = 'block';
       elVazio.innerHTML = '<div style="font-size:48px">🔍</div><div>Nenhum molde encontrado com o nome "' + job + '"</div>';
@@ -166,6 +166,14 @@ function renderizarFicha(job, res) {
   <div class="grafico-card">
     <div class="grafico-titulo">🔧 Horas por Tipo de Atividade</div>
     <div style="height:280px"><canvas id="chartFichaTipos"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="font-weight:700;color:#1e3a5f;font-size:15px">📷 Fotos e Vídeos</div>
+      <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalAnexoMolde('${job.replace(/'/g,"\\'")}')">+ Anexar</button>
+    </div>
+    ${typeof renderizarGaleriaAnexosMolde === 'function' ? renderizarGaleriaAnexosMolde(res.anexos||[]) : ''}
   </div>
 
   <div class="card" style="border-left:4px solid #059669">
