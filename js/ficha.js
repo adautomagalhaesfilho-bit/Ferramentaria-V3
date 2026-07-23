@@ -125,7 +125,7 @@ function renderizarFicha(job, res) {
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px">
       <div>
         <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:1px;margin-bottom:6px">FICHA DO MOLDE</div>
-        <div style="font-size:24px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${job}</div>
+        <div style="font-size:24px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${job}${res.numCavidades?` <span style="font-size:13px;font-weight:600;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:12px;vertical-align:middle">${res.numCavidades} cavidade${res.numCavidades>1?'s':''}</span>`:''}</div>
         ${locInfo
           ? `<span style="display:inline-flex;align-items:center;gap:6px;background:${bgS};color:${corS};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid ${corS}">
               ${locInfo.ico} ${locAtual.localizacao}
