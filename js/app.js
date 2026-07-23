@@ -441,7 +441,7 @@ async function _carregarJobs() {
     el.innerHTML = filtrado.map(j => `<div class="lista-item">
       <div class="lista-item-info">
         <div class="lista-item-nome">${j.nome}</div>
-        <div class="lista-item-sub">${j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/')?'Serviço':'Molde'}</div>
+        <div class="lista-item-sub">${j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/')?'Serviço':'Molde'}${j.num_cavidades?' · '+j.num_cavidades+' cavidade'+(j.num_cavidades>1?'s':''):''}</div>
       </div>
       <div class="lista-item-acoes">
         <span class="${j.ativo?'badge-ativo':'badge-inativo'}">${j.ativo?'ATIVO':'INATIVO'}</span>
@@ -480,6 +480,11 @@ function abrirEdicaoJob(id) {
         <input type="text" id="editJobNome" value="${job.nome.replace(/"/g,'&quot;')}">
       </div>
       <div class="form-group">
+        <label>Número de Cavidades</label>
+        <input type="number" id="editJobCavidades" min="1" value="${job.num_cavidades||''}" placeholder="Ex: 4">
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Usado no controle de peso e balanceamento (uma medição por cavidade)</div>
+      </div>
+      <div class="form-group">
         <label class="checkbox-label"><input type="checkbox" id="editJobAtivo" ${job.ativo?'checked':''}> Ativo</label>
       </div>
     </div>
@@ -495,13 +500,17 @@ function fecharEdicaoJob() { document.getElementById('modalEditJobWrap')?.remove
 
 async function salvarEdicaoJob(id) {
   const job = _todosJobsAdmin.find(j => j.id === id);
-  const novoNome  = document.getElementById('editJobNome')?.value?.trim();
-  const novoAtivo = document.getElementById('editJobAtivo')?.checked;
+  const novoNome      = document.getElementById('editJobNome')?.value?.trim();
+  const novoAtivo     = document.getElementById('editJobAtivo')?.checked;
+  const cavidadesVal  = document.getElementById('editJobCavidades')?.value;
+  const novasCavidades = cavidadesVal ? parseInt(cavidadesVal) : null;
   if (!novoNome) return toast('Informe o nome.','erro');
+  if (novasCavidades !== null && novasCavidades < 1) return toast('Número de cavidades deve ser pelo menos 1.','erro');
   try {
-    await db._patch('jobs', 'id=eq.'+id, { nome: novoNome, ativo: novoAtivo });
+    await db._patch('jobs', 'id=eq.'+id, { nome: novoNome, ativo: novoAtivo, num_cavidades: novasCavidades });
     if (job.nome !== novoNome) await registrarLog('jobs', id, 'editar', 'nome', job.nome, novoNome);
     if (job.ativo !== novoAtivo) await registrarLog('jobs', id, 'editar', 'ativo', job.ativo?'Ativo':'Inativo', novoAtivo?'Ativo':'Inativo');
+    if ((job.num_cavidades||null) !== novasCavidades) await registrarLog('jobs', id, 'editar', 'num_cavidades', job.num_cavidades||'—', novasCavidades||'—');
     toast('Atualizado!','sucesso');
     fecharEdicaoJob();
     if (_listas) { _listas.jobs = (_listas.jobs||[]).map(j => j===job.nome ? novoNome : j); inicializarAutocompletes(); }
