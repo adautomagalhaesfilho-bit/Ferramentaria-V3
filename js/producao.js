@@ -173,11 +173,11 @@ function abrirNovoLancamentoProducao() {
 async function editarProd(id) {
   const item = _dadosProducao.find(l => l.id === id);
   if (!item) return;
+  resetarFormProducao();
+  preencherFormProducao();
   document.getElementById('prodFormId').value = id;
   _tecnicosSelecionadosProd = item.tecnicos ? item.tecnicos.split(',').map(t=>t.trim()) : [];
   _statusFormProd = item.status || 'Em andamento';
-  resetarFormProducao();
-  preencherFormProducao();
   document.getElementById('prodFormData').value  = item.data || '';
   document.getElementById('prodFormHrIni').value = item.hora_inicio ? item.hora_inicio.substring(0,5) : '';
   document.getElementById('prodFormHrFim').value = item.hora_fim    ? item.hora_fim.substring(0,5)    : '';
