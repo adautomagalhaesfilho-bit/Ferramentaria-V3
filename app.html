@@ -571,6 +571,25 @@
         </div>
       </div>
 
+      <!-- 8b. OBSERVAÇÃO -->
+      <div id="grupoObservacao" style="display:none">
+        <div class="modal-form-section" style="background:#eff6ff;border-color:#bfdbfe">
+          <div class="modal-form-section-title" style="color:#1e40af">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="10"/></svg>
+            Observação
+          </div>
+          <div class="form-group" style="margin-bottom:8px">
+            <label class="checkbox-label">
+              <input type="checkbox" id="formTemObservacao" onchange="toggleObservacao()"> 📝 Tem alguma observação sobre este lançamento?
+            </label>
+          </div>
+          <div id="grupoTextoObservacao" style="display:none;margin-top:12px">
+            <label>Descreva a Observação</label>
+            <textarea id="formObservacao" rows="2" placeholder="Ex: Molde apresentou desgaste, peça fora do padrão..."></textarea>
+          </div>
+        </div>
+      </div>
+
       <!-- 9. JOB / STATUS -->
       <div class="modal-form-section">
         <div class="modal-form-section-title">
