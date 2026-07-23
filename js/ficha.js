@@ -37,16 +37,6 @@ async function buscarFicha() {
     res.prodLancamentos = prodLancs || [];
     res.intervencoes = intervencoes || [];
 
-    // Histórico de alterações administrativas — só Admin
-    res.logsAlteracao = [];
-    if (typeof isAdmin === 'function' && isAdmin() && typeof buscarHistoricoItem === 'function') {
-      try {
-        const jobRow = await db._get('jobs', 'nome=eq.' + encodeURIComponent(job), 'id');
-        const jobId = jobRow && jobRow[0] ? jobRow[0].id : null;
-        if (jobId) res.logsAlteracao = await buscarHistoricoItem('jobs', jobId);
-      } catch(e) {}
-    }
-
     _dadosFicha     = res;
     _lancsFicha     = res.lancamentos || [];
     _lancsProdFicha = res.prodLancamentos || [];
@@ -71,8 +61,6 @@ function renderizarFicha(job, res) {
   const hist      = res.statusHistory || [];
   const el        = document.getElementById('fichaConteudo');
   const locAtual  = res.localizacao;
-  const logsAlteracao   = res.logsAlteracao || [];
-  const mostrarAuditoria = typeof isAdmin === 'function' && isAdmin();
 
   const _locMap = {
     'Em Máquina':      { ico:'🟢', cor:'#10b981', bg:'#d1fae5' },
@@ -179,12 +167,6 @@ function renderizarFicha(job, res) {
     <div class="grafico-titulo">🔧 Horas por Tipo de Atividade</div>
     <div style="height:280px"><canvas id="chartFichaTipos"></canvas></div>
   </div>
-
-  ${mostrarAuditoria ? `
-  <div class="card" style="border-left:4px solid #7c3aed">
-    <div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:16px">📜 Histórico de Alterações Administrativas (Admin)</div>
-    ${typeof renderizarHistoricoItemHTML === 'function' ? renderizarHistoricoItemHTML(logsAlteracao) : '<div style="color:#94a3b8;font-size:12px">Indisponível.</div>'}
-  </div>` : ''}
 
   <div class="card" style="border-left:4px solid #059669">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
