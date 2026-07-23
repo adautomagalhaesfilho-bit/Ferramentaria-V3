@@ -242,7 +242,9 @@ const db = {
       desconto_almoco: !!dados.descontaAlmoco, turno: dados.turno || null,
       troca_copo:     !!dados.trocaCopo,
       tipo_copo:       dados.tipoCopo      || null,
-      descricao_copo:  dados.descricaoCopo || null
+      descricao_copo:  dados.descricaoCopo || null,
+      tem_observacao:  !!dados.temObservacao,
+      observacao:      dados.observacao    || null
     };
     const res = await db._post('lancamentos', reg);
     if (dados.job && dados.status) await db.salvarStatusJob(dados.job, dados.status, dados.descricao || '');
@@ -261,7 +263,9 @@ const db = {
       desconto_almoco: !!dados.descontaAlmoco,
       troca_copo:      !!dados.trocaCopo,
       tipo_copo:       dados.tipoCopo      || null,
-      descricao_copo:  dados.descricaoCopo || null
+      descricao_copo:  dados.descricaoCopo || null,
+      tem_observacao:  !!dados.temObservacao,
+      observacao:      dados.observacao    || null
     });
   },
 
@@ -619,7 +623,9 @@ const db = {
       descontaAlmoco: l.desconto_almoco,
       trocaCopo:      l.troca_copo     || false,
       tipoCopo:       l.tipo_copo      || null,
-      descricaoCopo:  l.descricao_copo || null
+      descricaoCopo:  l.descricao_copo || null,
+      temObservacao:  l.tem_observacao || false,
+      observacao:     l.observacao     || null
     };
   },
 
