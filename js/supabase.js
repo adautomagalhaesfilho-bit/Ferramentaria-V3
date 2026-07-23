@@ -323,13 +323,14 @@ const db = {
   },
 
   buscarFicha: async function(job) {
-    const [lancamentos, statusHistory, localizacao, pendencias, histLoc, jobRow] = await Promise.all([
+    const [lancamentos, statusHistory, localizacao, pendencias, histLoc, jobRow, anexos] = await Promise.all([
       db._get('lancamentos', 'job=eq.' + encodeURIComponent(job) + '&order=data.asc', '*'),
       db.historicoStatusJob(job),
       db.buscarLocalizacao(job),
       db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(() => []),
       db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(() => []),
-      db._get('jobs', 'nome=eq.' + encodeURIComponent(job), 'nome,ativo,num_cavidades').catch(() => [])
+      db._get('jobs', 'nome=eq.' + encodeURIComponent(job), 'nome,ativo,num_cavidades').catch(() => []),
+      db._get('molde_anexos', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*').catch(() => [])
     ]);
     return {
       lancamentos:   (lancamentos || []).map(db._formatarLancamento),
@@ -340,7 +341,8 @@ const db = {
       // Se o job existe no cadastro, mostramos a ficha mesmo sem nenhuma atividade
       // ainda registrada — só "não encontrado" se o nome nem existir em `jobs`.
       jobExiste:     !!(jobRow && jobRow.length),
-      numCavidades:  (jobRow && jobRow[0] && jobRow[0].num_cavidades) || null
+      numCavidades:  (jobRow && jobRow[0] && jobRow[0].num_cavidades) || null,
+      anexos:        anexos || []
     };
   },
 
