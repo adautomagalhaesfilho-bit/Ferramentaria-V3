@@ -181,13 +181,13 @@ function renderizarApontamentos() {
 
   const cabs = {
     Usinagem:'<tr><th>Job</th><th>Máquina</th><th>Técnico</th><th>Horários</th><th>Tipo</th><th>Descrição</th><th>Status</th><th>Ações</th></tr>',
-    Bancada: '<tr><th>Job</th><th>Atividade</th><th>Técnico(s)</th><th>Horários</th><th>Prod.</th><th>Troca Copo</th><th>Descrição</th><th>Ações</th></tr>',
+    Bancada: '<tr><th>Job</th><th>Atividade</th><th>Técnico(s)</th><th>Horários</th><th>Prod.</th><th>Troca Copo</th><th>Observação</th><th>Descrição</th><th>Ações</th></tr>',
     Projeto: '<tr><th>Job</th><th>Área</th><th>Técnico</th><th>Categoria</th><th>Descrição</th><th>Status</th><th></th><th>Ações</th></tr>'
   };
   if (thead) thead.innerHTML = cabs[_setorAtivo];
 
   if (!dados.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Nenhum lançamento encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-msg">Nenhum lançamento encontrado.</td></tr>';
     document.getElementById('wppArea').style.display = 'none';
     return;
   }
@@ -232,6 +232,13 @@ function renderizarApontamentos() {
       }
     }
 
+    let badgeObs = '';
+    if (_setorAtivo==='Bancada') {
+      badgeObs = (item.temObservacao===true||item.temObservacao==='true') && item.observacao
+        ? `<span style="font-size:12px;color:#1e40af">📝 ${item.observacao}</span>`
+        : '<span style="color:#94a3b8;font-size:11px">—</span>';
+    }
+
     const tecnico = _setorAtivo==='Bancada' && item._tecnicos
       ? item._tecnicos.map(t=>`<span style="display:inline-block;background:#f1f5f9;padding:1px 7px;border-radius:8px;font-size:11px;margin:1px">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t}</span>`).join('')
       : (typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—'));
@@ -239,7 +246,7 @@ function renderizarApontamentos() {
     if (_setorAtivo==='Usinagem')
       return `<tr><td>${job}</td><td>${item.maquina||'—'}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—')}</td><td style="font-size:12px">${hr}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
     if (_setorAtivo==='Bancada')
-      return `<tr><td>${job}</td><td>${item.tipo||'—'}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td style="color:#10b981;font-weight:bold">${item.hrProd||'—'}</td><td>${badgeCopo}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${acoes}</td></tr>`;
+      return `<tr><td>${job}</td><td>${item.tipo||'—'}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td style="color:#10b981;font-weight:bold">${item.hrProd||'—'}</td><td>${badgeCopo}</td><td>${badgeObs}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${acoes}</td></tr>`;
     return `<tr><td>${job}</td><td>${item.area||'—'}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—')}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td></td><td>${acoes}</td></tr>`;
   }).join('');
 
@@ -327,6 +334,12 @@ async function editarApontamento(idx) {
     else if (item.tipoCopo === 'Embuchado') { const r=document.getElementById('formTipoCopoEmb'); if(r) r.checked=true; }
     const elDescCopo = document.getElementById('formDescCopo');
     if (elDescCopo) elDescCopo.value = item.descricaoCopo || '';
+    const chkObs = document.getElementById('formTemObservacao');
+    const grpObs = document.getElementById('grupoTextoObservacao');
+    if (chkObs) chkObs.checked = !!(item.temObservacao === true || item.temObservacao === 'true');
+    if (grpObs) grpObs.style.display = chkObs?.checked ? '' : 'none';
+    const elObs = document.getElementById('formObservacao');
+    if (elObs) elObs.value = item.observacao || '';
     _renderizarTecnicosSelecionados();
   } else {
     setSelect('formArea', item.area);
@@ -351,6 +364,16 @@ function toggleTrocaCopo() {
     if (elTipoCopo) elTipoCopo.value = '';
     const r1=document.getElementById('formTipoCopoNovo'); if(r1) r1.checked=false;
     const r2=document.getElementById('formTipoCopoEmb');  if(r2) r2.checked=false;
+  }
+}
+
+function toggleObservacao() {
+  const chk = document.getElementById('formTemObservacao');
+  const grp = document.getElementById('grupoTextoObservacao');
+  if (grp) grp.style.display = chk?.checked ? '' : 'none';
+  if (!chk?.checked) {
+    const el = document.getElementById('formObservacao');
+    if (el) el.value = '';
   }
 }
 
@@ -411,7 +434,7 @@ async function salvarForm() {
       if (setor === 'Bancada' && _tecnicosSelecionados.length > 1) {
         for (let i = 0; i < _tecnicosSelecionados.length; i++) {
           const dadosTecnico = { ...dados, funcionario: _tecnicosSelecionados[i] };
-          if (i > 0) { dadosTecnico.trocaCopo=false; dadosTecnico.tipoCopo=null; dadosTecnico.descricaoCopo=null; }
+          if (i > 0) { dadosTecnico.trocaCopo=false; dadosTecnico.tipoCopo=null; dadosTecnico.descricaoCopo=null; dadosTecnico.temObservacao=false; dadosTecnico.observacao=null; }
           await db.salvarLancamento(dadosTecnico);
         }
         toast(`${_tecnicosSelecionados.length} lançamentos salvos!`, 'sucesso');
@@ -449,7 +472,7 @@ async function salvarForm() {
         }
         for (const nome of nomesAtuais) {
           if (!nomesOriginais.includes(nome)) {
-            await db.salvarLancamento({ ...dados, funcionario: nome, trocaCopo:false, tipoCopo:null, descricaoCopo:null });
+            await db.salvarLancamento({ ...dados, funcionario: nome, trocaCopo:false, tipoCopo:null, descricaoCopo:null, temObservacao:false, observacao:null });
           }
         }
         toast('Lançamento atualizado!','sucesso');
@@ -567,10 +590,14 @@ function coletarDadosForm(setor) {
     const tipoCopo   = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
     const descCopo   = trocaCopo ? (document.getElementById('formDescCopo')?.value?.trim() || null) : null;
     if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo.','erro'); return null; }
+    const temObservacao = document.getElementById('formTemObservacao')?.checked || false;
+    const observacao     = temObservacao ? (document.getElementById('formObservacao')?.value?.trim() || null) : null;
+    if (temObservacao && !observacao) { toast('Descreva a observação.','erro'); return null; }
     Object.assign(dados, {
       tipo, horaInicio:hrIni, horaFim:hrFim,
       descontaAlmoco: document.getElementById('formAlmoco')?.checked,
-      trocaCopo, tipoCopo, descricaoCopo: descCopo
+      trocaCopo, tipoCopo, descricaoCopo: descCopo,
+      temObservacao, observacao
     });
   } else {
     const area      = document.getElementById('formArea')?.value;
@@ -591,6 +618,7 @@ function configurarCamposForm(setor) {
     grupoTipoUsina:   setor==='Usinagem',
     grupoTipoBancada: setor==='Bancada',
     grupoCopo:        setor==='Bancada',
+    grupoObservacao:  setor==='Bancada',
     grupoArea:        setor==='Projeto',
     grupoHorarios:    setor!=='Projeto',
     grupoHrIni:       setor!=='Projeto',
@@ -608,6 +636,10 @@ function configurarCamposForm(setor) {
   if (grpCopo) grpCopo.style.display = 'none';
   const chkCopo = document.getElementById('formTrocaCopo');
   if (chkCopo) chkCopo.checked = false;
+  const grpObs = document.getElementById('grupoTextoObservacao');
+  if (grpObs) grpObs.style.display = 'none';
+  const chkObs = document.getElementById('formTemObservacao');
+  if (chkObs) chkObs.checked = false;
   _tecnicosSelecionados = [];
   _renderizarTecnicosSelecionados();
 
@@ -700,13 +732,15 @@ function atualizarBotoesStatus() {
 function resetarForm() {
   ['formData','formFunc','formMaq','formTipoUsina','formMotivo',
    'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim',
-   'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada']
+   'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada','formObservacao']
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
   const alm = document.getElementById('formAlmoco');   if(alm) alm.checked=false;
   const cop = document.getElementById('formTrocaCopo'); if(cop) cop.checked=false;
   const grp = document.getElementById('grupoTipoCopo'); if(grp) grp.style.display='none';
   const r1  = document.getElementById('formTipoCopoNovo'); if(r1) r1.checked=false;
   const r2  = document.getElementById('formTipoCopoEmb');  if(r2) r2.checked=false;
+  const obs = document.getElementById('formTemObservacao'); if(obs) obs.checked=false;
+  const grpObs = document.getElementById('grupoTextoObservacao'); if(grpObs) grpObs.style.display='none';
   _tecnicosSelecionados = [];
   _renderizarTecnicosSelecionados();
   if (typeof atualizarCamposParadaMaquina === 'function') atualizarCamposParadaMaquina();
@@ -772,6 +806,7 @@ async function enviarWhatsapp() {
           t+=`👤 ${i._tecnicos.join(' / ')}\n`;
           t+=`📝 ATIVIDADES: ${i.descricao||''}\n`;
           if (i.trocaCopo===true||i.trocaCopo==='true') t+=`🔄 *Troca de Copo:* ${i.tipoCopo||'—'}${i.descricaoCopo?' — '+i.descricaoCopo:''}\n`;
+          if ((i.temObservacao===true||i.temObservacao==='true') && i.observacao) t+=`📝 *Observação:* ${i.observacao}\n`;
           t+='\n';
         });
       });
