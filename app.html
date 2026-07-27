@@ -454,7 +454,13 @@
         </div>
       </div>
 
-      <!-- 2. TÉCNICO -->
+      <!-- 2. MÁQUINA (Usinagem) -->
+      <div id="grupoMaquina" style="display:none" class="form-group">
+        <label id="labelMaquina">Máquina *</label>
+        <select id="formMaq" onchange="aoSelecionarMaquinaUsinagem()"><option value="">Selecione...</option></select>
+      </div>
+
+      <!-- 3. TÉCNICO -->
       <div class="modal-form-section">
         <div class="modal-form-section-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -475,12 +481,6 @@
             <div style="font-size:12px;color:#94a3b8">Nenhum técnico selecionado</div>
           </div>
         </div>
-      </div>
-
-      <!-- 3. MÁQUINA -->
-      <div id="grupoMaquina" style="display:none" class="form-group">
-        <label id="labelMaquina">Máquina *</label>
-        <select id="formMaq"><option value="">Selecione...</option></select>
       </div>
 
       <!-- 4. TIPO DE SERVIÇO -->
