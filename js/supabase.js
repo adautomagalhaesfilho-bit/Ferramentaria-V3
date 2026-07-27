@@ -294,6 +294,21 @@ const db = {
     };
   },
 
+  // Reverso: dada a máquina, busca qual foi o último funcionário que trabalhou nela
+  // (usado no fluxo "seleciona a máquina primeiro" da Usinagem)
+  buscarUltimoFuncionarioNaMaquina: async function(maquina, data) {
+    const res = await db._get('lancamentos',
+      'setor=eq.Usinagem&maquina=eq.' + encodeURIComponent(maquina) +
+      '&order=data.desc,hora_fim.desc&limit=1', 'hora_fim,funcionario,data');
+    if (!res || res.length === 0) return {};
+    const ultimo = res[0];
+    const mesmoDia = ultimo.data === data;
+    return {
+      funcionario: ultimo.funcionario || null,
+      horaFim: mesmoDia ? ultimo.hora_fim : null
+    };
+  },
+
   listarStatusJobs: async function() {
     const res = await db._get('status_jobs', '', '*');
     const mapa = {};
