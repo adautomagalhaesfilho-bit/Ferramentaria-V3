@@ -88,10 +88,57 @@ function excluirAnexoMolde(id, criadoPor) {
   });
 }
 
+// Edita a descrição de um anexo já enviado — mesma regra de permissão da exclusão
+function abrirEdicaoDescricaoAnexo(id, criadoPor, descricaoAtual) {
+  const podeEditar = (typeof isAdmin === 'function' && isAdmin()) || (_sessao?.nome === criadoPor);
+  if (!podeEditar) { toast('Só quem enviou ou um administrador pode editar esta descrição.', 'erro'); return; }
+  const div = document.createElement('div');
+  div.id = 'modalEditDescAnexoWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEdicaoDescricaoAnexo()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:400px">
+    <div class="modal-header"><h3>✏️ Editar Descrição</h3><button onclick="fecharEdicaoDescricaoAnexo()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea id="editDescAnexoTexto" rows="3">${(descricaoAtual||'').replace(/</g,'&lt;')}</textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoDescricaoAnexo(${id})">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharEdicaoDescricaoAnexo()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function fecharEdicaoDescricaoAnexo() { document.getElementById('modalEditDescAnexoWrap')?.remove(); }
+
+async function salvarEdicaoDescricaoAnexo(id) {
+  const novaDescricao = document.getElementById('editDescAnexoTexto')?.value?.trim() || null;
+  try {
+    await db._patch('molde_anexos', 'id=eq.'+id, { descricao: novaDescricao });
+    toast('Descrição atualizada!', 'sucesso');
+    fecharEdicaoDescricaoAnexo();
+    if (typeof buscarFicha === 'function') await buscarFicha();
+  } catch(e) { toast('Erro ao salvar.', 'erro'); }
+}
+
 // ==========================================
 // Modal de anexar direto na Ficha do Molde
 // ==========================================
+var _anexoMoldeArquivoSelecionado = null;
+
+function _sincronizarAnexoSelecionado(inputEl) {
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  _anexoMoldeArquivoSelecionado = file;
+  const nomeEl = document.getElementById('anexoMoldeArquivoNome');
+  if (nomeEl) nomeEl.innerText = '✅ ' + file.name + ' (' + (file.size/1024/1024).toFixed(1) + ' MB)';
+}
+
 function abrirModalAnexoMolde(job) {
+  _anexoMoldeArquivoSelecionado = null;
   const div = document.createElement('div');
   div.id = 'modalAnexoMoldeWrap';
   div.innerHTML = `
@@ -101,7 +148,13 @@ function abrirModalAnexoMolde(job) {
     <div class="modal-body">
       <div class="form-group">
         <label>Arquivo (foto, ou vídeo de até 30s) *</label>
-        <input type="file" id="anexoMoldeArquivo" accept="image/*,video/*">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button type="button" class="btn-secondary" style="flex:1;font-size:12px" onclick="document.getElementById('anexoMoldeArquivoCamera').click()">📷 Tirar Foto Agora</button>
+          <button type="button" class="btn-secondary" style="flex:1;font-size:12px" onclick="document.getElementById('anexoMoldeArquivo').click()">📁 Escolher Arquivo</button>
+        </div>
+        <input type="file" id="anexoMoldeArquivoCamera" accept="image/*" capture="environment" style="display:none" onchange="_sincronizarAnexoSelecionado(this)">
+        <input type="file" id="anexoMoldeArquivo" accept="image/*,video/*" style="display:none" onchange="_sincronizarAnexoSelecionado(this)">
+        <div id="anexoMoldeArquivoNome" style="font-size:12px;color:#64748b">Nenhum arquivo selecionado ainda.</div>
       </div>
       <div class="form-group">
         <label>Descrição</label>
@@ -120,9 +173,9 @@ function abrirModalAnexoMolde(job) {
 function fecharModalAnexoMolde() { document.getElementById('modalAnexoMoldeWrap')?.remove(); }
 
 async function salvarNovoAnexoMolde(job) {
-  const file = document.getElementById('anexoMoldeArquivo')?.files?.[0];
+  const file = _anexoMoldeArquivoSelecionado;
   const descricao = document.getElementById('anexoMoldeDescricao')?.value?.trim();
-  if (!file) return toast('Selecione um arquivo.', 'erro');
+  if (!file) return toast('Selecione ou tire uma foto/vídeo.', 'erro');
   const btn = document.querySelector('#modalAnexoMoldeWrap .btn-primary');
   if (btn) { btn.disabled = true; btn.innerText = 'Enviando...'; }
   try {
@@ -156,7 +209,10 @@ function renderizarGaleriaAnexosMolde(anexos) {
         ${midia}
         <div style="font-size:11px;color:#64748b;margin-top:6px">${dataFmt} · ${a.criado_por||'—'}${a.setor_origem&&a.setor_origem!=='Ficha'?' · '+a.setor_origem:''}</div>
         ${a.descricao ? `<div style="font-size:12px;color:#1e3a5f;margin-top:2px">${a.descricao}</div>` : ''}
-        ${podeExcluir ? `<button class="btn-danger" style="font-size:10px;padding:3px 8px;margin-top:6px" onclick="excluirAnexoMolde(${a.id},'${(a.criado_por||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>` : ''}
+        <div style="display:flex;gap:6px;margin-top:6px">
+          ${podeExcluir ? `<button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="abrirEdicaoDescricaoAnexo(${a.id},'${(a.criado_por||'').replace(/'/g,"\\'")}','${(a.descricao||'').replace(/'/g,"\\'").replace(/\n/g,' ')}')">✏️ Editar</button>` : ''}
+          ${podeExcluir ? `<button class="btn-danger" style="font-size:10px;padding:3px 8px" onclick="excluirAnexoMolde(${a.id},'${(a.criado_por||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>` : ''}
+        </div>
       </div>`;
     }).join('')}
   </div>`;
