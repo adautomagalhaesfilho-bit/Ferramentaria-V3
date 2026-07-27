@@ -690,7 +690,7 @@ async function carregarFuncionariosForm(setor) {
         if (aviso) { aviso.style.display='block'; aviso.innerText='Buscando último apontamento...'; }
         try {
           const res = await db.buscarUltimoApontamento(func, data);
-          if (res.maquina) setSelect('formMaq', res.maquina);
+          if (res.maquina && !document.getElementById('formMaq')?.value) setSelect('formMaq', res.maquina);
           if (res.horaFim && !document.getElementById('formHrIni')?.value)
             document.getElementById('formHrIni').value = res.horaFim;
         } catch(e) {}
@@ -700,6 +700,25 @@ async function carregarFuncionariosForm(setor) {
       sel.onchange = null;
     }
   } catch(e) { sel.innerHTML='<option value="">Erro ao carregar</option>'; }
+}
+
+// ==========================================
+// ⚙️ AUTO-PREENCHIMENTO PELA MÁQUINA (Usinagem) — fluxo "máquina primeiro"
+// ==========================================
+async function aoSelecionarMaquinaUsinagem() {
+  if (_setorAtivo !== 'Usinagem') return;
+  const maquina = document.getElementById('formMaq')?.value;
+  const data    = document.getElementById('formData')?.value;
+  if (!maquina || !data) return;
+  const aviso = document.getElementById('avisoFunc');
+  if (aviso) { aviso.style.display='block'; aviso.innerText='Buscando último funcionário desta máquina...'; }
+  try {
+    const res = await db.buscarUltimoFuncionarioNaMaquina(maquina, data);
+    if (res.funcionario && !document.getElementById('formFunc')?.value) setSelect('formFunc', res.funcionario);
+    if (res.horaFim && !document.getElementById('formHrIni')?.value)
+      document.getElementById('formHrIni').value = res.horaFim;
+  } catch(e) { /* silencioso — campos continuam editáveis manualmente */ }
+  if (aviso) aviso.style.display='none';
 }
 
 // ==========================================
@@ -834,7 +853,7 @@ async function enviarWhatsapp() {
       t+=`\n📍 *${a.toUpperCase()}*\n\n`;
       Object.keys(areas[a]).sort().forEach(c => {
         t+='→ '+c.toUpperCase()+'\n';
-        areas[a][c].forEach(i => { t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''};\n`; });
+        areas[a][c].forEach(i => { t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ${icoStatus(i.status)} ${i.status||'Em andamento'}\n`; });
         t+='\n';
       });
     });
