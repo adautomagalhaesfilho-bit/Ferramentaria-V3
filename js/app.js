@@ -6,6 +6,32 @@ var _telaAtual = null;
 var _excluirCallback = null;
 
 // ==========================================
+// 🔄 AUTO-ATUALIZAÇÃO — evita lançamento em data errada quando a aba fica
+// aberta por dias sem F5 (ex: abre segunda de manhã e só fecha sexta)
+// ==========================================
+var _dataAoCarregarPagina = new Date().toISOString().split('T')[0];
+
+function _existeModalAberto() {
+  if (document.querySelector('.modal-form-overlay.aberto')) return true;
+  if (document.querySelector('.modal-overlay[style*="display: block"], .modal-overlay[style*="display:block"]')) return true;
+  return false;
+}
+
+function _checarDataEAtualizarPagina() {
+  const dataAtual = new Date().toISOString().split('T')[0];
+  if (dataAtual !== _dataAoCarregarPagina && !_existeModalAberto()) {
+    location.reload();
+  }
+}
+
+// Checa a cada 15 minutos — se a data virou e não tem nada aberto, recarrega sozinho
+setInterval(_checarDataEAtualizarPagina, 15 * 60 * 1000);
+// Checa também quando a aba volta a ficar visível (ex: reabrir o notebook na segunda de manhã)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') _checarDataEAtualizarPagina();
+});
+
+// ==========================================
 // 🚀 INICIALIZAÇÃO
 // ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
