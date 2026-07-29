@@ -599,9 +599,23 @@
         <div class="form-group">
           <label>Job / Molde</label>
           <div class="autocomplete-wrap">
-            <input type="text" id="formJob" placeholder="Busque ou digite o job...">
+            <input type="text" id="formJob" placeholder="Busque ou digite o job..." onchange="if(typeof aoSelecionarJob==='function') aoSelecionarJob(this.value)">
             <div class="autocomplete-list" id="formJobList"></div>
           </div>
+        </div>
+        <div class="form-group" id="grupoRamApontamento" style="display:none">
+          <label>Este apontamento é referente a alguma RAM?</label>
+          <select id="formRamSelect"><option value="">Nenhuma — apontamento comum</option></select>
+        </div>
+        <div class="form-group">
+          <label>Anexar Evidência (foto/vídeo, opcional)</label>
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <button type="button" class="btn-secondary" style="flex:1;font-size:12px" onclick="document.getElementById('formAnexoCamera').click()">📷 Tirar Foto</button>
+            <button type="button" class="btn-secondary" style="flex:1;font-size:12px" onclick="document.getElementById('formAnexoArquivo').click()">📁 Escolher Arquivo</button>
+          </div>
+          <input type="file" id="formAnexoCamera" accept="image/*" capture="environment" style="display:none" onchange="_sincronizarAnexoApontamento(this)">
+          <input type="file" id="formAnexoArquivo" accept="image/*,video/*" style="display:none" onchange="_sincronizarAnexoApontamento(this)">
+          <div id="formAnexoNome" style="font-size:12px;color:#64748b">Nenhum arquivo selecionado.</div>
         </div>
         <div class="form-group" style="margin-bottom:0">
           <label>Status do Job</label>
@@ -665,9 +679,23 @@
       <!-- 4. MOLDE -->
       <div class="form-group"><label>Molde</label>
         <div class="autocomplete-wrap">
-          <input type="text" id="prodFormMolde" placeholder="Opcional...">
+          <input type="text" id="prodFormMolde" placeholder="Opcional..." onchange="if(typeof aoSelecionarMoldeProd==='function') aoSelecionarMoldeProd(this.value)">
           <div class="autocomplete-list" id="prodFormMoldeList"></div>
         </div>
+      </div>
+      <div class="form-group" id="grupoRamProd" style="display:none">
+        <label>Este apontamento é referente a alguma RAM?</label>
+        <select id="prodFormRamSelect"><option value="">Nenhuma — apontamento comum</option></select>
+      </div>
+      <div class="form-group">
+        <label>Anexar Evidência (foto/vídeo, opcional)</label>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <button type="button" class="btn-secondary" style="flex:1;font-size:12px" onclick="document.getElementById('prodFormAnexoCamera').click()">📷 Tirar Foto</button>
+          <button type="button" class="btn-secondary" style="flex:1;font-size:12px" onclick="document.getElementById('prodFormAnexoArquivo').click()">📁 Escolher Arquivo</button>
+        </div>
+        <input type="file" id="prodFormAnexoCamera" accept="image/*" capture="environment" style="display:none" onchange="_sincronizarAnexoProd(this)">
+        <input type="file" id="prodFormAnexoArquivo" accept="image/*,video/*" style="display:none" onchange="_sincronizarAnexoProd(this)">
+        <div id="prodFormAnexoNome" style="font-size:12px;color:#64748b">Nenhum arquivo selecionado.</div>
       </div>
 
       <!-- 4b. CAMPOS AUTOMÁTICOS DE MOVIMENTAÇÃO DE MOLDE (só aparecem conforme a Atividade de Setup) -->
