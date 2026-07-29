@@ -11,6 +11,12 @@ async function buscarRAMsPorJob(job) {
   return ramsBase.map(r => ({ ...r, setores: (setores||[]).filter(s => s.ram_id === r.id) }));
 }
 
+// Só as RAMs que ainda têm pelo menos 1 setor pendente — usado no seletor do apontamento
+async function buscarRAMsAbertasPorJob(job) {
+  const todas = await buscarRAMsPorJob(job);
+  return todas.filter(r => r.setores.some(s => !s.concluido));
+}
+
 // ==========================================
 // Criar nova RAM
 // ==========================================
