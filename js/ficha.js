@@ -37,6 +37,12 @@ async function buscarFicha() {
     res.prodLancamentos = prodLancs || [];
     res.intervencoes = intervencoes || [];
 
+    // Histórico de alteração do peso nominal (usado só dentro do Controle de Peso)
+    res.logsPesoNominal = [];
+    if (res.jobId && typeof buscarHistoricoItem === 'function') {
+      try { res.logsPesoNominal = await buscarHistoricoItem('jobs', res.jobId); } catch(e) {}
+    }
+
     _dadosFicha     = res;
     _lancsFicha     = res.lancamentos || [];
     _lancsProdFicha = res.prodLancamentos || [];
@@ -166,6 +172,18 @@ function renderizarFicha(job, res) {
   <div class="grafico-card">
     <div class="grafico-titulo">🔧 Horas por Tipo de Atividade</div>
     <div style="height:280px"><canvas id="chartFichaTipos"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="font-weight:700;color:#1e3a5f;font-size:15px">⚖️ Controle de Peso</div>
+      ${typeof podeGerenciarPesoMolde==='function' && podeGerenciarPesoMolde()
+        ? `<button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovaVerificacaoPeso('${job.replace(/'/g,"\\'")}',${res.numCavidades||'null'})">+ Nova Verificação</button>`
+        : ''}
+    </div>
+    ${typeof renderizarControlePeso === 'function'
+      ? renderizarControlePeso(job, res.jobId, res.numCavidades, res.pesoNominal, res.verificacoesPeso||[], res.logsPesoNominal||[])
+      : ''}
   </div>
 
   <div class="card">
