@@ -3,6 +3,10 @@
 // ==========================================
 
 var _setorAtivo = 'Usinagem';
+// Controla se o técnico foi escolhido manualmente pelo usuário (true) ou preenchido
+// automaticamente ao selecionar a máquina (false) — evita que trocar de máquina de
+// novo, sem fechar o formulário, deixe de atualizar o técnico.
+var _tecnicoEditadoManualmente = false;
 var _dadosApontamentos = [];
 var _statusForm = null;
 var _tecnicosSelecionados = [];
@@ -683,6 +687,7 @@ async function carregarFuncionariosForm(setor) {
     if (setor==='Usinagem') {
       // Auto-preenchimento: ao selecionar técnico → preenche máquina e hora início
       sel.onchange = async () => {
+        _tecnicoEditadoManualmente = true;
         const func = sel.value;
         const data = document.getElementById('formData')?.value;
         if (!func || !data) return;
@@ -714,7 +719,7 @@ async function aoSelecionarMaquinaUsinagem() {
   if (aviso) { aviso.style.display='block'; aviso.innerText='Buscando último funcionário desta máquina...'; }
   try {
     const res = await db.buscarUltimoFuncionarioNaMaquina(maquina, data);
-    if (res.funcionario && !document.getElementById('formFunc')?.value) setSelect('formFunc', res.funcionario);
+    if (res.funcionario && !_tecnicoEditadoManualmente) setSelect('formFunc', res.funcionario);
     if (res.horaFim && !document.getElementById('formHrIni')?.value)
       document.getElementById('formHrIni').value = res.horaFim;
   } catch(e) { /* silencioso — campos continuam editáveis manualmente */ }
@@ -749,6 +754,7 @@ function atualizarBotoesStatus() {
 }
 
 function resetarForm() {
+  _tecnicoEditadoManualmente = false;
   ['formData','formFunc','formMaq','formTipoUsina','formMotivo',
    'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim',
    'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada','formObservacao']
