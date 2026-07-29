@@ -178,7 +178,9 @@ function inicializarAutocompletes() {
     if (typeof aoSelecionarJob === 'function') aoSelecionarJob(val);
   });
 
-  setupAC('fichaJobInput',        'fichaJobList',        jobs);
+  setupAC('fichaJobInput',        'fichaJobList',        jobs, val => {
+    if (typeof buscarFicha === 'function') buscarFicha();
+  });
   setupAC('histJob',              'histJobList',         jobs);
   setupAC('prodFormMolde',        'prodFormMoldeList',   jobs);
 
