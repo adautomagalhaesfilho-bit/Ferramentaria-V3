@@ -88,6 +88,7 @@ function aplicarPermissoes() {
     menuFicha:        _temPermissao('ficha'),
     menuHistorico:    _temPermissao('historico'),
     menuPCM:          _temPermissao('pcm'),
+    menuRAM:          _temPermissao('pcm'),
     menuFuncionarios: _temPermissao('rh') || _temPermissao('admin'),
     menuFichaFuncionario: _temPermissao('rh') || _temPermissao('admin'),
     menuCompetencias: _temPermissao('competencias'),
