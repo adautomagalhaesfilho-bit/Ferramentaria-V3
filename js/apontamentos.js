@@ -850,7 +850,8 @@ async function enviarWhatsapp() {
   } else {
     t=`🎯 *RELATÓRIO DE PROJETOS*\n📅 ${diaSem}, ${dataBR}\n${sep}\n`;
     const areas={};
-    _dadosApontamentos.forEach(i => {
+    // Relatório de Projeto só mostra o que está "Em andamento" — concluído não entra
+    _dadosApontamentos.filter(i => (i.status||'Em andamento')==='Em andamento').forEach(i => {
       const a=i.area||'Sem Área', c=i.tipo||'Sem Categoria';
       if (!areas[a]) areas[a]={}; if (!areas[a][c]) areas[a][c]=[];
       areas[a][c].push(i);
@@ -859,7 +860,7 @@ async function enviarWhatsapp() {
       t+=`\n📍 *${a.toUpperCase()}*\n\n`;
       Object.keys(areas[a]).sort().forEach(c => {
         t+='→ '+c.toUpperCase()+'\n';
-        areas[a][c].forEach(i => { t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ${icoStatus(i.status)} ${i.status||'Em andamento'}\n`; });
+        areas[a][c].forEach(i => { t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ⏳ Em andamento\n`; });
         t+='\n';
       });
     });
