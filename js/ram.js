@@ -26,6 +26,23 @@ async function buscarTodasRAMs() {
   return ramsBase.map(r => ({ ...r, setores: (setores||[]).filter(s => s.ram_id === r.id) }));
 }
 
+// Todos os apontamentos (de qualquer setor) que foram vinculados a esta RAM
+async function buscarApontamentosDaRAM(ramId) {
+  const [lancs, prodLancs] = await Promise.all([
+    db._get('lancamentos', 'ram_id=eq.' + ramId + '&order=data.desc,hora_inicio.desc', '*').catch(() => []),
+    db._get('prod_lancamentos', 'ram_id=eq.' + ramId + '&order=data.desc,hora_inicio.desc', '*').catch(() => [])
+  ]);
+  const doLancs = (lancs||[]).map(l => ({
+    setor: l.setor, funcionario: l.funcionario, data: l.data,
+    horaInicio: l.hora_inicio, horaFim: l.hora_fim, descricao: l.descricao
+  }));
+  const doProd = (prodLancs||[]).map(p => ({
+    setor: 'Produção', funcionario: p.tecnicos, data: p.data,
+    horaInicio: p.hora_inicio, horaFim: p.hora_fim, descricao: p.descricao
+  }));
+  return [...doLancs, ...doProd].sort((a,b) => (b.data||'').localeCompare(a.data||''));
+}
+
 // Atualiza a tela certa depois de qualquer mudança na RAM, seja ela feita a
 // partir da Ficha do Molde ou da página dedicada de RAM
 async function _atualizarAposMudancaRAM() {
@@ -204,12 +221,16 @@ async function abrirDetalheRAM(ramId, job) {
   const todas = await buscarRAMsPorJob(job);
   const ram = todas.find(r => r.id === ramId);
   if (!ram) return toast('RAM não encontrada.', 'erro');
+  const apontamentos = await buscarApontamentosDaRAM(ramId);
+
+  const porSetor = {};
+  apontamentos.forEach(a => { const s = a.setor||'—'; if (!porSetor[s]) porSetor[s] = []; porSetor[s].push(a); });
 
   const div = document.createElement('div');
   div.id = 'modalDetalheRamWrap';
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharDetalheRAM()" style="display:block"></div>
-  <div class="modal" style="display:block;max-width:500px;max-height:85vh;overflow-y:auto">
+  <div class="modal" style="display:block;max-width:520px;max-height:85vh;overflow-y:auto">
     <div class="modal-header"><h3>📋 RAM ${ram.numero}</h3><button onclick="fecharDetalheRAM()">✕</button></div>
     <div class="modal-body">
       <div class="form-row">
@@ -223,7 +244,7 @@ async function abrirDetalheRAM(ramId, job) {
       <button class="btn-secondary" style="font-size:12px;margin-bottom:16px" onclick="salvarEdicaoRAM(${ram.id})">💾 Salvar Alterações</button>
 
       <div style="font-weight:700;color:#1e3a5f;font-size:13px;margin-bottom:8px;border-top:1px solid #e2e8f0;padding-top:12px">Setores</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
         ${ram.setores.map(s => `
           <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px">
             <div style="display:flex;justify-content:space-between;align-items:center">
@@ -237,6 +258,17 @@ async function abrirDetalheRAM(ramId, job) {
             </div>
           </div>`).join('')}
       </div>
+
+      <div style="font-weight:700;color:#1e3a5f;font-size:13px;margin-bottom:8px;border-top:1px solid #e2e8f0;padding-top:12px">Apontamentos Vinculados a Esta RAM</div>
+      ${apontamentos.length ? Object.keys(porSetor).sort().map(setor => `
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:#0056b3;margin-bottom:4px">${setor} (${porSetor[setor].length})</div>
+          ${porSetor[setor].map(a => `
+            <div style="font-size:12px;color:#475569;padding:5px 0;border-bottom:1px dashed #f1f5f9">
+              <b>${a.data?a.data.split('-').reverse().join('/'):'—'}</b> · ${a.funcionario||'—'} · ${a.horaInicio||'—'}–${a.horaFim||'—'}
+              ${a.descricao?`<div style="color:#94a3b8">${a.descricao}</div>`:''}
+            </div>`).join('')}
+        </div>`).join('') : '<div style="color:#94a3b8;font-size:12px">Nenhum apontamento vinculado ainda.</div>'}
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="fecharDetalheRAM()">Fechar</button>
