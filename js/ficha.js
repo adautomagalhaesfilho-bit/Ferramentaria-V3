@@ -43,11 +43,17 @@ async function buscarFicha() {
       try { res.logsPesoNominal = await buscarHistoricoItem('jobs', res.jobId); } catch(e) {}
     }
 
+    // RAM (Registro de Alteração/Modificação) — substitui as antigas Pendências
+    res.rams = [];
+    if (typeof buscarRAMsPorJob === 'function') {
+      try { res.rams = await buscarRAMsPorJob(job); } catch(e) {}
+    }
+
     _dadosFicha     = res;
     _lancsFicha     = res.lancamentos || [];
     _lancsProdFicha = res.prodLancamentos || [];
 
-    if (!res.jobExiste && !_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length && !res.histLoc.length && !res.localizacao && !(res.anexos&&res.anexos.length)) {
+    if (!res.jobExiste && !_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length && !res.histLoc.length && !res.localizacao && !(res.anexos&&res.anexos.length) && !(res.rams&&res.rams.length)) {
       elConteudo.style.display = 'none';
       elVazio.style.display    = 'block';
       elVazio.innerHTML = '<div style="font-size:48px">🔍</div><div>Nenhum molde encontrado com o nome "' + job + '"</div>';
@@ -172,6 +178,14 @@ function renderizarFicha(job, res) {
   <div class="grafico-card">
     <div class="grafico-titulo">🔧 Horas por Tipo de Atividade</div>
     <div style="height:280px"><canvas id="chartFichaTipos"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="font-weight:700;color:#1e3a5f;font-size:15px">📋 RAM</div>
+      <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovaRAM('${job.replace(/'/g,"\\'")}')">+ Nova RAM</button>
+    </div>
+    ${typeof renderizarCardRAM === 'function' ? renderizarCardRAM(job, res.rams||[]) : ''}
   </div>
 
   <div class="card">
@@ -316,49 +330,9 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
   const el = document.getElementById('fichaTimeline');
   if (!el) return;
 
-  const abertas    = (pendencias||[]).filter(p => !p.concluido);
-  const concluidas = (pendencias||[]).filter(p =>  p.concluido);
-
   let html = '<div style="position:relative;padding-left:32px">';
 
-  // 1. Checklist de pendências
-  if (pendencias && pendencias.length) {
-    html += `<div style="position:relative;margin-bottom:20px">
-      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 0 0 2px #f59e0b"></div>
-      <div style="background:#fffbeb;border-radius:10px;border:1px solid #fde68a;border-left:3px solid #f59e0b;padding:14px 16px">
-        <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:12px">
-          ✅ Pendências
-          ${abertas.length
-            ? `<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">${abertas.length} abertas</span>`
-            : '<span style="background:#10b981;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:8px">Todas concluídas</span>'}
-        </div>
-        ${abertas.map(p=>`
-          <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fde68a">
-            <span style="color:#f59e0b;font-size:14px;margin-top:1px">○</span>
-            <div style="flex:1">
-              <div style="font-size:13px;color:#1e3a5f">${p.texto}</div>
-              <div style="font-size:10px;color:#94a3b8">👤 ${p.criado_por||'—'} · 📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'}</div>
-            </div>
-          </div>`).join('')}
-        ${concluidas.length ? `
-          <div style="margin-top:10px;font-size:11px;color:#94a3b8;font-weight:700;letter-spacing:1px">CONCLUÍDAS</div>
-          ${concluidas.map(p=>`
-            <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;opacity:0.6">
-              <span style="color:#10b981;font-size:14px;margin-top:1px">✓</span>
-              <div style="flex:1">
-                <div style="font-size:12px;color:#64748b;text-decoration:line-through">${p.texto}</div>
-                <div style="font-size:10px;color:#94a3b8">✅ ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</div>
-              </div>
-            </div>`).join('')}
-        ` : ''}
-      </div>
-    </div>`;
-  } else {
-    html += `<div style="position:relative;margin-bottom:16px">
-      <div style="position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:#e2e8f0;border:2px solid #fff"></div>
-      <div style="color:#94a3b8;font-size:13px;padding:8px 0">Nenhuma pendência registrada pelo PCM.</div>
-    </div>`;
-  }
+  // Checklist de pendências antigo removido — substituído pelo card de RAM na Ficha
 
   // 2. Histórico de troca de copo
   const copos = lancs.filter(l => l.trocaCopo===true || l.trocaCopo==='true');
