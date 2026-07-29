@@ -95,6 +95,7 @@ var _mapaTelaEl = {
   feriados:     'telaFeriados',
   usuarios:     'telaUsuarios',
   pcm:          'telaPCM',
+  ram:          'telaRAM',
   auditoria:    'telaAuditoria',
   fichaFuncionario: 'telaFichaFuncionario',
   competencias: 'telaCompetencias',
@@ -117,6 +118,7 @@ var _mapaTitulos = {
   feriados:     'Gestão e RH',
   usuarios:     'Usuários',
   pcm:          'PCM — Controle de Moldes',
+  ram:          'RAM — Registros de Alteração/Modificação',
   auditoria:    'Log de Alterações',
   fichaFuncionario: 'Ficha do Funcionário',
   competencias: 'Matriz de Competência',
@@ -152,6 +154,7 @@ function _irParaSemHistory(tela, elMenu) {
     else if (tela === 'injetoras')    { carregarInjetoras(); }
     else if (tela === 'categorias')   { carregarCategorias(); }
     else if (tela === 'pcm')          { inicializarPCM(); }
+    else if (tela === 'ram')          { inicializarPainelRAM(); }
     else if (tela === 'auditoria')    { carregarLogAlteracoes(); }
     else if (tela === 'competencias') { if (typeof inicializarCompetencias==='function') inicializarCompetencias(); }
     else if (tela === 'programacaoFerias') { if (typeof inicializarProgramacaoFerias==='function') inicializarProgramacaoFerias(); }
