@@ -17,6 +17,115 @@ async function buscarRAMsAbertasPorJob(job) {
   return todas.filter(r => r.setores.some(s => !s.concluido));
 }
 
+// Todas as RAMs do sistema (qualquer molde) — usado na página dedicada de RAM
+async function buscarTodasRAMs() {
+  const ramsBase = await db._get('ram', 'order=criado_em.desc', '*');
+  if (!ramsBase || !ramsBase.length) return [];
+  const ids = ramsBase.map(r => r.id);
+  const setores = await db._get('ram_setores', 'ram_id=in.(' + ids.join(',') + ')', '*');
+  return ramsBase.map(r => ({ ...r, setores: (setores||[]).filter(s => s.ram_id === r.id) }));
+}
+
+// Atualiza a tela certa depois de qualquer mudança na RAM, seja ela feita a
+// partir da Ficha do Molde ou da página dedicada de RAM
+async function _atualizarAposMudancaRAM() {
+  if (_telaAtual === 'ficha' && typeof buscarFicha === 'function') await buscarFicha();
+  if (_telaAtual === 'ram' && typeof carregarPainelRAM === 'function') await carregarPainelRAM();
+}
+
+// ==========================================
+// 🔎 Página dedicada de RAM (visão consolidada, todos os moldes)
+// ==========================================
+var _todasRAMsCache = [];
+
+async function inicializarPainelRAM() {
+  const el = document.getElementById('telaRAM');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>📋 RAM — Registros de Alteração/Modificação</h1>
+      <button class="btn-primary" onclick="abrirModalNovaRAM()">+ Nova RAM</button>
+    </div>
+    <div class="filtros-bar">
+      <div class="filtro-item"><label>BUSCAR</label><input type="text" id="ramFiltroTexto" placeholder="Número, molde ou descrição..." oninput="filtrarPainelRAM()"></div>
+      <div class="filtro-item"><label>SETOR</label><select id="ramFiltroSetor" onchange="filtrarPainelRAM()">
+        <option value="Todos">Todos</option>
+        ${_RAM_SETORES.map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select></div>
+      <div class="filtro-item"><label>STATUS</label><select id="ramFiltroStatus" onchange="filtrarPainelRAM()">
+        <option value="abertas">Abertas</option>
+        <option value="concluidas">Concluídas</option>
+        <option value="todas">Todas</option>
+      </select></div>
+    </div>
+    <div id="loaderRAM" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Carregando RAMs...</span></div>
+    <div id="listaPainelRAM"></div>
+  `;
+  await carregarPainelRAM();
+}
+
+async function carregarPainelRAM() {
+  const loader = document.getElementById('loaderRAM');
+  if (loader) loader.style.display = 'flex';
+  try {
+    _todasRAMsCache = await buscarTodasRAMs();
+    filtrarPainelRAM();
+  } catch(e) { toast('Erro ao carregar RAMs.', 'erro'); console.error(e); }
+  if (loader) loader.style.display = 'none';
+}
+
+function filtrarPainelRAM() {
+  const texto  = (document.getElementById('ramFiltroTexto')?.value || '').toLowerCase();
+  const setor  = document.getElementById('ramFiltroSetor')?.value || 'Todos';
+  const status = document.getElementById('ramFiltroStatus')?.value || 'abertas';
+
+  const filtradas = _todasRAMsCache.filter(r => {
+    if (texto && !(r.numero.toLowerCase().includes(texto) || r.job.toLowerCase().includes(texto) || (r.descricao||'').toLowerCase().includes(texto))) return false;
+    if (setor !== 'Todos' && !r.setores.some(s => s.setor === setor)) return false;
+    const estaAberta = r.setores.some(s => !s.concluido);
+    if (status === 'abertas'    && !estaAberta) return false;
+    if (status === 'concluidas' &&  estaAberta) return false;
+    return true;
+  });
+  renderizarPainelRAM(filtradas);
+}
+
+function renderizarPainelRAM(rams) {
+  const el = document.getElementById('listaPainelRAM');
+  if (!el) return;
+  if (!rams.length) {
+    el.innerHTML = '<div class="empty-state"><div style="font-size:48px">📋</div><div>Nenhuma RAM encontrada.</div></div>';
+    return;
+  }
+  // Atrasadas primeiro, depois por prazo mais próximo
+  const ordenadas = [...rams].sort((a,b) => {
+    const aAtrasada = a.prazo_final && new Date(a.prazo_final) < new Date() && a.setores.some(s=>!s.concluido);
+    const bAtrasada = b.prazo_final && new Date(b.prazo_final) < new Date() && b.setores.some(s=>!s.concluido);
+    if (aAtrasada !== bAtrasada) return aAtrasada ? -1 : 1;
+    return (a.prazo_final||'9999-99-99').localeCompare(b.prazo_final||'9999-99-99');
+  });
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
+    ${ordenadas.map(r => {
+      const atrasada = r.prazo_final && new Date(r.prazo_final) < new Date() && r.setores.some(s=>!s.concluido);
+      return `<div class="card" style="margin:0">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div>
+            <div style="font-weight:700;color:#1e3a5f;font-size:14px">RAM ${r.numero}</div>
+            <div style="font-size:12px;color:#0056b3;font-weight:600;cursor:pointer" onclick="abrirFichaMolde('${r.job.replace(/'/g,"\\'")}')">${r.job}</div>
+          </div>
+          ${r.prazo_final ? `<span style="background:${atrasada?'#fee2e2':'#fef3c7'};color:${atrasada?'#b91c1c':'#92400e'};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${atrasada?'⚠️ atrasada':'prazo'} ${new Date(r.prazo_final+'T12:00:00').toLocaleDateString('pt-BR')}</span>` : ''}
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px">${r.descricao||''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          ${r.setores.map(s => `<span style="background:${s.concluido?'#d1fae5':'#fee2e2'};color:${s.concluido?'#059669':'#b91c1c'};font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${s.concluido?'✓':'○'} ${s.setor}</span>`).join('')}
+        </div>
+        <button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirDetalheRAM(${r.id},'${r.job.replace(/'/g,"\\'")}')">Gerenciar RAM</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 // ==========================================
 // Criar nova RAM
 // ==========================================
@@ -26,8 +135,14 @@ function abrirModalNovaRAM(job) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalRAM()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px;max-height:85vh;overflow-y:auto">
-    <div class="modal-header"><h3>📋 Nova RAM — ${job}</h3><button onclick="fecharModalRAM()">✕</button></div>
+    <div class="modal-header"><h3>📋 Nova RAM${job ? ' — ' + job : ''}</h3><button onclick="fecharModalRAM()">✕</button></div>
     <div class="modal-body">
+      ${!job ? `<div class="form-group"><label>Molde *</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="ramNovoJob" placeholder="Busque o molde...">
+          <div class="autocomplete-list" id="ramNovoJobList"></div>
+        </div>
+      </div>` : ''}
       <div class="form-row">
         <div class="form-group"><label>Número da RAM *</label><input type="text" id="ramNumero" placeholder="Ex: 2026-0341"></div>
         <div class="form-group"><label>Prazo Final</label><input type="date" id="ramPrazo"></div>
@@ -46,20 +161,23 @@ function abrirModalNovaRAM(job) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarNovaRAM('${job.replace(/'/g,"\\'")}')">💾 Criar RAM</button>
+      <button class="btn-primary" onclick="salvarNovaRAM('${job ? job.replace(/'/g,"\\'") : ''}')">💾 Criar RAM</button>
       <button class="btn-secondary" onclick="fecharModalRAM()">Cancelar</button>
     </div>
   </div>`;
   document.body.appendChild(div);
+  if (!job && typeof setupAC === 'function') setupAC('ramNovoJob', 'ramNovoJobList', (_listas&&_listas.jobs)||[]);
 }
 
 function fecharModalRAM() { document.getElementById('modalRamWrap')?.remove(); }
 
-async function salvarNovaRAM(job) {
+async function salvarNovaRAM(jobPreDefinido) {
+  const job = jobPreDefinido || document.getElementById('ramNovoJob')?.value?.trim();
   const numero    = document.getElementById('ramNumero')?.value?.trim();
   const prazo     = document.getElementById('ramPrazo')?.value || null;
   const descricao = document.getElementById('ramDescricao')?.value?.trim();
   const setores   = [...document.querySelectorAll('.ram-setor-chk:checked')].map(c => c.value);
+  if (!job) return toast('Selecione o molde.', 'erro');
   if (!numero) return toast('Informe o número da RAM.', 'erro');
   if (!descricao) return toast('Descreva o que precisa ser feito.', 'erro');
   if (!setores.length) return toast('Selecione ao menos um setor.', 'erro');
@@ -75,7 +193,7 @@ async function salvarNovaRAM(job) {
     }
     toast('RAM criada!', 'sucesso');
     fecharModalRAM();
-    if (typeof buscarFicha === 'function') await buscarFicha();
+    await _atualizarAposMudancaRAM();
   } catch(e) { toast('Erro ao criar RAM.', 'erro'); console.error(e); }
 }
 
@@ -139,7 +257,7 @@ async function salvarEdicaoRAM(ramId) {
     if (typeof registrarLog === 'function') await registrarLog('ram', ramId, 'editar', null, null, 'Dados atualizados');
     toast('RAM atualizada!', 'sucesso');
     fecharDetalheRAM();
-    if (typeof buscarFicha === 'function') await buscarFicha();
+    await _atualizarAposMudancaRAM();
   } catch(e) { toast('Erro ao salvar.', 'erro'); }
 }
 
@@ -192,7 +310,7 @@ async function salvarConclusaoSetorRAM(ramSetorId, numeroRam, job) {
     toast('Setor concluído!', 'sucesso');
     fecharConclusaoSetorRAM();
     fecharDetalheRAM();
-    if (typeof buscarFicha === 'function') await buscarFicha();
+    await _atualizarAposMudancaRAM();
   } catch(e) {
     toast(e.message || 'Erro ao concluir.', 'erro');
     if (btn) { btn.disabled = false; btn.innerText = '💾 Concluir'; }
@@ -207,7 +325,7 @@ function reabrirSetorRAM(ramSetorId, job) {
       });
       toast('Setor reaberto.', 'sucesso');
       fecharDetalheRAM();
-      if (typeof buscarFicha === 'function') await buscarFicha();
+      await _atualizarAposMudancaRAM();
     } catch(e) { toast('Erro ao reabrir.', 'erro'); }
   });
 }
