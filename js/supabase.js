@@ -244,7 +244,9 @@ const db = {
       tipo_copo:       dados.tipoCopo      || null,
       descricao_copo:  dados.descricaoCopo || null,
       tem_observacao:  !!dados.temObservacao,
-      observacao:      dados.observacao    || null
+      observacao:      dados.observacao    || null,
+      ram_id:          dados.ramId    || null,
+      ram_numero:      dados.ramNumero || null
     };
     const res = await db._post('lancamentos', reg);
     if (dados.job && dados.status) await db.salvarStatusJob(dados.job, dados.status, dados.descricao || '');
@@ -265,7 +267,9 @@ const db = {
       tipo_copo:       dados.tipoCopo      || null,
       descricao_copo:  dados.descricaoCopo || null,
       tem_observacao:  !!dados.temObservacao,
-      observacao:      dados.observacao    || null
+      observacao:      dados.observacao    || null,
+      ram_id:          dados.ramId    || null,
+      ram_numero:      dados.ramNumero || null
     });
   },
 
@@ -564,7 +568,8 @@ const db = {
       atividade: dados.atividade || null, descricao: dados.descricao || null,
       status: dados.status || 'Em andamento',
       maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
-      numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null
+      numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null,
+      ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null
     });
   },
 
@@ -578,7 +583,8 @@ const db = {
       atividade: dados.atividade || null, descricao: dados.descricao || null,
       status: dados.status || 'Em andamento',
       maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
-      numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null
+      numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null,
+      ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null
     });
   },
 
@@ -646,7 +652,9 @@ const db = {
       tipoCopo:       l.tipo_copo      || null,
       descricaoCopo:  l.descricao_copo || null,
       temObservacao:  l.tem_observacao || false,
-      observacao:     l.observacao     || null
+      observacao:     l.observacao     || null,
+      ramId:          l.ram_id     || null,
+      ramNumero:      l.ram_numero || null
     };
   },
 
