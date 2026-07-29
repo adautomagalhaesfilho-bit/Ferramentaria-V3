@@ -376,6 +376,46 @@ function atualizarBotoesStatusProd() {
   }
 }
 
+// ==========================================
+// 📋 RAM E EVIDÊNCIA — Produção
+// ==========================================
+var _anexoProdSelecionado = null;
+
+async function aoSelecionarMoldeProd(job) {
+  const grupo = document.getElementById('grupoRamProd');
+  const sel   = document.getElementById('prodFormRamSelect');
+  if (!grupo || !sel) return;
+  if (!job || typeof buscarRAMsAbertasPorJob !== 'function') { grupo.style.display = 'none'; sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>'; return; }
+  try {
+    const abertas = await buscarRAMsAbertasPorJob(job);
+    if (!abertas.length) { grupo.style.display = 'none'; sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>'; return; }
+    sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>' +
+      abertas.map(r => `<option value="${r.id}" data-numero="${r.numero.replace(/"/g,'&quot;')}">RAM ${r.numero} — ${(r.descricao||'').slice(0,60)}</option>`).join('');
+    grupo.style.display = '';
+  } catch(e) { grupo.style.display = 'none'; }
+}
+
+function _sincronizarAnexoProd(inputEl) {
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  _anexoProdSelecionado = file;
+  const nomeEl = document.getElementById('prodFormAnexoNome');
+  if (nomeEl) nomeEl.innerText = '✅ ' + file.name + ' (' + (file.size/1024/1024).toFixed(1) + ' MB)';
+}
+
+async function _processarAnexoProd(job, ramNumero, descricaoLancamento) {
+  if (!_anexoProdSelecionado || !job) return;
+  try {
+    const { url, tipo } = await uploadAnexoMolde(_anexoProdSelecionado, job, null);
+    const descFinal = (ramNumero ? `RAM ${ramNumero} — ` : '') + (descricaoLancamento || '');
+    await salvarAnexoMolde(job, tipo, url, descFinal, 'Produção', null);
+    toast('Evidência anexada ao molde!', 'sucesso');
+  } catch(e) { toast(e.message || 'Erro ao anexar evidência.', 'erro'); }
+  _anexoProdSelecionado = null;
+  const nomeEl = document.getElementById('prodFormAnexoNome');
+  if (nomeEl) nomeEl.innerText = 'Nenhum arquivo selecionado.';
+}
+
 async function salvarFormProducao() {
   const id = document.getElementById('prodFormId')?.value;
   if (!_tecnicosSelecionadosProd.length) return toast('Adicione ao menos um técnico.','erro');
@@ -397,6 +437,10 @@ async function salvarFormProducao() {
     if (_ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade) && !outraInjetora) return toast('Selecione a outra injetora da transferência.','erro');
   }
 
+  const ramSelProd = document.getElementById('prodFormRamSelect');
+  const ramId = ramSelProd?.value ? parseInt(ramSelProd.value) : null;
+  const ramNumero = ramSelProd?.value ? (ramSelProd.selectedOptions[0]?.dataset?.numero || null) : null;
+
   const dados = {
     data:          document.getElementById('prodFormData')?.value,
     horaInicio:    document.getElementById('prodFormHrIni')?.value || null,
@@ -410,7 +454,8 @@ async function salvarFormProducao() {
     maquinaParada: document.getElementById('prodFormMaqParada')?.checked,
     temOS:         document.getElementById('prodFormTemOS')?.checked,
     numeroOS:      document.getElementById('prodFormNumOS')?.value || null,
-    observacoes:   document.getElementById('prodFormObs')?.value || null
+    observacoes:   document.getElementById('prodFormObs')?.value || null,
+    ramId, ramNumero
   };
   const btn = document.getElementById('btnSalvarProd');
   btn.disabled = true; btn.innerText = 'Salvando...';
@@ -419,6 +464,7 @@ async function salvarFormProducao() {
       await db.salvarProdLancamento(dados);
       // Movimentação automática de molde no PCM — só em lançamentos NOVOS (edição não repete a movimentação)
       await processarMovimentacaoSetupPCM(dados);
+      if (dados.molde) await _processarAnexoProd(dados.molde, dados.ramNumero, dados.descricao);
       toast('Lançamento salvo!','sucesso');
       const data = dados.data;
       _tecnicosSelecionadosProd = [];
@@ -450,6 +496,10 @@ function resetarFormProducao() {
   const mp=document.getElementById('prodFormMaqParada'); if(mp) mp.checked=false;
   const os=document.getElementById('prodFormTemOS');     if(os) os.checked=false;
   const go=document.getElementById('grupoOS');           if(go) go.style.display='none';
+  _anexoProdSelecionado = null;
+  const nomeAnexoProd = document.getElementById('prodFormAnexoNome'); if(nomeAnexoProd) nomeAnexoProd.innerText='Nenhum arquivo selecionado.';
+  const grupoRamP = document.getElementById('grupoRamProd'); if(grupoRamP) grupoRamP.style.display='none';
+  const selRamP = document.getElementById('prodFormRamSelect'); if(selRamP) selRamP.innerHTML='<option value="">Nenhuma — apontamento comum</option>';
   atualizarCamposSetup();
   _tecnicosSelecionadosProd = [];
   renderizarTecnicos();
