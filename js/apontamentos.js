@@ -351,6 +351,10 @@ async function editarApontamento(idx) {
   }
   document.getElementById('formJob').value  = item.job       || '';
   document.getElementById('formDesc').value = item.descricao || '';
+  if (item.job && typeof _atualizarSeletorRAM === 'function') {
+    await _atualizarSeletorRAM(item.job);
+    if (item.ramId) setSelect('formRamSelect', String(item.ramId));
+  }
   atualizarBotoesStatus();
   document.getElementById('tituloForm').innerText    = 'Editar Lançamento — ' + _setorAtivo;
   document.getElementById('btnSalvarForm').innerText = '💾 Atualizar Lançamento';
@@ -426,6 +430,31 @@ function _removerTecnico(idx) {
 // ==========================================
 // 💾 SALVAR
 // ==========================================
+var _anexoApontamentoSelecionado = null;
+
+function _sincronizarAnexoApontamento(inputEl) {
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  _anexoApontamentoSelecionado = file;
+  const nomeEl = document.getElementById('formAnexoNome');
+  if (nomeEl) nomeEl.innerText = '✅ ' + file.name + ' (' + (file.size/1024/1024).toFixed(1) + ' MB)';
+}
+
+// Envia a evidência (se selecionada) pra galeria de anexos do molde, marcando a RAM quando houver
+async function _processarAnexoApontamento(job, ramNumero, descricaoLancamento, lancamentoRes) {
+  if (!_anexoApontamentoSelecionado || !job) return;
+  try {
+    const lancamentoId = lancamentoRes && lancamentoRes[0] ? lancamentoRes[0].id : null;
+    const { url, tipo } = await uploadAnexoMolde(_anexoApontamentoSelecionado, job, null);
+    const descFinal = (ramNumero ? `RAM ${ramNumero} — ` : '') + (descricaoLancamento || '');
+    await salvarAnexoMolde(job, tipo, url, descFinal, _setorAtivo, lancamentoId);
+    toast('Evidência anexada ao molde!', 'sucesso');
+  } catch(e) { toast(e.message || 'Erro ao anexar evidência.', 'erro'); }
+  _anexoApontamentoSelecionado = null;
+  const nomeEl = document.getElementById('formAnexoNome');
+  if (nomeEl) nomeEl.innerText = 'Nenhum arquivo selecionado.';
+}
+
 async function salvarForm() {
   const setor = document.getElementById('formSetor').value || _setorAtivo;
   const id    = document.getElementById('formId').value;
@@ -439,11 +468,13 @@ async function salvarForm() {
         for (let i = 0; i < _tecnicosSelecionados.length; i++) {
           const dadosTecnico = { ...dados, funcionario: _tecnicosSelecionados[i] };
           if (i > 0) { dadosTecnico.trocaCopo=false; dadosTecnico.tipoCopo=null; dadosTecnico.descricaoCopo=null; dadosTecnico.temObservacao=false; dadosTecnico.observacao=null; }
-          await db.salvarLancamento(dadosTecnico);
+          const resSalvo = await db.salvarLancamento(dadosTecnico);
+          if (i === 0) await _processarAnexoApontamento(dados.job, dados.ramNumero, dados.descricao, resSalvo);
         }
         toast(`${_tecnicosSelecionados.length} lançamentos salvos!`, 'sucesso');
       } else {
-        await db.salvarLancamento(dados);
+        const resSalvo = await db.salvarLancamento(dados);
+        await _processarAnexoApontamento(dados.job, dados.ramNumero, dados.descricao, resSalvo);
         toast('Lançamento salvo!','sucesso');
       }
       const data = document.getElementById('formData').value;
@@ -562,6 +593,13 @@ function coletarDadosForm(setor) {
   }
 
   const dados = { data, setor, funcionario: funcionario || null, job, descricao, status };
+
+  // RAM selecionada (opcional) — só cria o vínculo, não conclui nada sozinho
+  const ramSel = document.getElementById('formRamSelect');
+  if (ramSel && ramSel.value) {
+    dados.ramId = parseInt(ramSel.value);
+    dados.ramNumero = ramSel.selectedOptions[0]?.dataset?.numero || null;
+  }
 
   if (setor==='Usinagem') {
     const maquina = document.getElementById('formMaq')?.value;
@@ -730,6 +768,7 @@ async function aoSelecionarMaquinaUsinagem() {
 // 🔩 AUTO-PREENCHIMENTO DO JOB (Usinagem)
 // ==========================================
 async function aoSelecionarJob(job) {
+  await _atualizarSeletorRAM(job);
   if (_setorAtivo !== 'Usinagem' || !job) return;
   const maq = document.getElementById('formMaq')?.value || '';
   try {
@@ -739,6 +778,21 @@ async function aoSelecionarJob(job) {
       if (elDesc && !elDesc.value) elDesc.value = desc;
     }
   } catch(e) {}
+}
+
+// Verifica se o job selecionado tem RAM aberta e monta o seletor
+async function _atualizarSeletorRAM(job) {
+  const grupo = document.getElementById('grupoRamApontamento');
+  const sel   = document.getElementById('formRamSelect');
+  if (!grupo || !sel) return;
+  if (!job || typeof buscarRAMsAbertasPorJob !== 'function') { grupo.style.display = 'none'; sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>'; return; }
+  try {
+    const abertas = await buscarRAMsAbertasPorJob(job);
+    if (!abertas.length) { grupo.style.display = 'none'; sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>'; return; }
+    sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>' +
+      abertas.map(r => `<option value="${r.id}" data-numero="${r.numero.replace(/"/g,'&quot;')}">RAM ${r.numero} — ${(r.descricao||'').slice(0,60)}</option>`).join('');
+    grupo.style.display = '';
+  } catch(e) { grupo.style.display = 'none'; }
 }
 
 function selecionarStatus(status) { _statusForm=status; atualizarBotoesStatus(); }
@@ -755,6 +809,13 @@ function atualizarBotoesStatus() {
 
 function resetarForm() {
   _tecnicoEditadoManualmente = false;
+  _anexoApontamentoSelecionado = null;
+  const nomeAnexoEl = document.getElementById('formAnexoNome');
+  if (nomeAnexoEl) nomeAnexoEl.innerText = 'Nenhum arquivo selecionado.';
+  const grupoRam = document.getElementById('grupoRamApontamento');
+  if (grupoRam) grupoRam.style.display = 'none';
+  const selRam = document.getElementById('formRamSelect');
+  if (selRam) selRam.innerHTML = '<option value="">Nenhuma — apontamento comum</option>';
   ['formData','formFunc','formMaq','formTipoUsina','formMotivo',
    'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim',
    'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada','formObservacao']
