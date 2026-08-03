@@ -19,7 +19,7 @@ async function inicializarProducao() {
     _tecnicosProducao = tecs || [];
     _injetoras = injs || [];
     _categoriasProd = {};
-    (cats||[]).forEach(c => { if (!_categoriasProd[c.tipo]) _categoriasProd[c.tipo]=[]; _categoriasProd[c.tipo].push(c.atividade); });
+    (cats||[]).filter(c => c.setor==='Producao' || c.setor==='Produção').forEach(c => { if (!_categoriasProd[c.tipo]) _categoriasProd[c.tipo]=[]; _categoriasProd[c.tipo].push(c.atividade); });
 
     const selInj = document.getElementById('prodFiltroInjetora');
     if (selInj) selInj.innerHTML = '<option value="Todas">Todas</option>' + _injetoras.map(i=>`<option value="${i.nome}">${i.nome}</option>`).join('');
