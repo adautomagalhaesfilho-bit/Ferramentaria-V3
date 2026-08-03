@@ -208,7 +208,13 @@ function preencherFormProducao() {
   });
 
   // Técnico — clica para escolher OU digita para filtrar (igual Job)
-  setupAC('prodTecnicoInput', 'prodTecnicoInputList', _tecnicosProducao.map(t=>t.nome), val => {
+  // Mescla a lista própria de Produção (prod_tecnicos) com funcionários de outros
+  // setores que têm "Produção" marcado como setor extra de apontamento
+  const nomesTecnicosProd = [...new Set([
+    ..._tecnicosProducao.map(t=>t.nome),
+    ...((_listas && _listas.funcProducao) || [])
+  ])].sort();
+  setupAC('prodTecnicoInput', 'prodTecnicoInputList', nomesTecnicosProd, val => {
     adicionarTecnicoPorNome(val);
     const inp = document.getElementById('prodTecnicoInput');
     if (inp) inp.value = '';
