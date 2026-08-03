@@ -95,12 +95,12 @@ function aplicarPermissoes() {
     menuJobsAdmin:    _temPermissao('admin'),
     menuMaquinasAdmin:_temPermissao('admin'),
     menuInjetoras:    _temPermissao('admin'),
-    menuCategorias:   _temPermissao('admin'),
+    menuCategorias:   _temPermissao('admin') || (p==='supervisor' && !!s),
     menuFeriados:     _temPermissao('rh') || _temPermissao('admin'),
     menuProgramacaoFerias: _temPermissao('rh') || _temPermissao('admin'),
     menuUsuarios:     isAdmin(),
     menuAuditoria:    isAdmin(),
-    adminSection:     _temPermissao('admin') || _temPermissao('rh') || _temPermissao('competencias'),
+    adminSection:     _temPermissao('admin') || _temPermissao('rh') || _temPermissao('competencias') || (p==='supervisor' && !!s),
   };
 
   Object.entries(menus).forEach(([id, visivel]) => {
