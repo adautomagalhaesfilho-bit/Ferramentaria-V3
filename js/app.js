@@ -758,6 +758,10 @@ var _abaSetorAtiva = 'Usinagem';
 
 async function _carregarCategoriasLista() {
   try {
+    // Supervisor só vê e mexe no próprio setor — Admin continua vendo todos
+    const restrito = !(typeof isAdmin === 'function' && isAdmin());
+    if (restrito && _sessao?.setor && _SETORES_CAT.includes(_sessao.setor)) _abaSetorAtiva = _sessao.setor;
+
     const todas = await db.listarProdCategorias();
     const el = document.getElementById('painelCategorias');
     if (!el) return;
@@ -774,7 +778,7 @@ async function _carregarCategoriasLista() {
     const total  = Object.values(grupos).flat().length;
 
     let html = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
-      ${_SETORES_CAT.map(s => {
+      ${_SETORES_CAT.filter(s => !restrito || s === _abaSetorAtiva).map(s => {
         const t = Object.values(porSetor[s]||{}).flat().length;
         const ativo = s === _abaSetorAtiva;
         const c = _CORES_CAT[s];
@@ -830,7 +834,11 @@ async function _carregarCategoriasLista() {
   } catch(e) { toast('Erro ao carregar categorias.','erro'); console.error(e); }
 }
 
-function _mudarAbaCategoria(setor) { _abaSetorAtiva = setor; carregarCategorias(); }
+function _mudarAbaCategoria(setor) {
+  const restrito = !(typeof isAdmin === 'function' && isAdmin());
+  if (restrito && setor !== _sessao?.setor) return;
+  _abaSetorAtiva = setor; carregarCategorias();
+}
 
 function abrirModalCategoria(tipoPre) {
   const tiposExistentes = _listas?.todasCategorias
@@ -881,7 +889,13 @@ function fecharModalCategoria() {
   if (w) w.innerHTML = '';
 }
 
+// Admin mexe em qualquer setor; supervisor só no próprio
+function _podeEditarCategoriaSetor(setor) {
+  return (typeof isAdmin === 'function' && isAdmin()) || setor === _sessao?.setor;
+}
+
 async function salvarCategoria() {
+  if (!_podeEditarCategoriaSetor(_abaSetorAtiva)) return toast('Você só pode criar categorias do seu próprio setor.','erro');
   const sel  = document.getElementById('catTipoSel');
   const isNovo = sel?.value === '__novo';
   const tipo = isNovo
@@ -911,6 +925,8 @@ async function salvarCategoria() {
 }
 
 async function editarCategoria(id, ativAtual) {
+  const cat = (_listas?.todasCategorias||[]).find(c => c.id === id);
+  if (cat && !_podeEditarCategoriaSetor(cat.setor)) return toast('Você só pode editar categorias do seu próprio setor.','erro');
   const ativ = prompt('Renomear atividade:', ativAtual);
   if (!ativ||!ativ.trim()||ativ.trim()===ativAtual) return;
   try {
@@ -920,6 +936,8 @@ async function editarCategoria(id, ativAtual) {
 }
 
 async function excluirCategoria(id) {
+  const cat = (_listas?.todasCategorias||[]).find(c => c.id === id);
+  if (cat && !_podeEditarCategoriaSetor(cat.setor)) return toast('Você só pode excluir categorias do seu próprio setor.','erro');
   confirmarExclusao('Remover esta categoria?', async()=>{
     try {
       await db.excluirProdCategoria(id);
