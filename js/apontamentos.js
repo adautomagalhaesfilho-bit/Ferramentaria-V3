@@ -911,8 +911,8 @@ async function enviarWhatsapp() {
   } else {
     t=`🎯 *RELATÓRIO DE PROJETOS*\n📅 ${diaSem}, ${dataBR}\n${sep}\n`;
     const areas={};
-    // Relatório de Projeto só mostra o que está "Em andamento" — concluído não entra
-    _dadosApontamentos.filter(i => (i.status||'Em andamento')==='Em andamento').forEach(i => {
+    // Todos os lançamentos aparecem — só a marcação "✅ Concluído" fica de fora
+    _dadosApontamentos.forEach(i => {
       const a=i.area||'Sem Área', c=i.tipo||'Sem Categoria';
       if (!areas[a]) areas[a]={}; if (!areas[a][c]) areas[a][c]=[];
       areas[a][c].push(i);
@@ -921,7 +921,10 @@ async function enviarWhatsapp() {
       t+=`\n📍 *${a.toUpperCase()}*\n\n`;
       Object.keys(areas[a]).sort().forEach(c => {
         t+='→ '+c.toUpperCase()+'\n';
-        areas[a][c].forEach(i => { t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''} ⏳ Em andamento\n`; });
+        areas[a][c].forEach(i => {
+          const statusTxt = (i.status||'Em andamento')==='Em andamento' ? ' ⏳ Em andamento' : '';
+          t+=`• ${i.job?'*'+i.job+'* — ':''}${i.descricao||''}${statusTxt}\n`;
+        });
         t+='\n';
       });
     });
