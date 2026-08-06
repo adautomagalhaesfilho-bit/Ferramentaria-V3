@@ -87,17 +87,16 @@ async function renderizarAlertasFerias() {
   if (!alertas.length) { el.innerHTML = ''; return; }
   alertas.sort((a,b) => a.diasAtePrazo - b.diasAtePrazo);
 
-  el.innerHTML = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:16px">
-    <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:10px">⚠️ Férias a Programar (${alertas.length})</div>
-    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
-      ${alertas.map(a => {
-        const vencido = a.diasAtePrazo < 0;
-        const urgente = !vencido && a.diasAtePrazo <= 60;
-        const cor = vencido ? '#b91c1c' : urgente ? '#c2410c' : '#92400e';
-        const prazoTxt = vencido ? `venceu há ${Math.abs(a.diasAtePrazo)} dias` : `${a.diasAtePrazo} dias até vencer o período`;
-        return `<div style="color:${cor}">${vencido?'🔴':urgente?'🟠':'🟡'} <b>${a.nome}</b> (${a.setor||'—'}) — ${a.saldo} dia${a.saldo>1?'s':''} sem programar · ${prazoTxt}</div>`;
-      }).join('')}
-    </div>
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:14px;border-left:3px solid #f59e0b;background:#fffdf5;border-radius:6px">
+    <span style="font-size:12px;font-weight:700;color:#92400e;white-space:nowrap">⚠️ A programar</span>
+    ${alertas.map(a => {
+      const vencido = a.diasAtePrazo < 0;
+      const urgente = !vencido && a.diasAtePrazo <= 60;
+      const cor = vencido ? '#b91c1c' : urgente ? '#c2410c' : '#a16207';
+      const bg  = vencido ? '#fee2e2' : urgente ? '#ffedd5' : '#fef9c3';
+      const prazoTxt = vencido ? `${Math.abs(a.diasAtePrazo)}d atrasado` : `${a.diasAtePrazo}d p/ vencer`;
+      return `<span title="${a.setor||''}" style="font-size:11px;color:${cor};background:${bg};padding:2px 9px;border-radius:10px;white-space:nowrap">${a.nome.split(' ')[0]} · ${a.saldo}d · ${prazoTxt}</span>`;
+    }).join('')}
   </div>`;
 }
 
@@ -216,7 +215,10 @@ function renderizarResumoFerias(registros) {
     const fim = r.fim > `${_anoAtualFerias}-12-31` ? `${_anoAtualFerias}-12-31` : r.fim;
     return a + Math.round((new Date(fim+'T12:00:00')-new Date(ini+'T12:00:00'))/86400000) + 1;
   }, 0);
-  el.innerHTML = `
+  el.innerHTML = (typeof metricCard === 'function')
+    ? metricCard('👥','Pessoas de Férias', pessoas, 'no período', '#1d4ed8')
+    + metricCard('📅','Total de Dias', totalDias, 'somados', '#7c3aed')
+    : `
     <div class="resume-card" style="background:#dbeafe;border-left:4px solid #1d4ed8">
       <div style="font-size:11px;color:#0c4a6e;font-weight:600">👥 Pessoas de Férias</div>
       <div style="font-size:28px;color:#1d4ed8;font-weight:700">${pessoas}</div>
@@ -263,11 +265,12 @@ function _renderMesCalendarioFerias(mesIndex) {
         const dataStr = `${_anoAtualFerias}-${String(mes).padStart(2,'0')}-${diaStr}`;
         const itens = _itensPorDiaFerias[dataStr] || [];
         const temConflito = itens.some(x=>x.conflito);
-        const hover = itens.length > 0 ? "style=\"background:#f0f9ff;border-color:#0284c7\"" : "";
-        let nomes = itens.map(x=>`<span style="font-size:8px;background:${x.cor.bg};color:${x.cor.cor};padding:1px 3px;border-radius:2px;display:inline-block;margin:1px;white-space:nowrap">${x.nome.split(' ')[0]}</span>`).join('');
-        dias.push(`<div ${hover} style="padding:4px;border:1px solid ${temConflito?'#ef4444':'#e2e8f0'};border-radius:4px;min-height:32px;font-size:10px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between">
-          <div style="font-weight:600;color:#1e3a5f">${diaAtual}</div>
-          <div style="display:flex;gap:1px;flex-wrap:wrap">${nomes}</div>
+        const visiveis = itens.slice(0,5);
+        const pontos = visiveis.map(x=>`<span title="${x.nome}" style="width:5px;height:5px;border-radius:50%;background:${x.cor.cor};display:inline-block"></span>`).join('');
+        const extra = itens.length>5 ? `<span style="font-size:7px;color:#94a3b8;margin-left:1px">+${itens.length-5}</span>` : '';
+        dias.push(`<div style="padding:3px 2px;border:1px solid ${temConflito?'#ef4444':'#f1f5f9'};border-radius:4px;min-height:24px;font-size:10px;cursor:pointer">
+          <div style="color:${itens.length?'#1e3a5f':'#94a3b8'};font-weight:${itens.length?'600':'400'}">${diaAtual}</div>
+          <div style="display:flex;align-items:center;gap:1px;margin-top:2px">${pontos}${extra}</div>
         </div>`);
         diaAtual++;
       } else {
