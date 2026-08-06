@@ -195,6 +195,7 @@ async function salvarNovaRAM(jobPreDefinido) {
   const descricao = document.getElementById('ramDescricao')?.value?.trim();
   const setores   = [...document.querySelectorAll('.ram-setor-chk:checked')].map(c => c.value);
   if (!job) return toast('Selecione o molde.', 'erro');
+  if (!(_listas && (_listas.jobs||[]).includes(job))) return toast('Esse molde não existe no cadastro. Selecione um da lista.', 'erro');
   if (!numero) return toast('Informe o número da RAM.', 'erro');
   if (!descricao) return toast('Descreva o que precisa ser feito.', 'erro');
   if (!setores.length) return toast('Selecione ao menos um setor.', 'erro');
@@ -233,6 +234,13 @@ async function abrirDetalheRAM(ramId, job) {
   <div class="modal" style="display:block;max-width:520px;max-height:85vh;overflow-y:auto">
     <div class="modal-header"><h3>📋 RAM ${ram.numero}</h3><button onclick="fecharDetalheRAM()">✕</button></div>
     <div class="modal-body">
+      <div class="form-group">
+        <label>Molde</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="ramEditJob" value="${ram.job.replace(/"/g,'&quot;')}" placeholder="Busque o molde...">
+          <div class="autocomplete-list" id="ramEditJobList"></div>
+        </div>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Número da RAM</label><input type="text" id="ramEditNumero" value="${ram.numero.replace(/"/g,'&quot;')}"></div>
         <div class="form-group"><label>Prazo Final</label><input type="date" id="ramEditPrazo" value="${ram.prazo_final||''}"></div>
@@ -241,7 +249,10 @@ async function abrirDetalheRAM(ramId, job) {
         <label>Descrição</label>
         <textarea id="ramEditDescricao" rows="3">${(ram.descricao||'').replace(/</g,'&lt;')}</textarea>
       </div>
-      <button class="btn-secondary" style="font-size:12px;margin-bottom:16px" onclick="salvarEdicaoRAM(${ram.id})">💾 Salvar Alterações</button>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn-secondary" style="font-size:12px;flex:1" onclick="salvarEdicaoRAM(${ram.id})">💾 Salvar Alterações</button>
+        <button class="btn-danger" style="font-size:12px;flex:1" onclick="excluirRAM(${ram.id})">🗑️ Excluir RAM</button>
+      </div>
 
       <div style="font-weight:700;color:#1e3a5f;font-size:13px;margin-bottom:8px;border-top:1px solid #e2e8f0;padding-top:12px">Setores</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
@@ -275,22 +286,38 @@ async function abrirDetalheRAM(ramId, job) {
     </div>
   </div>`;
   document.body.appendChild(div);
+  if (typeof setupAC === 'function') setupAC('ramEditJob', 'ramEditJobList', (_listas&&_listas.jobs)||[]);
 }
 
 function fecharDetalheRAM() { document.getElementById('modalDetalheRamWrap')?.remove(); }
 
 async function salvarEdicaoRAM(ramId) {
+  const job       = document.getElementById('ramEditJob')?.value?.trim();
   const numero    = document.getElementById('ramEditNumero')?.value?.trim();
   const prazo     = document.getElementById('ramEditPrazo')?.value || null;
   const descricao = document.getElementById('ramEditDescricao')?.value?.trim();
+  if (!job) return toast('Informe o molde.', 'erro');
+  if (!(_listas && (_listas.jobs||[]).includes(job))) return toast('Esse molde não existe no cadastro. Selecione um da lista.', 'erro');
   if (!numero) return toast('Informe o número da RAM.', 'erro');
   try {
-    await db._patch('ram', 'id=eq.'+ramId, { numero, prazo_final: prazo, descricao });
+    await db._patch('ram', 'id=eq.'+ramId, { job, numero, prazo_final: prazo, descricao });
     if (typeof registrarLog === 'function') await registrarLog('ram', ramId, 'editar', null, null, 'Dados atualizados');
     toast('RAM atualizada!', 'sucesso');
     fecharDetalheRAM();
     await _atualizarAposMudancaRAM();
   } catch(e) { toast('Erro ao salvar.', 'erro'); }
+}
+
+async function excluirRAM(ramId) {
+  confirmarExclusao('Excluir esta RAM? Essa ação não pode ser desfeita.', async () => {
+    try {
+      await db._delete('ram', 'id=eq.'+ramId);
+      if (typeof registrarLog === 'function') await registrarLog('ram', ramId, 'excluir', null, 'RAM #'+ramId, null);
+      toast('RAM excluída!', 'sucesso');
+      fecharDetalheRAM();
+      await _atualizarAposMudancaRAM();
+    } catch(e) { toast('Erro ao excluir.', 'erro'); }
+  });
 }
 
 // ==========================================
