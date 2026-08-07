@@ -117,14 +117,20 @@ async function inicializarPCM() {
   </div>
   <div class="cards-row" id="pcmResumoCards"></div>
 
-  <!-- PAINEL DE PENDÊNCIAS -->
+  <!-- PAINEL DE PENDÊNCIAS (retraído por padrão — lista completa fica na página dedicada) -->
   <div class="card" id="pcmPainelPendencias" style="margin-bottom:16px;border-left:4px solid #f59e0b">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-      <div>
-        <div style="font-size:15px;font-weight:700;color:#1e3a5f">✅ Pendências em Aberto</div>
-        <div style="font-size:12px;color:#64748b;margin-top:2px" id="pcmPendLegenda">Mostrando moldes Na Ferramentaria</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer" onclick="toggleResumoPendenciasPCM()">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="pcmPendChevron" style="transition:transform 0.15s">▸</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#1e3a5f">✅ Pendências em Aberto</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px" id="pcmPendLegenda">Carregando...</div>
+        </div>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <a href="javascript:void(0)" onclick="event.stopPropagation();irPara('pendencias', document.getElementById('menuPendencias'))" style="font-size:12px;color:#0056b3;font-weight:600;white-space:nowrap">Ver todas →</a>
+    </div>
+    <div id="pcmPendConteudo" style="display:none;margin-top:16px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
         <select id="pcmFiltroSetorPend" onchange="filtrarSetorPendencias(this.value)" style="width:auto;font-size:12px">
           <option value="Todos">Todos os Setores</option>
           ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
@@ -135,9 +141,9 @@ async function inicializarPCM() {
           Mostrar todos os locais
         </label>
       </div>
-    </div>
-    <div id="pcmListaPendencias">
-      <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando pendências...</span></div>
+      <div id="pcmListaPendencias">
+        <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando pendências...</span></div>
+      </div>
     </div>
   </div>
 
@@ -216,8 +222,20 @@ async function carregarPCM() {
 // ==========================================
 // ✅ PAINEL DE PENDÊNCIAS INTELIGENTE
 // ==========================================
-async function carregarPainelPendencias() {
-  const el = document.getElementById('pcmListaPendencias');
+// Retrai/expande o resumo de pendências no PCM (minimiza rolagem no celular)
+function toggleResumoPendenciasPCM() {
+  const conteudo = document.getElementById('pcmPendConteudo');
+  const chevron  = document.getElementById('pcmPendChevron');
+  if (!conteudo) return;
+  const abrindo = conteudo.style.display === 'none';
+  conteudo.style.display = abrindo ? '' : 'none';
+  if (chevron) chevron.style.transform = abrindo ? 'rotate(90deg)' : 'rotate(0deg)';
+}
+
+async function carregarPainelPendencias(idLista, idLegenda) {
+  idLista  = idLista  || 'pcmListaPendencias';
+  idLegenda = idLegenda || 'pcmPendLegenda';
+  const el = document.getElementById(idLista);
   if (!el) return;
 
   try {
@@ -256,7 +274,7 @@ async function carregarPainelPendencias() {
     });
 
     // Atualiza legenda
-    const legenda = document.getElementById('pcmPendLegenda');
+    const legenda = document.getElementById(idLegenda);
     if (legenda) {
       const total = jobsFiltrados.reduce((a,[,pends])=>a+pends.length,0);
       legenda.innerText = _mostrarTodasPendencias
@@ -327,21 +345,98 @@ async function concluirPendenciaRapida(id, job, checkbox) {
     });
     toast('Pendência concluída!','sucesso');
     // Recarrega o painel após breve delay
-    setTimeout(() => carregarPainelPendencias(), 500);
+    setTimeout(() => _atualizarPainelPendenciasAtivo(), 500);
   } catch(e) {
     toast('Erro ao concluir.','erro');
     checkbox.checked = false;
   }
 }
 
+// ==========================================
+// 🔎 Página dedicada de Pendências (visão consolidada, controle interno do PCP)
+// ==========================================
+async function inicializarPainelPendenciasDedicado() {
+  const el = document.getElementById('telaPendencias');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="page-header">
+      <h1>✅ Pendências — Controle Interno</h1>
+      <button class="btn-primary" onclick="abrirEscolherMoldeParaPendencia()">+ Nova Pendência</button>
+    </div>
+    <div class="card" style="border-left:4px solid #f59e0b">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+        <div style="font-size:12px;color:#64748b" id="pendLegendaCompleta">Mostrando moldes Na Ferramentaria</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <select id="pcmFiltroSetorPend" onchange="filtrarSetorPendencias(this.value)" style="width:auto;font-size:12px">
+            <option value="Todos">Todos os Setores</option>
+            ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+          </select>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">
+            <input type="checkbox" id="pcmToggleTodas" onchange="toggleTodasPendencias(this.checked)"
+              style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b">
+            Mostrar todos os locais
+          </label>
+        </div>
+      </div>
+      <div id="pendListaCompleta">
+        <div class="loader-inline"><div class="spinner-sm"></div><span>Carregando pendências...</span></div>
+      </div>
+    </div>`;
+  await carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
+}
+
+// Seletor de molde pra criar uma pendência nova sem precisar estar na Ficha
+function abrirEscolherMoldeParaPendencia() {
+  const div = document.createElement('div');
+  div.id = 'modalEscolherMoldePendWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharEscolherMoldeParaPendencia()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:400px">
+    <div class="modal-header"><h3>✅ Nova Pendência</h3><button onclick="fecharEscolherMoldeParaPendencia()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Molde *</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="pendNovoJob" placeholder="Busque o molde...">
+          <div class="autocomplete-list" id="pendNovoJobList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="_confirmarMoldeParaPendencia()">Continuar</button>
+      <button class="btn-secondary" onclick="fecharEscolherMoldeParaPendencia()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  if (typeof setupAC === 'function') setupAC('pendNovoJob', 'pendNovoJobList', (_listas&&_listas.jobs)||[]);
+}
+
+function fecharEscolherMoldeParaPendencia() { document.getElementById('modalEscolherMoldePendWrap')?.remove(); }
+
+function _confirmarMoldeParaPendencia() {
+  const job = document.getElementById('pendNovoJob')?.value?.trim();
+  if (!job) return toast('Selecione o molde.', 'erro');
+  if (!(_listas && (_listas.jobs||[]).includes(job))) return toast('Esse molde não existe no cadastro.', 'erro');
+  fecharEscolherMoldeParaPendencia();
+  abrirModalPendencias(job);
+}
+
+// Atualiza o painel certo depois de qualquer ação, seja no PCM ou na página dedicada
+function _atualizarPainelPendenciasAtivo() {
+  if (typeof _telaAtual !== 'undefined' && _telaAtual === 'pendencias') carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
+  else carregarPainelPendencias();
+}
+
 function toggleTodasPendencias(mostrarTodas) {
   _mostrarTodasPendencias = mostrarTodas;
-  carregarPainelPendencias();
+  if (typeof _telaAtual !== 'undefined' && _telaAtual === 'pendencias') carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
+  else carregarPainelPendencias();
 }
 
 function filtrarSetorPendencias(setor) {
   _filtroSetorPendencias = setor;
-  carregarPainelPendencias();
+  if (typeof _telaAtual !== 'undefined' && _telaAtual === 'pendencias') carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
+  else carregarPainelPendencias();
 }
 
 // ==========================================
@@ -903,7 +998,7 @@ async function abrirModalPendencias(job) {
 
 function fecharModalPendencias() {
   document.getElementById('modalPendWrap')?.remove();
-  carregarPainelPendencias();
+  _atualizarPainelPendenciasAtivo();
 }
 
 // ==========================================
