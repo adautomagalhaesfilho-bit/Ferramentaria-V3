@@ -313,7 +313,7 @@ async function carregarPainelPendencias(idLista, idLegenda) {
       html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#1e3a5f">${job}</div>
+            <div style="font-size:13px;font-weight:700;color:#0056b3;cursor:pointer" onclick="abrirFichaMolde('${jobEsc}')">${job}</div>
             <span style="background:${info.bg};color:${info.cor};font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700">${info.ico} ${loc}</span>
           </div>
           <button onclick="abrirModalPendencias('${jobEsc}')"
