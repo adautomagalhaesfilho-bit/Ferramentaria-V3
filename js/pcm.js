@@ -338,7 +338,7 @@ async function carregarPainelPendencias(idLista, idLegenda) {
             return `
             <div style="display:flex;align-items:flex-start;gap:8px">
               <input type="checkbox" style="margin-top:2px;width:14px;height:14px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
-                onchange="concluirPendenciaRapida(${p.id},'${jobEsc}',this)">
+                onchange="concluirPendenciaRapida(${p.id},'${jobEsc}',this,'${(p.texto||'').replace(/'/g,"\\\\'")}')">
               <div style="flex:1">
                 <span style="font-size:12px;color:#1e3a5f">${p.texto}</span>
                 ${setorInfo ? `<span style="display:block;margin-top:2px;background:${setorInfo.cor}20;color:${setorInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;width:fit-content">${setorInfo.ico} ${p.setor_responsavel}</span>` : ''}
@@ -360,7 +360,17 @@ async function carregarPainelPendencias(idLista, idLegenda) {
   }
 }
 
-async function concluirPendenciaRapida(id, job, checkbox) {
+// Pergunta se quer registrar a pendência concluída também como Intervenção no
+// histórico permanente do molde — só oferece pra quem tem permissão pra isso
+function _perguntarIntervencaoDePendencia(job, texto, dataConclusao) {
+  if (typeof podeRegistrarIntervencao !== 'function' || !podeRegistrarIntervencao()) return;
+  if (!confirm(`Quer registrar isso também como Intervenção no histórico do molde?\n\n"${texto}"`)) return;
+  if (typeof abrirModalIntervencao === 'function') {
+    abrirModalIntervencao(job, { data: dataConclusao, tipo: 'Pendência', descricao: texto });
+  }
+}
+
+async function concluirPendenciaRapida(id, job, checkbox, texto) {
   const dataConclusao = new Date().toISOString().split('T')[0];
   try {
     await db._patch('molde_pendencias', 'id=eq.' + id, {
@@ -369,6 +379,7 @@ async function concluirPendenciaRapida(id, job, checkbox) {
     toast('Pendência concluída!','sucesso');
     // Recarrega o painel após breve delay
     setTimeout(() => _atualizarPainelPendenciasAtivo(), 500);
+    _perguntarIntervencaoDePendencia(job, texto, dataConclusao);
   } catch(e) {
     toast('Erro ao concluir.','erro');
     checkbox.checked = false;
@@ -870,13 +881,14 @@ async function adicionarPendencia(job) {
   } catch(e) { toast('Erro ao adicionar.','erro'); }
 }
 
-async function togglePendencia(id, job, concluido) {
+async function togglePendencia(id, job, concluido, texto) {
   if (!concluido) {
     const dataConclusao = await _pedirData('Data de conclusão:', new Date().toISOString().split('T')[0]);
     if (dataConclusao === null) return;
     try {
       await db._patch('molde_pendencias', 'id=eq.' + id, { concluido: true, data_conclusao: dataConclusao });
       await renderizarChecklist(job);
+      _perguntarIntervencaoDePendencia(job, texto, dataConclusao);
     } catch(e) { toast('Erro ao atualizar.','erro'); }
   } else {
     try {
@@ -984,7 +996,7 @@ async function renderizarChecklist(job) {
       return `
       <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px dashed #f1f5f9">
         <input type="checkbox" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
-          onchange="togglePendencia(${p.id},'${jobEsc}',false)">
+          onchange="togglePendencia(${p.id},'${jobEsc}',false,'${(p.texto||'').replace(/'/g,"\\\\'")}')">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:#1e3a5f;font-weight:500">${p.texto}</div>
           <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">

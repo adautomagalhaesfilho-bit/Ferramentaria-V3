@@ -51,7 +51,7 @@ function abrirModalIntervencao(job, intervencaoExistente) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalIntervencao()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px">
-    <div class="modal-header"><h3>🛠️ ${iv?'Editar':'Registrar'} Intervenção</h3><button onclick="fecharModalIntervencao()">✕</button></div>
+    <div class="modal-header"><h3>🛠️ ${iv&&iv.id?'Editar':'Registrar'} Intervenção</h3><button onclick="fecharModalIntervencao()">✕</button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:#64748b;margin-bottom:4px">Molde</div>
       <div style="font-size:14px;font-weight:700;color:#1e3a5f;margin-bottom:14px">${job}</div>
