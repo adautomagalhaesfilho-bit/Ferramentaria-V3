@@ -27,6 +27,7 @@ function _infoSetor(setor) {
 
 var _filtroSetorPendencias = 'Todos';
 var _filtroJobPendencias = '';
+var _filtroStatusPendencias = 'abertas';
 
 // ==========================================
 // 🔔 ALERTA DE PENDÊNCIAS NO DASHBOARD
@@ -240,12 +241,18 @@ async function carregarPainelPendencias(idLista, idLegenda) {
   if (!el) return;
 
   try {
-    // Busca todas as pendências abertas
+    // Busca as pendências conforme o filtro de status
+    const filtroConcluido = _filtroStatusPendencias === 'abertas' ? 'concluido=eq.false'
+      : _filtroStatusPendencias === 'concluidas' ? 'concluido=eq.true'
+      : null; // 'todas' -> sem filtro
     const todasPend = await db._get('molde_pendencias',
-      'concluido=eq.false&order=criado_em.asc', '*');
+      (filtroConcluido ? filtroConcluido+'&' : '') + 'order=criado_em.asc', '*');
 
     if (!todasPend || !todasPend.length) {
-      el.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">🎉 Nenhuma pendência em aberto!</div>';
+      const msgVazio = _filtroStatusPendencias === 'concluidas' ? '✅ Nenhuma pendência concluída ainda.'
+        : _filtroStatusPendencias === 'todas' ? '🎉 Nenhuma pendência registrada.'
+        : '🎉 Nenhuma pendência em aberto!';
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">'+msgVazio+'</div>';
       if (typeof renderizarStatsPendencias === 'function') renderizarStatsPendencias([]);
       return;
     }
@@ -317,6 +324,17 @@ async function carregarPainelPendencias(idLista, idLegenda) {
         <div style="display:flex;flex-direction:column;gap:6px">
           ${pends.slice(0,3).map(p=>{
             const setorInfo = p.setor_responsavel ? _infoSetor(p.setor_responsavel) : null;
+            if (p.concluido) {
+              return `
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span style="margin-top:2px;color:#059669;flex-shrink:0">✓</span>
+                <div style="flex:1">
+                  <span style="font-size:12px;color:#94a3b8;text-decoration:line-through">${p.texto}</span>
+                  <span style="display:block;font-size:10px;color:#94a3b8">concluída em ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</span>
+                  ${setorInfo ? `<span style="display:block;margin-top:2px;background:${setorInfo.cor}20;color:${setorInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;width:fit-content">${setorInfo.ico} ${p.setor_responsavel}</span>` : ''}
+                </div>
+              </div>`;
+            }
             return `
             <div style="display:flex;align-items:flex-start;gap:8px">
               <input type="checkbox" style="margin-top:2px;width:14px;height:14px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
@@ -364,6 +382,7 @@ async function inicializarPainelPendenciasDedicado() {
   const el = document.getElementById('telaPendencias');
   if (!el) return;
   _filtroJobPendencias = '';
+  _filtroStatusPendencias = 'abertas';
   el.innerHTML = `
     <div class="page-header">
       <h1>✅ Pendências — Controle Interno</h1>
@@ -375,6 +394,11 @@ async function inicializarPainelPendenciasDedicado() {
         <div style="font-size:12px;color:#64748b" id="pendLegendaCompleta">Mostrando moldes Na Ferramentaria</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input type="text" id="pendFiltroJob" placeholder="Buscar por molde..." oninput="filtrarJobPendencias(this.value)" style="width:180px;font-size:12px">
+          <select id="pendFiltroStatus" onchange="filtrarStatusPendencias(this.value)" style="width:auto;font-size:12px">
+            <option value="abertas">Abertas</option>
+            <option value="concluidas">Concluídas</option>
+            <option value="todas">Todas</option>
+          </select>
           <select id="pcmFiltroSetorPend" onchange="filtrarSetorPendencias(this.value)" style="width:auto;font-size:12px">
             <option value="Todos">Todos os Setores</option>
             ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
@@ -391,6 +415,11 @@ async function inicializarPainelPendenciasDedicado() {
       </div>
     </div>`;
   await carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
+}
+
+function filtrarStatusPendencias(status) {
+  _filtroStatusPendencias = status;
+  carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
 }
 
 function filtrarJobPendencias(valor) {
@@ -413,7 +442,8 @@ function renderizarStatsPendencias(todasPend) {
   const ranking = Object.entries(porSetor).sort((a,b)=>b[1]-a[1]);
   const top = ranking.find(([,n])=>n>0);
 
-  let html = metricCard('✅','Pendências Abertas', todasPend.length, 'no total', '#f59e0b');
+  const labelTotal = _filtroStatusPendencias==='concluidas' ? 'Pendências Concluídas' : _filtroStatusPendencias==='todas' ? 'Pendências (Todas)' : 'Pendências Abertas';
+  let html = metricCard('✅', labelTotal, todasPend.length, 'no total', '#f59e0b');
   if (top) {
     const infoTop = _infoSetor(top[0]);
     html += metricCard(infoTop.ico, 'Setor com Mais Pendências', top[0], top[1]+' pendência'+(top[1]>1?'s':''), infoTop.cor);

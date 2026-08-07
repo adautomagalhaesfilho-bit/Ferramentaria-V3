@@ -134,9 +134,12 @@ function renderizarPainelRAM(rams) {
           ${r.prazo_final ? `<span style="background:${atrasada?'#fee2e2':'#fef3c7'};color:${atrasada?'#b91c1c':'#92400e'};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${atrasada?'⚠️ atrasada':'prazo'} ${new Date(r.prazo_final+'T12:00:00').toLocaleDateString('pt-BR')}</span>` : ''}
         </div>
         <div style="font-size:12px;color:#64748b;margin-bottom:10px">${r.descricao||''}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
           ${r.setores.map(s => `<span style="background:${s.concluido?'#d1fae5':'#fee2e2'};color:${s.concluido?'#059669':'#b91c1c'};font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${s.concluido?'✓':'○'} ${s.setor}</span>`).join('')}
         </div>
+        ${r.setores.filter(s=>s.concluido).length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:10px">
+          ${r.setores.filter(s=>s.concluido).map(s => `<div style="font-size:11px;color:#059669">✓ <b>${s.setor}</b> — ${s.data_conclusao?new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'} por ${s.concluido_por||'—'}${s.descricao_conclusao?': '+s.descricao_conclusao:''}</div>`).join('')}
+        </div>` : ''}
         <button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirDetalheRAM(${r.id},'${r.job.replace(/'/g,"\\'")}')">Gerenciar RAM</button>
       </div>`;
     }).join('')}
@@ -408,9 +411,12 @@ function renderizarCardRAM(job, rams) {
         </div>
         ${r.prazo_final ? `<span style="background:${atrasada?'#fee2e2':'#fef3c7'};color:${atrasada?'#b91c1c':'#92400e'};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${atrasada?'⚠️ atrasada':'prazo'} ${new Date(r.prazo_final+'T12:00:00').toLocaleDateString('pt-BR')}</span>` : ''}
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
         ${r.setores.map(s => `<span style="background:${s.concluido?'#d1fae5':'#fee2e2'};color:${s.concluido?'#059669':'#b91c1c'};font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${s.concluido?'✓':'○'} ${s.setor}${!s.concluido?' pendente':''}</span>`).join('')}
       </div>
+      ${r.setores.filter(s=>s.concluido).length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:10px">
+        ${r.setores.filter(s=>s.concluido).map(s => `<div style="font-size:11px;color:#059669">✓ <b>${s.setor}</b> — ${s.data_conclusao?new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'} por ${s.concluido_por||'—'}${s.descricao_conclusao?': '+s.descricao_conclusao:''}</div>`).join('')}
+      </div>` : ''}
       <button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirDetalheRAM(${r.id},'${job.replace(/'/g,"\\'")}')">Gerenciar RAM</button>
     </div>`;
   }).join('');
