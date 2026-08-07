@@ -26,6 +26,7 @@ function _infoSetor(setor) {
 }
 
 var _filtroSetorPendencias = 'Todos';
+var _filtroJobPendencias = '';
 
 // ==========================================
 // 🔔 ALERTA DE PENDÊNCIAS NO DASHBOARD
@@ -245,8 +246,11 @@ async function carregarPainelPendencias(idLista, idLegenda) {
 
     if (!todasPend || !todasPend.length) {
       el.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">🎉 Nenhuma pendência em aberto!</div>';
+      if (typeof renderizarStatsPendencias === 'function') renderizarStatsPendencias([]);
       return;
     }
+
+    if (typeof renderizarStatsPendencias === 'function') renderizarStatsPendencias(todasPend);
 
     // Filtra por localização
     const locsFiltro = _mostrarTodasPendencias
@@ -265,8 +269,9 @@ async function carregarPainelPendencias(idLista, idLegenda) {
       porJob[p.job].push(p);
     });
 
-    // Filtra jobs pela localização
+    // Filtra jobs pela localização e pela busca por nome do molde
     const jobsFiltrados = Object.entries(porJob).filter(([job]) => {
+      if (_filtroJobPendencias && !job.toLowerCase().includes(_filtroJobPendencias)) return false;
       const molde = _dadosPCM.find(m => m.job === job);
       const loc   = molde?.localizacao || 'Na Ferramentaria';
       if (!locsFiltro) return true;
@@ -358,15 +363,18 @@ async function concluirPendenciaRapida(id, job, checkbox) {
 async function inicializarPainelPendenciasDedicado() {
   const el = document.getElementById('telaPendencias');
   if (!el) return;
+  _filtroJobPendencias = '';
   el.innerHTML = `
     <div class="page-header">
       <h1>✅ Pendências — Controle Interno</h1>
       <button class="btn-primary" onclick="abrirEscolherMoldeParaPendencia()">+ Nova Pendência</button>
     </div>
+    <div class="cards-row" id="pendStatsCards"></div>
     <div class="card" style="border-left:4px solid #f59e0b">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
         <div style="font-size:12px;color:#64748b" id="pendLegendaCompleta">Mostrando moldes Na Ferramentaria</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="pendFiltroJob" placeholder="Buscar por molde..." oninput="filtrarJobPendencias(this.value)" style="width:180px;font-size:12px">
           <select id="pcmFiltroSetorPend" onchange="filtrarSetorPendencias(this.value)" style="width:auto;font-size:12px">
             <option value="Todos">Todos os Setores</option>
             ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
@@ -383,6 +391,40 @@ async function inicializarPainelPendenciasDedicado() {
       </div>
     </div>`;
   await carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
+}
+
+function filtrarJobPendencias(valor) {
+  _filtroJobPendencias = (valor||'').trim().toLowerCase();
+  carregarPainelPendencias('pendListaCompleta', 'pendLegendaCompleta');
+}
+
+// Cards de visão geral: total aberto, por setor, e destaque do setor com mais pendências
+function renderizarStatsPendencias(todasPend) {
+  const elStats = document.getElementById('pendStatsCards');
+  if (!elStats) return; // só existe na página dedicada, não no resumo do PCM
+
+  const porSetor = {};
+  _SETORES_RESPONSAVEL.forEach(s => porSetor[s.id] = 0);
+  let semSetor = 0;
+  todasPend.forEach(p => {
+    if (p.setor_responsavel && porSetor[p.setor_responsavel] !== undefined) porSetor[p.setor_responsavel]++;
+    else semSetor++;
+  });
+  const ranking = Object.entries(porSetor).sort((a,b)=>b[1]-a[1]);
+  const top = ranking.find(([,n])=>n>0);
+
+  let html = metricCard('✅','Pendências Abertas', todasPend.length, 'no total', '#f59e0b');
+  if (top) {
+    const infoTop = _infoSetor(top[0]);
+    html += metricCard(infoTop.ico, 'Setor com Mais Pendências', top[0], top[1]+' pendência'+(top[1]>1?'s':''), infoTop.cor);
+  }
+  ranking.filter(([,n])=>n>0).forEach(([setor,n]) => {
+    const info = _infoSetor(setor);
+    html += metricCard(info.ico, setor, n, 'em aberto', info.cor);
+  });
+  if (semSetor > 0) html += metricCard('❔','Sem Setor Definido', semSetor, 'em aberto', '#94a3b8');
+
+  elStats.innerHTML = html;
 }
 
 // Seletor de molde pra criar uma pendência nova sem precisar estar na Ficha
