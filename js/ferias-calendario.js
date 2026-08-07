@@ -266,9 +266,10 @@ function _renderMesCalendarioFerias(mesIndex) {
         const itens = _itensPorDiaFerias[dataStr] || [];
         const temConflito = itens.some(x=>x.conflito);
         const visiveis = itens.slice(0,5);
-        const pontos = visiveis.map(x=>`<span title="${x.nome}" style="width:5px;height:5px;border-radius:50%;background:${x.cor.cor};display:inline-block"></span>`).join('');
+        const pontos = visiveis.map(x=>`<span style="width:5px;height:5px;border-radius:50%;background:${x.cor.cor};display:inline-block"></span>`).join('');
         const extra = itens.length>5 ? `<span style="font-size:7px;color:#94a3b8;margin-left:1px">+${itens.length-5}</span>` : '';
-        dias.push(`<div style="padding:3px 2px;border:1px solid ${temConflito?'#ef4444':'#f1f5f9'};border-radius:4px;min-height:24px;font-size:10px;cursor:pointer">
+        const tituloDia = itens.length ? itens.map(x=>x.nome).join(', ') : '';
+        dias.push(`<div title="${tituloDia}" style="padding:3px 2px;border:1px solid ${temConflito?'#ef4444':'#f1f5f9'};border-radius:4px;min-height:24px;font-size:10px;cursor:pointer">
           <div style="color:${itens.length?'#1e3a5f':'#94a3b8'};font-weight:${itens.length?'600':'400'}">${diaAtual}</div>
           <div style="display:flex;align-items:center;gap:1px;margin-top:2px">${pontos}${extra}</div>
         </div>`);
