@@ -188,6 +188,7 @@ function abrirModalCopo(id, jobPredefinido) {
         </div>
         <div style="font-size:11px;color:#94a3b8">O estoque também se move sozinho quando alguém registra "Troca de Copo" no apontamento — use aqui só pra corrigir ou dar entrada.</div>
       </div>` : `<div style="font-size:11px;color:#94a3b8">O estoque inicial começa em 0 — ajuste depois de criar.</div>`}
+      ${copo ? `<div id="copoCompatWrap" style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:12px"></div>` : ''}
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="salvarCopo(${id||'null'})">💾 Salvar</button>
@@ -196,6 +197,7 @@ function abrirModalCopo(id, jobPredefinido) {
   </div>`;
   document.body.appendChild(div);
   if (typeof setupAC === 'function') setupAC('copoJob', 'copoJobList', (_listas&&_listas.jobs)||[]);
+  if (copo) renderizarCompatibilidadeCopo(copo.id);
 }
 
 function fecharModalCopo() { document.getElementById('modalCopoWrap')?.remove(); }
@@ -226,6 +228,7 @@ async function salvarCopo(id) {
       if (copoAntigo && ((copoAntigo.estoque_novo||0)!==novoNovo || (copoAntigo.estoque_embuchado||0)!==novoEmbuchado)) {
         if (typeof registrarLog === 'function') await registrarLog('copos', id, 'ajustar_estoque', 'estoque',
           `Novo:${copoAntigo.estoque_novo||0} Emb:${copoAntigo.estoque_embuchado||0}`, `Novo:${novoNovo} Emb:${novoEmbuchado}`);
+        await _verificarEstoqueMinimoEAlertar({ job, codigo, estoque_novo: novoNovo, estoque_embuchado: novoEmbuchado });
       }
       toast('Copo atualizado!', 'sucesso');
     } else {
@@ -238,4 +241,95 @@ async function salvarCopo(id) {
   } catch(e) {
     toast('Erro ao salvar. Verifique se o código já não está em uso.', 'erro');
   }
+}
+
+// ==========================================
+// 🔗 Compatibilidade entre copos (uso de emergência)
+// ==========================================
+async function buscarCoposCompativeis(copoId) {
+  const rows = await db._get('copos_compatibilidade', `or=(copo_a_id.eq.${copoId},copo_b_id.eq.${copoId})`, '*');
+  if (!rows || !rows.length) return [];
+  const idsOutros = rows.map(r => r.copo_a_id === copoId ? r.copo_b_id : r.copo_a_id);
+  return _todosCoposCache.filter(c => idsOutros.includes(c.id))
+    .map(c => ({ ...c, _compatId: rows.find(r => r.copo_a_id===c.id || r.copo_b_id===c.id)?.id }));
+}
+
+async function renderizarCompatibilidadeCopo(copoId) {
+  const el = document.getElementById('copoCompatWrap');
+  if (!el) return;
+  const compativeis = await buscarCoposCompativeis(copoId);
+  el.innerHTML = `
+    <div style="font-weight:700;color:#1e3a5f;font-size:13px;margin-bottom:8px">🔗 Compatibilidade (emergência)</div>
+    <div id="copoCompatLista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+      ${compativeis.length ? compativeis.map(c => `
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;background:#f8fafc;padding:6px 10px;border-radius:6px">
+          <span>Copo ${c.codigo} <span style="color:#94a3b8">(${c.job})</span></span>
+          <button class="btn-danger" style="font-size:10px;padding:2px 8px" onclick="removerCompatibilidadeCopo(${c._compatId},${copoId})">Remover</button>
+        </div>`).join('') : '<div style="font-size:11px;color:#94a3b8">Nenhum copo compatível cadastrado.</div>'}
+    </div>
+    <div class="autocomplete-wrap">
+      <input type="text" id="copoCompatBusca" placeholder="Buscar copo pelo código ou molde...">
+      <div class="autocomplete-list" id="copoCompatBuscaList"></div>
+    </div>`;
+  if (typeof setupAC === 'function') {
+    const opcoes = _todosCoposCache.filter(c => c.id !== copoId).map(c => `${c.codigo} — ${c.job}`);
+    setupAC('copoCompatBusca', 'copoCompatBuscaList', opcoes, async val => {
+      const codigo = val.split(' — ')[0];
+      const alvo = _todosCoposCache.find(c => c.codigo === codigo);
+      if (!alvo) return;
+      try {
+        await db._post('copos_compatibilidade', { copo_a_id: copoId, copo_b_id: alvo.id, criado_por: _sessao?.nome || null });
+        toast('Compatibilidade adicionada!', 'sucesso');
+        renderizarCompatibilidadeCopo(copoId);
+      } catch(e) { toast('Erro ao adicionar.', 'erro'); }
+    });
+  }
+}
+
+async function removerCompatibilidadeCopo(compatId, copoId) {
+  try {
+    await db._delete('copos_compatibilidade', 'id=eq.'+compatId);
+    toast('Compatibilidade removida.', 'sucesso');
+    renderizarCompatibilidadeCopo(copoId);
+  } catch(e) { toast('Erro ao remover.', 'erro'); }
+}
+
+// ==========================================
+// 📉 Movimentação automática de estoque (chamada pelo apontamento)
+// ==========================================
+// tipo: 'novo' ou 'embuchado' — desconta 1 unidade e checa o mínimo depois
+async function baixarEstoqueCopo(copoId, tipo) {
+  try {
+    const copo = (await db._get('copos', 'id=eq.'+copoId, '*'))?.[0];
+    if (!copo) return;
+    const campo = tipo === 'Novo' ? 'estoque_novo' : 'estoque_embuchado';
+    const valorAtual = copo[campo] || 0;
+    const novoValor = Math.max(0, valorAtual - 1);
+    await db._patch('copos', 'id=eq.'+copoId, { [campo]: novoValor });
+    if (typeof registrarLog === 'function') {
+      await registrarLog('copos', copoId, 'baixa_automatica', campo, valorAtual, novoValor);
+    }
+    await _verificarEstoqueMinimoEAlertar({ ...copo, [campo]: novoValor });
+  } catch(e) { console.error('Erro ao baixar estoque do copo', e); }
+}
+
+// Confere se o copo ficou abaixo do mínimo (cavidades do molde dono) e, se sim,
+// gera uma Pendência pra Usinagem — sem duplicar se já existir uma aberta
+async function _verificarEstoqueMinimoEAlertar(copo) {
+  try {
+    const jobRow = (await db._get('jobs', 'nome=eq.'+encodeURIComponent(copo.job), 'num_cavidades'))?.[0];
+    const minimo = (jobRow && jobRow.num_cavidades) || 1;
+    const total = (copo.estoque_novo||0) + (copo.estoque_embuchado||0);
+    if (total >= minimo) return;
+
+    const textoAlerta = `Copo ${copo.codigo} abaixo do estoque mínimo (${total}/${minimo}) — fabricar ou usinar recuperado`;
+    const existentes = await db._get('molde_pendencias', 'job=eq.'+encodeURIComponent(copo.job)+'&concluido=eq.false', 'texto');
+    const jaExiste = (existentes||[]).some(p => p.texto.startsWith(`Copo ${copo.codigo} abaixo do estoque mínimo`));
+    if (jaExiste) return;
+
+    await db._post('molde_pendencias', {
+      job: copo.job, texto: textoAlerta, setor_responsavel: 'Usinagem',
+      concluido: false, criado_por: 'Sistema (estoque de copos)'
+    });
+  } catch(e) { console.error('Erro ao checar estoque mínimo do copo', e); }
 }

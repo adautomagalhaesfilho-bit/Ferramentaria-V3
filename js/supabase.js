@@ -246,7 +246,8 @@ const db = {
       tem_observacao:  !!dados.temObservacao,
       observacao:      dados.observacao    || null,
       ram_id:          dados.ramId    || null,
-      ram_numero:      dados.ramNumero || null
+      ram_numero:      dados.ramNumero || null,
+      copo_id:         dados.copoId || null
     };
     const res = await db._post('lancamentos', reg);
     if (dados.job && dados.status) await db.salvarStatusJob(dados.job, dados.status, dados.descricao || '');
@@ -269,7 +270,8 @@ const db = {
       tem_observacao:  !!dados.temObservacao,
       observacao:      dados.observacao    || null,
       ram_id:          dados.ramId    || null,
-      ram_numero:      dados.ramNumero || null
+      ram_numero:      dados.ramNumero || null,
+      copo_id:         dados.copoId || null
     });
   },
 
@@ -654,7 +656,8 @@ const db = {
       temObservacao:  l.tem_observacao || false,
       observacao:     l.observacao     || null,
       ramId:          l.ram_id     || null,
-      ramNumero:      l.ram_numero || null
+      ramNumero:      l.ram_numero || null,
+      copoId:         l.copo_id    || null
     };
   },
 

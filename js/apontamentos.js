@@ -338,6 +338,10 @@ async function editarApontamento(idx) {
     else if (item.tipoCopo === 'Embuchado') { const r=document.getElementById('formTipoCopoEmb'); if(r) r.checked=true; }
     const elDescCopo = document.getElementById('formDescCopo');
     if (elDescCopo) elDescCopo.value = item.descricaoCopo || '';
+    if ((item.trocaCopo===true||item.trocaCopo==='true') && item.job && typeof _atualizarSeletorCopo === 'function') {
+      await _atualizarSeletorCopo(item.job);
+      if (item.copoId) setSelect('formCopoSelect', String(item.copoId));
+    }
     const chkObs = document.getElementById('formTemObservacao');
     const grpObs = document.getElementById('grupoTextoObservacao');
     if (chkObs) chkObs.checked = !!(item.temObservacao === true || item.temObservacao === 'true');
@@ -372,7 +376,44 @@ function toggleTrocaCopo() {
     if (elTipoCopo) elTipoCopo.value = '';
     const r1=document.getElementById('formTipoCopoNovo'); if(r1) r1.checked=false;
     const r2=document.getElementById('formTipoCopoEmb');  if(r2) r2.checked=false;
+    const grpCopo = document.getElementById('grupoQualCopo'); if (grpCopo) grpCopo.style.display = 'none';
+  } else {
+    const job = document.getElementById('formJob')?.value;
+    if (job && typeof _atualizarSeletorCopo === 'function') _atualizarSeletorCopo(job);
   }
+}
+
+// Popula o seletor "qual copo foi usado" com o(s) copo(s) do molde + alternativas
+// de emergência (compatibilidade), quando a Troca de Copo está marcada
+async function _atualizarSeletorCopo(job) {
+  const grupo = document.getElementById('grupoQualCopo');
+  const sel   = document.getElementById('formCopoSelect');
+  if (!grupo || !sel) return;
+  if (!job) { grupo.style.display = 'none'; sel.innerHTML = '<option value="">Selecione...</option>'; return; }
+  try {
+    const proprios = await db._get('copos', 'job=eq.'+encodeURIComponent(job)+'&ativo=eq.true', '*');
+    let compativeis = [];
+    for (const c of (proprios||[])) {
+      if (typeof buscarCoposCompativeis === 'function') compativeis = compativeis.concat(await buscarCoposCompativeis(c.id));
+    }
+    compativeis = compativeis.filter(c => !(proprios||[]).some(p=>p.id===c.id));
+    if (!(proprios&&proprios.length) && !compativeis.length) {
+      grupo.style.display = 'none';
+      sel.innerHTML = '<option value="">Nenhum copo cadastrado para este molde</option>';
+      return;
+    }
+    let html = '<option value="">Selecione...</option>';
+    if (proprios && proprios.length) {
+      html += proprios.map(c => `<option value="${c.id}">${c.codigo} — Novo: ${c.estoque_novo||0} · Emb: ${c.estoque_embuchado||0}</option>`).join('');
+    }
+    if (compativeis.length) {
+      html += `<optgroup label="⚠️ Alternativas de Emergência">` +
+        compativeis.map(c => `<option value="${c.id}">${c.codigo} (${c.job}) — Novo: ${c.estoque_novo||0} · Emb: ${c.estoque_embuchado||0}</option>`).join('') +
+        `</optgroup>`;
+    }
+    sel.innerHTML = html;
+    grupo.style.display = '';
+  } catch(e) { grupo.style.display = 'none'; }
 }
 
 function toggleObservacao() {
@@ -467,14 +508,18 @@ async function salvarForm() {
       if (setor === 'Bancada' && _tecnicosSelecionados.length > 1) {
         for (let i = 0; i < _tecnicosSelecionados.length; i++) {
           const dadosTecnico = { ...dados, funcionario: _tecnicosSelecionados[i] };
-          if (i > 0) { dadosTecnico.trocaCopo=false; dadosTecnico.tipoCopo=null; dadosTecnico.descricaoCopo=null; dadosTecnico.temObservacao=false; dadosTecnico.observacao=null; }
+          if (i > 0) { dadosTecnico.trocaCopo=false; dadosTecnico.tipoCopo=null; dadosTecnico.descricaoCopo=null; dadosTecnico.copoId=null; dadosTecnico.temObservacao=false; dadosTecnico.observacao=null; }
           const resSalvo = await db.salvarLancamento(dadosTecnico);
-          if (i === 0) await _processarAnexoApontamento(dados.job, dados.ramNumero, dados.descricao, resSalvo);
+          if (i === 0) {
+            await _processarAnexoApontamento(dados.job, dados.ramNumero, dados.descricao, resSalvo);
+            if (dados.copoId && dados.tipoCopo && typeof baixarEstoqueCopo === 'function') await baixarEstoqueCopo(dados.copoId, dados.tipoCopo);
+          }
         }
         toast(`${_tecnicosSelecionados.length} lançamentos salvos!`, 'sucesso');
       } else {
         const resSalvo = await db.salvarLancamento(dados);
         await _processarAnexoApontamento(dados.job, dados.ramNumero, dados.descricao, resSalvo);
+        if (dados.copoId && dados.tipoCopo && typeof baixarEstoqueCopo === 'function') await baixarEstoqueCopo(dados.copoId, dados.tipoCopo);
         toast('Lançamento salvo!','sucesso');
       }
       const data = document.getElementById('formData').value;
@@ -631,14 +676,16 @@ function coletarDadosForm(setor) {
     const trocaCopo  = document.getElementById('formTrocaCopo')?.checked || false;
     const tipoCopo   = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
     const descCopo   = trocaCopo ? (document.getElementById('formDescCopo')?.value?.trim() || null) : null;
+    const copoId     = trocaCopo ? (document.getElementById('formCopoSelect')?.value || null) : null;
     if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo.','erro'); return null; }
+    if (trocaCopo && !copoId) { toast('Selecione qual copo foi usado.','erro'); return null; }
     const temObservacao = document.getElementById('formTemObservacao')?.checked || false;
     const observacao     = temObservacao ? (document.getElementById('formObservacao')?.value?.trim() || null) : null;
     if (temObservacao && !observacao) { toast('Descreva a observação.','erro'); return null; }
     Object.assign(dados, {
       tipo, horaInicio:hrIni, horaFim:hrFim,
       descontaAlmoco: document.getElementById('formAlmoco')?.checked,
-      trocaCopo, tipoCopo, descricaoCopo: descCopo,
+      trocaCopo, tipoCopo, descricaoCopo: descCopo, copoId: copoId ? parseInt(copoId) : null,
       temObservacao, observacao
     });
   } else {
@@ -825,6 +872,8 @@ function resetarForm() {
   const grp = document.getElementById('grupoTipoCopo'); if(grp) grp.style.display='none';
   const r1  = document.getElementById('formTipoCopoNovo'); if(r1) r1.checked=false;
   const r2  = document.getElementById('formTipoCopoEmb');  if(r2) r2.checked=false;
+  const grpQualCopo = document.getElementById('grupoQualCopo'); if(grpQualCopo) grpQualCopo.style.display='none';
+  const selCopo = document.getElementById('formCopoSelect'); if(selCopo) selCopo.innerHTML='<option value="">Selecione...</option>';
   const obs = document.getElementById('formTemObservacao'); if(obs) obs.checked=false;
   const grpObs = document.getElementById('grupoTextoObservacao'); if(grpObs) grpObs.style.display='none';
   _tecnicosSelecionados = [];
