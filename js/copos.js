@@ -13,6 +13,7 @@ function _estoqueMinimoCopo(copo, mapaCavidades) {
 
 var _todosCoposCache = [];
 var _mapaCavidadesCache = {};
+var _mapaCompatCache = {};
 var _filtroBuscaCopos = '';
 
 // ==========================================
@@ -42,13 +43,25 @@ async function inicializarPainelCopos() {
 
 async function carregarPainelCopos() {
   try {
-    const [copos, jobsInfo] = await Promise.all([
+    const [copos, jobsInfo, compat] = await Promise.all([
       db._get('copos', 'ativo=eq.true&order=job.asc', '*'),
-      db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades')
+      db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades'),
+      db._get('copos_compatibilidade', '', '*')
     ]);
     _todosCoposCache = copos || [];
     _mapaCavidadesCache = {};
     (jobsInfo||[]).forEach(j => { _mapaCavidadesCache[j.nome] = j.num_cavidades || null; });
+
+    // Monta um mapa copoId -> [copos compatíveis], pra mostrar direto no card sem
+    // precisar abrir "Gerenciar" — útil pra já saber onde pegar estoque emprestado
+    // antes mesmo de existir um lançamento
+    _mapaCompatCache = {};
+    (compat||[]).forEach(r => {
+      if (!_mapaCompatCache[r.copo_a_id]) _mapaCompatCache[r.copo_a_id] = [];
+      if (!_mapaCompatCache[r.copo_b_id]) _mapaCompatCache[r.copo_b_id] = [];
+      _mapaCompatCache[r.copo_a_id].push(r.copo_b_id);
+      _mapaCompatCache[r.copo_b_id].push(r.copo_a_id);
+    });
 
     renderizarStatsCopos();
     renderizarMoldesSemCopo(jobsInfo||[]);
@@ -134,6 +147,12 @@ function renderizarListaCopos(copos) {
           <span style="background:#ede9fe;color:#7c3aed;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">Embuchado: ${c.estoque_embuchado||0}</span>
         </div>
         <div style="font-size:10px;color:#94a3b8;margin-bottom:10px">Mínimo (cavidades do molde): ${minimo}</div>
+        ${(_mapaCompatCache[c.id]||[]).length ? `<div style="font-size:11px;color:#0056b3;margin-bottom:10px;padding:6px 8px;background:#eff6ff;border-radius:6px">
+          🔗 Compatível com: ${_mapaCompatCache[c.id].map(idCompat => {
+            const cc = _todosCoposCache.find(x=>x.id===idCompat);
+            return cc ? `<b>${cc.codigo}</b> (Novo:${cc.estoque_novo||0} Emb:${cc.estoque_embuchado||0})` : null;
+          }).filter(Boolean).join(', ')}
+        </div>` : ''}
         ${podeGerenciarCopos() ? `<button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirModalCopo(${c.id})">Gerenciar</button>` : ''}
       </div>`;
     }).join('')}
