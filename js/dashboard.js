@@ -256,8 +256,8 @@ function desenharGeral(ini, fim) {
   const totalJobs    = new Set(lancs.filter(l=>l.job).map(l=>l.job)).size;
 
   // Manutenção (Preventiva/Corretiva na Produção) separada de Setup — não confundir os dois
-  const manutProd    = prod.filter(p=>p.tipo==='Preventiva'||p.tipo==='Corretiva').length;
-  const manutProdAnt = prodAnt.filter(p=>p.tipo==='Preventiva'||p.tipo==='Corretiva').length;
+  const manutProd    = prod.filter(p=>(p.tipo||'').includes('Preventiva')||(p.tipo||'').includes('Corretiva')).length;
+  const manutProdAnt = prodAnt.filter(p=>(p.tipo||'').includes('Preventiva')||(p.tipo||'').includes('Corretiva')).length;
   const setupsProd    = prod.filter(p=>p.tipo==='Setup').length;
   const setupsProdAnt = prodAnt.filter(p=>p.tipo==='Setup').length;
 
@@ -736,7 +736,7 @@ function desenharProducao(ini,fim){
     const naoPlaj=prod.filter(p=>p.maquina_parada).length;
 
     // MTTR — aceita ambos os nomes de tipo
-    const corretivas=prod.filter(p=>(p.tipo==='Corretiva'||p.tipo==='Manutenção Corretiva')&&p.minutos>0);
+    const corretivas=prod.filter(p=>(p.tipo||'').includes('Corretiva')&&p.minutos>0);
     const mttr=corretivas.length>0?Math.round(corretivas.reduce((a,p)=>a+(p.minutos||0),0)/corretivas.length):0;
 
     // Cores por tipo — aceita ambos os nomes

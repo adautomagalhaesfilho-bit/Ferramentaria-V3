@@ -21,6 +21,17 @@ async function inicializarProducao() {
     _categoriasProd = {};
     (cats||[]).filter(c => c.setor==='Producao' || c.setor==='Produção').forEach(c => { if (!_categoriasProd[c.tipo]) _categoriasProd[c.tipo]=[]; _categoriasProd[c.tipo].push(c.atividade); });
 
+    // Tipo de Manutenção agora é dinâmico — puxa os tipos reais cadastrados em
+    // Categorias, em vez de uma lista fixa que podia ficar dessincronizada
+    const selTipo = document.getElementById('prodFormTipo');
+    if (selTipo) {
+      const tipoAtual = selTipo.value;
+      const tiposOrdenados = Object.keys(_categoriasProd).sort();
+      selTipo.innerHTML = '<option value="">Selecione...</option>' +
+        tiposOrdenados.map(t => `<option value="${t}">${t}</option>`).join('');
+      if (tipoAtual && tiposOrdenados.includes(tipoAtual)) selTipo.value = tipoAtual;
+    }
+
     const selInj = document.getElementById('prodFiltroInjetora');
     if (selInj) selInj.innerHTML = '<option value="Todas">Todas</option>' + _injetoras.map(i=>`<option value="${i.nome}">${i.nome}</option>`).join('');
   } catch(e) { console.error(e); }
@@ -119,7 +130,7 @@ async function enviarWhatsappProducao() {
     const lancs = porTipo[tipo];
     t += `\n${sep}\n`;
 
-    const icoTipo = tipo==='Setup'?'⚙️':tipo==='Preventiva'?'🔧':tipo==='Corretiva'?'🔴':tipo==='Inspeção'?'🔍':'🏭';
+    const icoTipo = tipo==='Setup'?'⚙️':tipo.includes('Preventiva')?'🔧':tipo.includes('Corretiva')?'🔴':tipo.includes('Inspeção')?'🔍':'🏭';
     t += `📍 *${icoTipo} ${tipo.toUpperCase()}*\n\n`;
 
     lancs.forEach(l => {
@@ -518,3 +529,4 @@ function setSelectP(id, val) {
   if(sel.tagName !== 'SELECT') { sel.value = val; return; }
   for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===val){sel.selectedIndex=i;return;}
 }
+
