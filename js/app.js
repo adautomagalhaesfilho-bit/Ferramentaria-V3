@@ -821,7 +821,11 @@ async function _carregarCategoriasLista() {
         html += `<div class="card" style="border-top:3px solid ${cor}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--borda)">
             <span style="background:${cor}15;color:${cor};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${tipo} (${cats.length})</span>
-            <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="abrirModalCategoria('${tipoEsc}')">+ Atividade</button>
+            <div style="display:flex;gap:4px;align-items:center">
+              <button class="btn-icon" title="Renomear grupo" onclick="editarGrupoCategoria('${tipoEsc}')">✏️</button>
+              <button class="btn-icon danger" title="Excluir grupo inteiro" onclick="excluirGrupoCategoria('${tipoEsc}',${cats.length})">🗑️</button>
+              <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="abrirModalCategoria('${tipoEsc}')">+ Atividade</button>
+            </div>
           </div>
           ${cats.map(c => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed #f1f5f9">
@@ -898,6 +902,34 @@ function fecharModalCategoria() {
 // Admin mexe em qualquer setor; supervisor só no próprio
 function _podeEditarCategoriaSetor(setor) {
   return (typeof isAdmin === 'function' && isAdmin()) || setor === _sessao?.setor;
+}
+
+// Renomeia o grupo (tipo) inteiro — atualiza todas as atividades dentro dele de uma vez
+async function editarGrupoCategoria(tipoAtual) {
+  if (!_podeEditarCategoriaSetor(_abaSetorAtiva)) return toast('Você só pode editar categorias do seu próprio setor.','erro');
+  const novoTipo = prompt('Renomear o grupo:', tipoAtual);
+  if (!novoTipo || !novoTipo.trim() || novoTipo.trim() === tipoAtual) return;
+  try {
+    await db._patch('prod_categorias',
+      'tipo=eq.'+encodeURIComponent(tipoAtual)+'&setor=eq.'+encodeURIComponent(_abaSetorAtiva),
+      { tipo: novoTipo.trim() });
+    if (typeof registrarLog === 'function') await registrarLog('prod_categorias', 0, 'editar', 'tipo', tipoAtual, novoTipo.trim());
+    toast('Grupo renomeado!','sucesso');
+    carregarCategorias();
+  } catch(e) { toast('Erro ao renomear grupo.','erro'); }
+}
+
+// Exclui o grupo inteiro (todas as atividades dentro dele)
+function excluirGrupoCategoria(tipo, qtd) {
+  if (!_podeEditarCategoriaSetor(_abaSetorAtiva)) return toast('Você só pode excluir categorias do seu próprio setor.','erro');
+  confirmarExclusao(`Excluir o grupo "${tipo}" inteiro? Isso vai remover ${qtd} atividade(s) cadastrada(s) nele.`, async () => {
+    try {
+      await db._delete('prod_categorias', 'tipo=eq.'+encodeURIComponent(tipo)+'&setor=eq.'+encodeURIComponent(_abaSetorAtiva));
+      if (typeof registrarLog === 'function') await registrarLog('prod_categorias', 0, 'excluir', 'tipo', tipo, null);
+      toast('Grupo excluído!','sucesso');
+      carregarCategorias();
+    } catch(e) { toast('Erro ao excluir grupo.','erro'); }
+  });
 }
 
 async function salvarCategoria() {
