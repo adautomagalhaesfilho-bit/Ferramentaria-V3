@@ -601,9 +601,19 @@ async function abrirFormMaquina() {
   } catch(e){ toast('Erro.','erro'); }
 }
 
-function abrirEdicaoMaquina(id) {
+async function abrirEdicaoMaquina(id) {
   const m = _todasMaquinasAdmin.find(x => x.id === id);
   if (!m) return;
+  try {
+    const hoje = new Date().toISOString().split('T')[0];
+    const vigente = await db._get('maquina_capacidade_historico',
+      'maquina=eq.'+encodeURIComponent(m.nome)+'&vigente_desde=lte.'+hoje+'&order=vigente_desde.desc&limit=1', 'hora_inicio,hora_fim');
+    if (vigente && vigente[0]) {
+      m._horaInicioAtual = vigente[0].hora_inicio.substring(0,5);
+      m._horaFimAtual    = vigente[0].hora_fim.substring(0,5);
+    }
+  } catch(e) { /* usa o padrão 07:30-17:28 se não achar */ }
+
   const div = document.createElement('div');
   div.id = 'modalEditMaqWrap';
   div.innerHTML = `
@@ -617,7 +627,11 @@ function abrirEdicaoMaquina(id) {
           ${['5x2','Turma A','Turma B','6x1','Estágio','ADM'].map(t=>`<option value="${t}" ${m.turno===t?'selected':''}>${t}</option>`).join('')}
         </select>
       </div>
-      <div class="form-group"><label>Capacidade Líquida (min/dia)</label><input type="number" id="editMaqCap" value="${m.cap_liquida||508}"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Início de Operação</label><input type="time" id="editMaqHoraInicio" value="${m._horaInicioAtual||'07:30'}"></div>
+        <div class="form-group"><label>Fim de Operação</label><input type="time" id="editMaqHoraFim" value="${m._horaFimAtual||'17:28'}"></div>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Capacidade calculada automaticamente (não desconta almoço — a máquina fica disponível, só não é usada nesse horário). Alterar aqui só muda a partir de hoje, sem recalcular dias anteriores.</div>
       <div class="form-group"><label>Tipo</label>
         <select id="editMaqTipo">
           <option value="Principal" ${(m.tipo||'Principal')==='Principal'?'selected':''}>Principal</option>
@@ -641,17 +655,37 @@ async function salvarEdicaoMaquina(id) {
   const m = _todasMaquinasAdmin.find(x => x.id === id);
   const novoNome  = document.getElementById('editMaqNome')?.value?.trim();
   const novoTurno = document.getElementById('editMaqTurno')?.value;
-  const novaCap   = parseInt(document.getElementById('editMaqCap')?.value) || 508;
+  const horaInicio = document.getElementById('editMaqHoraInicio')?.value || '07:30';
+  const horaFim     = document.getElementById('editMaqHoraFim')?.value || '17:28';
   const novoTipo  = document.getElementById('editMaqTipo')?.value || 'Principal';
   const novoAtivo = document.getElementById('editMaqAtivo')?.checked;
   if (!novoNome) return toast('Informe o nome.','erro');
+
+  // Capacidade calculada automaticamente (não desconta almoço — é disponibilidade de máquina)
+  const [hI,mI] = horaInicio.split(':').map(Number);
+  const [hF,mF] = horaFim.split(':').map(Number);
+  const novaCap = (hF*60+mF) - (hI*60+mI);
+  if (novaCap <= 0) return toast('Horário de fim precisa ser depois do início.','erro');
+
   try {
     await db.salvarMaquina({ id, nome: novoNome, turno: novoTurno, cap_liquida: novaCap, tipo: novoTipo, ativo: novoAtivo });
     if (m.nome !== novoNome) await registrarLog('maquinas', id, 'editar', 'nome', m.nome, novoNome);
     if (m.turno !== novoTurno) await registrarLog('maquinas', id, 'editar', 'turno', m.turno, novoTurno);
-    if (m.cap_liquida !== novaCap) await registrarLog('maquinas', id, 'editar', 'capacidade', m.cap_liquida, novaCap);
     if ((m.tipo||'Principal') !== novoTipo) await registrarLog('maquinas', id, 'editar', 'tipo', m.tipo||'Principal', novoTipo);
     if (m.ativo !== novoAtivo) await registrarLog('maquinas', id, 'editar', 'ativo', m.ativo?'Ativa':'Inativa', novoAtivo?'Ativa':'Inativa');
+
+    // Se o horário mudou, cria um NOVO registro de vigência (a partir de hoje) —
+    // nunca sobrescreve o antigo, pra não recalcular a ocupação de dias passados
+    if (m._horaInicioAtual !== horaInicio || m._horaFimAtual !== horaFim) {
+      const hoje = new Date().toISOString().split('T')[0];
+      await db._post('maquina_capacidade_historico', {
+        maquina: novoNome, hora_inicio: horaInicio, hora_fim: horaFim,
+        capacidade_min: novaCap, vigente_desde: hoje, criado_por: _sessao?.nome || null
+      });
+      await registrarLog('maquinas', id, 'editar', 'horario_disponibilidade',
+        `${m._horaInicioAtual||'—'}-${m._horaFimAtual||'—'}`, `${horaInicio}-${horaFim} (a partir de ${hoje})`);
+    }
+
     toast('Atualizada!','sucesso');
     fecharEdicaoMaquina(); carregarMaquinasAdmin();
   } catch(e) { toast('Erro ao salvar.','erro'); }

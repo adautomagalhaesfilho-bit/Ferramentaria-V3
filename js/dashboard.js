@@ -501,10 +501,16 @@ function desenharSetor(setor, ini, fim) {
     feriados: feriados,
     lancsSemSupervisor,
     filtroPessoas:  new Set(opEntries.map(o=>o.nome)),
-    filtroMaquinas: new Set(Object.keys(porMaqPrincipal))
+    filtroMaquinas: new Set(Object.keys(porMaqPrincipal)),
+    // Necessários pra calcular a capacidade real (por vigência) de cada máquina
+    capHistorico: capHistorico, periodoIni: ini, periodoFim: fim
   };
 
-  const pctMaqInicial = numMaq>0?Math.round(Object.values(porMaqPrincipal).reduce((a,b)=>a+b,0)/(capTotal*numMaq)*100):0;
+  const capHistorico = _dadosDash.capacidadeHistoricoMaquinas || [];
+  const capTotalMaquinasPrincipais = Object.keys(porMaqPrincipal)
+    .reduce((soma, maq) => soma + _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados), 0);
+  const pctMaqInicial = capTotalMaquinasPrincipais>0
+    ? Math.round(Object.values(porMaqPrincipal).reduce((a,b)=>a+b,0)/capTotalMaquinasPrincipais*100) : 0;
 
   let html=`<div class="cards-row">
     <div class="metric-card" style="border-left-color:${cor}">
@@ -874,9 +880,12 @@ function _renderBarrasMaquinas(porMaq) {
   const entradas = Object.entries(porMaq).sort((a,b)=>b[1]-a[1]);
   if (!entradas.length) return '<div style="color:#94a3b8;font-size:13px;padding:8px 0">Nenhuma máquina com lançamentos no período.</div>';
   const cor = _dashEstado?.cor || '#0056b3';
-  const capTotal = _dashEstado?.capTotal || 0;
+  const capHistorico = _dashEstado?.capHistorico || [];
+  const ini = _dashEstado?.periodoIni, fim = _dashEstado?.periodoFim;
+  const feriados = _dashEstado?.feriados || [];
   return entradas.map(([maq,mins]) => {
-    const pct = capTotal>0?Math.round(mins/capTotal*100):0;
+    const capMaq = _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados);
+    const pct = capMaq>0?Math.round(mins/capMaq*100):0;
     const c = pct>=80?'#10b981':pct>=50?cor:'#f59e0b';
     return `<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${maq}</div>
       <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:#64748b">${fmtMin(mins)}</span><span class="barra-valor" style="color:${c}">${pct}%</span></div>
@@ -989,14 +998,37 @@ function aplicarFiltroDashMaquinas() {
   const btn = document.getElementById('btnFiltroMaquinas');
   if (btn) btn.innerText = `🔽 Máquinas (${marcados.length}/${totalMaq})`;
 
-  // Recalcula Ocupação Máquinas com base na seleção
+  // Recalcula Ocupação Máquinas com base na seleção, usando a capacidade real de cada uma
   const totalMinsF = Object.values(porMaqFiltrado).reduce((a,b)=>a+b,0);
   const numSel = marcados.length;
-  const pctMaqF = numSel>0 && _dashEstado.capTotal>0 ? Math.round(totalMinsF/(_dashEstado.capTotal*numSel)*100) : 0;
+  const capTotalF = marcados.reduce((soma, maq) =>
+    soma + _capTotalPorMaquina(_dashEstado.capHistorico||[], maq, _dashEstado.periodoIni, _dashEstado.periodoFim, _dashEstado.feriados||[]), 0);
+  const pctMaqF = numSel>0 && capTotalF>0 ? Math.round(totalMinsF/capTotalF*100) : 0;
 
   _setTexto('valOcupacaoMaquinas', numSel>0 ? pctMaqF+'%' : '—');
   const badgeMaqEl = document.getElementById('badgeOcupacaoMaquinas');
   if (badgeMaqEl) badgeMaqEl.innerHTML = `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${numSel} máquina(s)</span>`;
+}
+
+// Capacidade vigente de uma máquina numa data específica (histórico com vigência,
+// nunca recalcula dias passados quando o horário de disponibilidade muda)
+function _capacidadeMaquinaNaData(historico, maquina, dataStr) {
+  const registros = (historico||[]).filter(h => h.maquina === maquina && h.vigente_desde <= dataStr);
+  if (!registros.length) return 598; // padrão (07:30–17:28) se não houver registro pra essa máquina
+  registros.sort((a,b) => b.vigente_desde.localeCompare(a.vigente_desde));
+  return registros[0].capacidade_min;
+}
+
+// Soma a capacidade dia a dia de UMA máquina no período (mesma regra de "dia útil"
+// já usada no resto do dashboard: sem domingo, sem feriado)
+function _capTotalPorMaquina(historico, maquina, ini, fim, feriados) {
+  let total = 0;
+  for (let d = new Date(ini+'T12:00:00'); d <= new Date(fim+'T12:00:00'); d.setDate(d.getDate()+1)) {
+    const ds = d.toISOString().split('T')[0];
+    if (d.getDay()===0 || d.getDay()===6 || (feriados||[]).includes(ds)) continue;
+    total += _capacidadeMaquinaNaData(historico, maquina, ds);
+  }
+  return total;
 }
 
 function metricCard(ico,titulo,valor,sub,cor,extra){
