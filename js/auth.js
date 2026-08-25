@@ -3,6 +3,12 @@
 // ==========================================
 
 var _sessao = null;
+
+// Jobs como "SV - Automação", "SV - Bancada" etc. são categorias de serviço
+// interno, não moldes físicos — usado pra tirar esses nomes de qualquer lugar
+// que trate "job" como se fosse sempre um molde (cadastro de copo, RAM, etc.)
+function _ehJobServico(nome) { return /^SV\s*-/i.test(nome||''); }
+function _listaSoMoldes() { return ((_listas && _listas.jobs) || []).filter(j => !_ehJobServico(j)); }
 var _listas = null;
 
 function getSessao()    { return _sessao; }

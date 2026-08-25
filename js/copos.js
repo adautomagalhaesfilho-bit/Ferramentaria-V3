@@ -105,7 +105,7 @@ function renderizarMoldesSemCopo(jobsInfo) {
   const el = document.getElementById('coposMoldesSemCopoWrap');
   if (!el) return;
   const jobsComCopo = new Set(_todosCoposCache.map(c => c.job));
-  const semCopo = jobsInfo.filter(j => !jobsComCopo.has(j.nome)).map(j => j.nome).sort();
+  const semCopo = jobsInfo.filter(j => !jobsComCopo.has(j.nome) && !_ehJobServico(j.nome)).map(j => j.nome).sort();
   if (!semCopo.length) { el.innerHTML = ''; return; }
 
   el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:16px;border-left:3px solid #94a3b8;background:#f8fafc;border-radius:6px">
@@ -215,7 +215,7 @@ function abrirModalCopo(id, jobPredefinido) {
     </div>
   </div>`;
   document.body.appendChild(div);
-  if (typeof setupAC === 'function') setupAC('copoJob', 'copoJobList', (_listas&&_listas.jobs)||[]);
+  if (typeof setupAC === 'function') setupAC('copoJob', 'copoJobList', typeof _listaSoMoldes==='function'?_listaSoMoldes():((_listas&&_listas.jobs)||[]));
   if (copo) renderizarCompatibilidadeCopo(copo.id);
 }
 
@@ -232,7 +232,7 @@ async function salvarCopo(id) {
 
   if (!codigo) return toast('Informe o código do copo.', 'erro');
   if (!job) return toast('Selecione o molde.', 'erro');
-  if (!(_listas && (_listas.jobs||[]).includes(job))) return toast('Esse molde não existe no cadastro.', 'erro');
+  if (!(_listas && _listaSoMoldes().includes(job))) return toast('Esse molde não existe no cadastro (ou é uma categoria de serviço, não um molde).', 'erro');
 
   const payload = { codigo, job, gate_diametro: gateDiametro, gate_tipo: gateTipo, boca_diametro: bocaDiametro, comprimento, tem_difusor: temDifusor };
 

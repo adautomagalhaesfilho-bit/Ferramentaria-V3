@@ -186,7 +186,7 @@ function abrirModalNovaRAM(job) {
     </div>
   </div>`;
   document.body.appendChild(div);
-  if (!job && typeof setupAC === 'function') setupAC('ramNovoJob', 'ramNovoJobList', (_listas&&_listas.jobs)||[]);
+  if (!job && typeof setupAC === 'function') setupAC('ramNovoJob', 'ramNovoJobList', typeof _listaSoMoldes==='function'?_listaSoMoldes():((_listas&&_listas.jobs)||[]));
 }
 
 function fecharModalRAM() { document.getElementById('modalRamWrap')?.remove(); }
@@ -198,7 +198,7 @@ async function salvarNovaRAM(jobPreDefinido) {
   const descricao = document.getElementById('ramDescricao')?.value?.trim();
   const setores   = [...document.querySelectorAll('.ram-setor-chk:checked')].map(c => c.value);
   if (!job) return toast('Selecione o molde.', 'erro');
-  if (!(_listas && (_listas.jobs||[]).includes(job))) return toast('Esse molde não existe no cadastro. Selecione um da lista.', 'erro');
+  if (!(_listas && _listaSoMoldes().includes(job))) return toast('Esse molde não existe no cadastro (ou é uma categoria de serviço, não um molde).', 'erro');
   if (!numero) return toast('Informe o número da RAM.', 'erro');
   if (!descricao) return toast('Descreva o que precisa ser feito.', 'erro');
   if (!setores.length) return toast('Selecione ao menos um setor.', 'erro');
@@ -289,7 +289,7 @@ async function abrirDetalheRAM(ramId, job) {
     </div>
   </div>`;
   document.body.appendChild(div);
-  if (typeof setupAC === 'function') setupAC('ramEditJob', 'ramEditJobList', (_listas&&_listas.jobs)||[]);
+  if (typeof setupAC === 'function') setupAC('ramEditJob', 'ramEditJobList', typeof _listaSoMoldes==='function'?_listaSoMoldes():((_listas&&_listas.jobs)||[]));
 }
 
 function fecharDetalheRAM() { document.getElementById('modalDetalheRamWrap')?.remove(); }
@@ -300,7 +300,7 @@ async function salvarEdicaoRAM(ramId) {
   const prazo     = document.getElementById('ramEditPrazo')?.value || null;
   const descricao = document.getElementById('ramEditDescricao')?.value?.trim();
   if (!job) return toast('Informe o molde.', 'erro');
-  if (!(_listas && (_listas.jobs||[]).includes(job))) return toast('Esse molde não existe no cadastro. Selecione um da lista.', 'erro');
+  if (!(_listas && _listaSoMoldes().includes(job))) return toast('Esse molde não existe no cadastro (ou é uma categoria de serviço, não um molde).', 'erro');
   if (!numero) return toast('Informe o número da RAM.', 'erro');
   try {
     await db._patch('ram', 'id=eq.'+ramId, { job, numero, prazo_final: prazo, descricao });
