@@ -477,6 +477,7 @@ function desenharSetor(setor, ini, fim) {
   const numMaq    = Object.keys(porMaqPrincipal).length;
   const capBancada = setor==='Bancada' ? calcularCapBancada(ini, fim, _dadosDash) : 0;
   const pctBancada = capBancada>0?Math.round(totalMinsSemSup/capBancada*100):0;
+  const capHistorico = _dadosDash.capacidadeHistoricoMaquinas || [];
 
   const porJob={};
   lancs.forEach(l=>{ if(!l.job) return; if(!porJob[l.job]) porJob[l.job]=0; porJob[l.job]+=l.minutos||0; });
@@ -506,7 +507,6 @@ function desenharSetor(setor, ini, fim) {
     capHistorico: capHistorico, periodoIni: ini, periodoFim: fim
   };
 
-  const capHistorico = _dadosDash.capacidadeHistoricoMaquinas || [];
   const capTotalMaquinasPrincipais = Object.keys(porMaqPrincipal)
     .reduce((soma, maq) => soma + _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados), 0);
   const pctMaqInicial = capTotalMaquinasPrincipais>0
