@@ -93,8 +93,8 @@ function abrirFormUsuario(user) {
         <input type="text" id="uNome" value="${user?.nome||''}" placeholder="Ex: João Silva">
       </div>
       <div class="form-group">
-        <label>Senha *</label>
-        <input type="text" id="uSenha" value="${user?.senha||''}" placeholder="Ex: Senha@123">
+        <label>Senha ${user?'':'*'}</label>
+        <input type="text" id="uSenha" value="" placeholder="${user?'Deixe em branco para manter a senha atual':'Ex: Senha@123'}">
       </div>
     </div>
 
@@ -174,7 +174,9 @@ function editarUsuario(u) { abrirFormUsuario(u); }
 async function salvarUsuario() {
   const nome  = document.getElementById('uNome')?.value.trim();
   const senha = document.getElementById('uSenha')?.value.trim();
-  if (!nome || !senha) return toast('Preencha nome e senha.','erro');
+  const isEdicao = !!_editandoUserId;
+  if (!nome) return toast('Preencha o nome.','erro');
+  if (!isEdicao && !senha) return toast('Preencha a senha do novo usuário.','erro');
 
   // Coleta permissões
   const permItems = ['dashboard','usinagem','bancada','projeto','producao','moldes','ficha','historico','pcm','rh','admin','editar','competencias','intervencoes'];
@@ -185,13 +187,14 @@ async function salvarUsuario() {
   });
 
   const dados = {
-    nome, senha,
+    nome,
     perfil:     document.getElementById('uPerfil').value,
     setor:      document.getElementById('uSetor').value || null,
     ativo:      document.getElementById('uAtivo').checked,
     permissoes: permissoes
   };
-  const isEdicao = !!_editandoUserId;
+  // Só manda a senha se foi preenchida — em branco na edição significa "manter a atual"
+  if (senha) dados.senha = senha;
   if (isEdicao) dados.id = _editandoUserId;
 
   try {
