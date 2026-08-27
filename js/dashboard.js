@@ -287,6 +287,23 @@ function desenharGeral(ini, fim) {
   const maquinasComApontamento = new Set(lancsProdutivos.filter(l=>l.setor==='Usinagem'&&l.maquina).map(l=>l.maquina));
   const maquinasSemApontamento = nomesMaquinasPrincipais.filter(m => !maquinasComApontamento.has(m));
 
+  // RAM atrasada — prazo já vencido e ainda tem pelo menos 1 setor pendente
+  const hojeStr = new Date().toISOString().split('T')[0];
+  const ramTodas = _dadosDash.ramTodas || [];
+  const ramSetoresTodas = _dadosDash.ramSetoresTodas || [];
+  const ramsAtrasadas = ramTodas.filter(r => {
+    if (!r.prazo_final || r.prazo_final >= hojeStr) return false;
+    return ramSetoresTodas.some(s => s.ram_id === r.id && !s.concluido);
+  });
+
+  // Copos abaixo do estoque mínimo (mínimo = cavidades do molde dono)
+  const mapaCavidadesCopos = {};
+  (_dadosDash.jobsCavidades||[]).forEach(j => { mapaCavidadesCopos[j.nome] = j.num_cavidades || 1; });
+  const coposAbaixoMinimo = (_dadosDash.coposTodos||[]).filter(c => {
+    const total = (c.estoque_novo||0) + (c.estoque_embuchado||0);
+    return total < (mapaCavidadesCopos[c.job] || 1);
+  });
+
   const cors = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6' };
   const icos = { Usinagem:'⚙️', Bancada:'🛠️', Projeto:'📐' };
 
@@ -305,10 +322,11 @@ function desenharGeral(ini, fim) {
     ${metricCard('🏦','Banco de Horas',(saldoPeriodoMin>=0?'+':'')+fmtMin(Math.abs(saldoPeriodoMin)),'saldo líquido do período',saldoPeriodoMin>=0?'#10b981':'#ef4444')}
     ${metricCard('📅','Ausentes Hoje',ausentesHoje.length,ausentesHoje.length?ausentesHoje.map(a=>a.motivo).join(', '):'ninguém de férias/licença','#0891b2')}
     ${metricCard('📦','Setups (Produção)',setupsProd,_deltaHtml(setupsProd, setupsProdAnt),'#6366f1')}
+    ${metricCard('🔩','Copos Abaixo do Mínimo',coposAbaixoMinimo.length,coposAbaixoMinimo.length?'precisam atenção':'estoque OK',coposAbaixoMinimo.length?'#ef4444':'#10b981')}
   </div>`;
 
   // Painel "Precisa de Atenção" — só aparece se houver algo relevante
-  const temAtencao = maquinasSemApontamento.length || funcsNegativos.length || moldesParados.length;
+  const temAtencao = maquinasSemApontamento.length || funcsNegativos.length || moldesParados.length || ramsAtrasadas.length || coposAbaixoMinimo.length;
   if (temAtencao) {
     html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:16px">
       <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:10px">⚠️ Precisa de Atenção</div>
@@ -316,6 +334,8 @@ function desenharGeral(ini, fim) {
         ${maquinasSemApontamento.length ? `<div>• ${maquinasSemApontamento.length} máquina${maquinasSemApontamento.length>1?'s':''} Principal${maquinasSemApontamento.length>1?'is':''} sem apontamento no período: <b>${maquinasSemApontamento.join(', ')}</b></div>` : ''}
         ${funcsNegativos.length ? `<div>• ${funcsNegativos.length} funcionário${funcsNegativos.length>1?'s':''} com banco de horas negativo (10h+): <b>${funcsNegativos.map(([n,m])=>n+' ('+fmtMin(Math.abs(m))+')').join(', ')}</b></div>` : ''}
         ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${m.job.replace(/'/g,"\\'")}')">${m.job}</span> (${m.dias}d)`).join(', ')}</b></div>` : ''}
+        ${ramsAtrasadas.length ? `<div>• ${ramsAtrasadas.length} RAM${ramsAtrasadas.length>1?'s':''} com prazo vencido: <b>${ramsAtrasadas.map(r=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${r.job.replace(/'/g,"\\'")}')">RAM ${r.numero}</span>`).join(', ')}</b></div>` : ''}
+        ${coposAbaixoMinimo.length ? `<div>• ${coposAbaixoMinimo.length} copo${coposAbaixoMinimo.length>1?'s':''} abaixo do estoque mínimo: <b>${coposAbaixoMinimo.map(c=>`<span style="cursor:pointer;text-decoration:underline" onclick="irPara('copos', document.getElementById('menuCopos'))">${c.codigo}</span>`).join(', ')}</b></div>` : ''}
       </div>
     </div>`;
   }

@@ -193,7 +193,8 @@ const db = {
     const fimAnt = fimAntD.toISOString().split('T')[0];
 
     const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas, prodLanc,
-           lancamentosAnt, prodLancAnt, bancoHoras, moldeLocalizacao, moldeHistorico, capHistorico] = await Promise.all([
+           lancamentosAnt, prodLancAnt, bancoHoras, moldeLocalizacao, moldeHistorico, capHistorico,
+           ramTodas, ramSetoresTodas, coposTodos, jobsCavidades] = await Promise.all([
       db._get('lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
       db._get('feriados', '', 'data'),
       db._get('ferias', '', '*'),
@@ -206,7 +207,11 @@ const db = {
       db._get('banco_horas', '', '*'),
       db._get('molde_localizacao', '', '*'),
       db._get('molde_localizacao_historico', 'movido_em=gte.' + dataIni + '&movido_em=lte.' + dataFim + 'T23:59:59', '*'),
-      db._get('maquina_capacidade_historico', 'order=vigente_desde.desc', '*')
+      db._get('maquina_capacidade_historico', 'order=vigente_desde.desc', '*'),
+      db._get('ram', '', '*').catch(() => []),
+      db._get('ram_setores', '', '*').catch(() => []),
+      db._get('copos', 'ativo=eq.true', '*').catch(() => []),
+      db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades').catch(() => [])
     ]);
     const capMaquinas = {};
     (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno, tipo: m.tipo || 'Principal' }; });
@@ -227,6 +232,10 @@ const db = {
       // Histórico de capacidade das máquinas, com vigência por data — usado pra
       // calcular a ocupação real de cada máquina no período (não um número fixo)
       capacidadeHistoricoMaquinas: capHistorico || [],
+      ramTodas:        ramTodas || [],
+      ramSetoresTodas: ramSetoresTodas || [],
+      coposTodos:      coposTodos || [],
+      jobsCavidades:   jobsCavidades || [],
       // Estado atual de cada molde (pra achar quem está parado na Ferramentaria)
       moldeLocalizacao:    moldeLocalizacao || [],
       // Movimentações de molde no período (pra aba PCM: quem mais andou)
