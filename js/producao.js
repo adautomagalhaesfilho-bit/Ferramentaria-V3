@@ -345,12 +345,22 @@ async function processarMovimentacaoSetupPCM(dados) {
     });
   }
 
+  // Antes de marcar um molde como "Em Máquina" numa injetora, garante que não tem
+  // outro já lá — evita o bug de duas jobs na mesma máquina ao mesmo tempo
+  // (ex: alguém usa "Instalação" numa injetora que já tinha molde, sem passar por "Troca")
+  async function liberarInjetoraSeOcupada(injetoraAlvo, moldeQueVaiEntrar) {
+    const ocupante = await db.buscarMoldeNaInjetora(injetoraAlvo);
+    if (ocupante && ocupante !== moldeQueVaiEntrar) {
+      await mover(ocupante, 'Na Ferramentaria', null, `Removido automaticamente — injetora ${injetoraAlvo} recebeu outro molde`);
+    }
+  }
+
   try {
     if (dados.atividade === 'Troca de Molde') {
       if (dados.moldeAtual) await mover(dados.moldeAtual, 'Na Ferramentaria', null, `Saiu da injetora ${injetora} (Troca de Molde)`);
-      if (dados.moldeNovo)  await mover(dados.moldeNovo,  'Em Máquina', injetora, `Entrou na injetora ${injetora} (Troca de Molde)`);
+      if (dados.moldeNovo)  { await liberarInjetoraSeOcupada(injetora, dados.moldeNovo); await mover(dados.moldeNovo, 'Em Máquina', injetora, `Entrou na injetora ${injetora} (Troca de Molde)`); }
     } else if (dados.atividade === 'Instalação de Molde') {
-      if (dados.moldeNovo) await mover(dados.moldeNovo, 'Em Máquina', injetora, `Instalado na injetora ${injetora}`);
+      if (dados.moldeNovo) { await liberarInjetoraSeOcupada(injetora, dados.moldeNovo); await mover(dados.moldeNovo, 'Em Máquina', injetora, `Instalado na injetora ${injetora}`); }
     } else if (dados.atividade === 'Remoção de Molde') {
       if (dados.moldeAtual) await mover(dados.moldeAtual, 'Na Ferramentaria', null, `Removido da injetora ${injetora}`);
     } else if (dados.atividade === 'Transferência de Molde') {
@@ -359,8 +369,8 @@ async function processarMovimentacaoSetupPCM(dados) {
       // Molde da outra injetora vem do campo (auto-preenchido, mas o usuário pode ter corrigido manualmente)
       const moldeDeLa  = dados.moldeOutraInjetora || await db.buscarMoldeNaInjetora(outra);
       const moldeDaqui = await db.buscarMoldeNaInjetora(injetora);
-      if (moldeDaqui) await mover(moldeDaqui, 'Em Máquina', outra, `Transferido da injetora ${injetora} para ${outra}`);
-      if (moldeDeLa)  await mover(moldeDeLa,  'Em Máquina', injetora, `Transferido da injetora ${outra} para ${injetora}`);
+      if (moldeDaqui) { await liberarInjetoraSeOcupada(outra, moldeDaqui); await mover(moldeDaqui, 'Em Máquina', outra, `Transferido da injetora ${injetora} para ${outra}`); }
+      if (moldeDeLa)  { await liberarInjetoraSeOcupada(injetora, moldeDeLa); await mover(moldeDeLa,  'Em Máquina', injetora, `Transferido da injetora ${outra} para ${injetora}`); }
     }
     // Troca de Gaveta / Troca de Postiço -> exceção, não mexe em localização nenhuma
   } catch(e) {
@@ -458,12 +468,22 @@ async function salvarFormProducao() {
   const ramId = ramSelProd?.value ? parseInt(ramSelProd.value) : null;
   const ramNumero = ramSelProd?.value ? (ramSelProd.selectedOptions[0]?.dataset?.numero || null) : null;
 
+  // Se o campo Job (opcional) ficar em branco num Setup, usa o molde que faz mais
+  // sentido como referência — o que fica instalado na injetora depois da ação —
+  // pra não aparecer vazio no relatório
+  let moldeRef = document.getElementById('prodFormMolde')?.value || null;
+  if (!moldeRef && tipo === 'Setup') {
+    if (atividade === 'Troca de Molde' || atividade === 'Instalação de Molde') moldeRef = moldeNovo;
+    else if (atividade === 'Remoção de Molde') moldeRef = moldeAtual;
+    else if (atividade === 'Transferência de Molde') moldeRef = moldeOutraInjetora;
+  }
+
   const dados = {
     data:          document.getElementById('prodFormData')?.value,
     horaInicio:    document.getElementById('prodFormHrIni')?.value || null,
     horaFim:       document.getElementById('prodFormHrFim')?.value || null,
     tecnicos:      _tecnicosSelecionadosProd.join(', '),
-    injetora, molde: document.getElementById('prodFormMolde')?.value || null,
+    injetora, molde: moldeRef,
     tipo, atividade,
     moldeAtual, moldeNovo, outraInjetora, moldeOutraInjetora,
     descricao:     document.getElementById('prodFormDesc')?.value || null,
@@ -479,7 +499,7 @@ async function salvarFormProducao() {
   try {
     if (!id) {
       await db.salvarProdLancamento(dados);
-      // Movimentação automática de molde no PCM — só em lançamentos NOVOS (edição não repete a movimentação)
+      // Movimentação automática de molde no PCM — em lançamentos novos
       await processarMovimentacaoSetupPCM(dados);
       if (dados.molde) await _processarAnexoProd(dados.molde, dados.ramNumero, dados.descricao);
       toast('Lançamento salvo!','sucesso');
@@ -491,6 +511,9 @@ async function salvarFormProducao() {
       atualizarBotoesStatusProd();
     } else {
       await db.atualizarProdLancamento(id, dados);
+      // Reaplica a movimentação também na edição — cobre o caso de o PCM precisar
+      // corrigir qual molde estava certo (ex: apontamento tinha o molde errado)
+      await processarMovimentacaoSetupPCM(dados);
       toast('Lançamento atualizado!','sucesso');
       fecharModalFormProd();
     }
@@ -529,4 +552,3 @@ function setSelectP(id, val) {
   if(sel.tagName !== 'SELECT') { sel.value = val; return; }
   for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===val){sel.selectedIndex=i;return;}
 }
-
