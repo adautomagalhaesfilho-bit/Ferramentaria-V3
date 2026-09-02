@@ -476,15 +476,23 @@ function desenharSetor(setor, ini, fim) {
     });
   }
 
-  // Máquinas compartilhadas entre setores (ex: Solda Tig/Mig usadas pela Bancada)
-  // devem contar na ocupação de máquinas da Usinagem, independente de quem lançou
+  // Máquinas compartilhadas entre setores (ex: Solda Tig/Mig, Torno, Fresadora
+  // usadas pela Bancada) devem contar na ocupação de máquinas da Usinagem,
+  // independente de quem lançou. O mapa cobre nomes antigos e novos da mesma
+  // máquina (ex: "Torno" foi renomeado pra "Torno Convencional"), consolidando
+  // tudo na mesma barra em vez de duplicar.
   if (setor === 'Usinagem') {
-    const MAQUINAS_COMPARTILHADAS = ['Solda Tig', 'Solda Mig'];
+    const MAPA_MAQUINAS_COMPARTILHADAS = {
+      'Solda Tig': 'Solda Tig', 'Solda Mig': 'Solda Mig', 'Solda Laser': 'Solda Laser',
+      'Torno': 'Torno Convencional', 'Torno Convencional': 'Torno Convencional',
+      'Fresadora': 'Fresadora Convencional', 'Fresadora Convencional': 'Fresadora Convencional'
+    };
     (_dadosDash.lancamentos || []).forEach(l => {
       if (l.setor === 'Usinagem') return; // já contabilizado acima via campo Máquina
-      if (!MAQUINAS_COMPARTILHADAS.includes(l.tipo)) return;
-      if (!porMaq[l.tipo]) porMaq[l.tipo] = 0;
-      porMaq[l.tipo] += l.minutos || 0;
+      const nomeReal = MAPA_MAQUINAS_COMPARTILHADAS[l.tipo];
+      if (!nomeReal) return;
+      if (!porMaq[nomeReal]) porMaq[nomeReal] = 0;
+      porMaq[nomeReal] += l.minutos || 0;
     });
   }
 
