@@ -85,7 +85,7 @@ const db = {
 
   obterListas: async function() {
     const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
-      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'nome,setor,turno,cargo,setor_apontamento_extra'),
+      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'id,nome,setor,turno,cargo,setor_apontamento_extra'),
       db._get('maquinas', 'ativo=eq.true&order=nome.asc', 'nome,turno,cap_liquida,tipo'),
       db._get('jobs', 'ativo=eq.true&order=nome.asc', 'nome'),
       db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
@@ -130,12 +130,18 @@ const db = {
     const catsProdMap = {};
     catProd.forEach(c => { if (!catsProdMap[c.tipo]) catsProdMap[c.tipo]=[]; catsProdMap[c.tipo].push(c.atividade); });
 
+    // Mapa nome -> id, usado pra gravar o vínculo por ID nos lançamentos/banco de
+    // horas/faltas/férias — assim, renomear um funcionário não perde o histórico
+    const mapaFuncionarioId = {};
+    funcionarios.forEach(f => { mapaFuncionarioId[f.nome] = f.id; });
+
     return {
       funcionarios:    funcUsina,
       funcBancada:     funcBancada,
       funcProjeto:     funcProjeto,
       funcProducao:    funcProducao,
       funcSupervisores: funcSupervisores,
+      mapaFuncionarioId: mapaFuncionarioId,
       maquinas:        maquinas.map(m => m.nome),
       maquinasTipo:    Object.fromEntries(maquinas.map(m => [m.nome, m.tipo || 'Principal'])),
       jobs:            jobs.map(j => j.nome),
@@ -245,8 +251,10 @@ const db = {
 
   salvarLancamento: async function(dados) {
     const mins = db._calcularMinutos(dados.horaInicio, dados.horaFim, dados.descontaAlmoco);
+    const funcId = dados.funcionario ? (typeof _listas!=='undefined' && _listas?.mapaFuncionarioId?.[dados.funcionario]) || null : null;
     const reg = {
       data: dados.data, setor: dados.setor, funcionario: dados.funcionario || null,
+      funcionario_id: funcId,
       job: dados.job || null, tipo: dados.tipo || null, area: dados.area || null,
       descricao: dados.descricao || null, status: dados.status || 'Em andamento',
       hora_inicio: dados.horaInicio || null, hora_fim: dados.horaFim || null,
@@ -269,8 +277,10 @@ const db = {
 
   atualizarLancamento: async function(id, dados) {
     const mins = db._calcularMinutos(dados.horaInicio, dados.horaFim, dados.descontaAlmoco);
+    const funcId = dados.funcionario ? (typeof _listas!=='undefined' && _listas?.mapaFuncionarioId?.[dados.funcionario]) || null : null;
     return await db._patch('lancamentos', 'id=eq.' + id, {
       data: dados.data, setor: dados.setor, funcionario: dados.funcionario || null,
+      funcionario_id: funcId,
       job: dados.job || null, tipo: dados.tipo || null, area: dados.area || null,
       descricao: dados.descricao || null, status: dados.status || 'Em andamento',
       hora_inicio: dados.horaInicio || null, hora_fim: dados.horaFim || null,
@@ -409,6 +419,9 @@ const db = {
     return await db._get('ferias', 'order=inicio.desc', '*');
   },
   salvarFerias: async function(dados) {
+    if (!dados.funcionario_id && dados.funcionario) {
+      dados.funcionario_id = (typeof _listas!=='undefined' && _listas?.mapaFuncionarioId?.[dados.funcionario]) || null;
+    }
     if (dados.id) return await db._patch('ferias', 'id=eq.' + dados.id, dados);
     return await db._post('ferias', dados);
   },
@@ -422,6 +435,9 @@ const db = {
     return await db._get('rh_parciais', filtro, '*');
   },
   salvarParcial: async function(dados) {
+    if (!dados.funcionario_id && dados.funcionario) {
+      dados.funcionario_id = (typeof _listas!=='undefined' && _listas?.mapaFuncionarioId?.[dados.funcionario]) || null;
+    }
     if (dados.id) return await db._patch('rh_parciais', 'id=eq.' + dados.id, dados);
     return await db._post('rh_parciais', dados);
   },
@@ -494,6 +510,9 @@ const db = {
     return await db._get('banco_horas', filtro, '*');
   },
   salvarBancoHoras: async function(dados) {
+    if (!dados.funcionario_id && dados.funcionario) {
+      dados.funcionario_id = (typeof _listas!=='undefined' && _listas?.mapaFuncionarioId?.[dados.funcionario]) || null;
+    }
     if (dados.id) return await db._patch('banco_horas', 'id=eq.' + dados.id, dados);
     return await db._post('banco_horas', dados);
   },

@@ -598,10 +598,10 @@ async function salvarEdicaoFuncionario(id) {
       matricula, admissao, demissao: demissao||null, ativo, setor_apontamento_extra: setorExtra });
 
     if (nomeMudou) {
-      await db._patch('lancamentos',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
-      await db._patch('banco_horas',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
-      await db._patch('rh_parciais',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
-      await db._patch('ferias',       'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
+      await db._patch('lancamentos',  'funcionario_id=eq.' + id, { funcionario: nome });
+      await db._patch('banco_horas',  'funcionario_id=eq.' + id, { funcionario: nome });
+      await db._patch('rh_parciais',  'funcionario_id=eq.' + id, { funcionario: nome });
+      await db._patch('ferias',       'funcionario_id=eq.' + id, { funcionario: nome });
       if (typeof registrarLog === 'function') await registrarLog('funcionarios', id, 'editar', 'nome', nomeAntigo, nome);
       toast('Funcionário renomeado! Histórico atualizado.','sucesso');
     } else {
