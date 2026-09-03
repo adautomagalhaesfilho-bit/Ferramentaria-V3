@@ -7,6 +7,13 @@ function podeGerenciarMapeamento() {
          ['supervisor','pcm','gestor'].includes(perfil);
 }
 
+// Mapeamento "vence" depois desse prazo — precisa ser refeito/reverificado
+const _MAPEAMENTO_VALIDADE_DIAS = 90;
+
+function _diasDesdeMapeamento(dataMapeamento) {
+  return Math.floor((new Date() - new Date(dataMapeamento+'T12:00:00')) / 86400000);
+}
+
 async function buscarMapeamentosCalcos(job) {
   return await db._get('molde_mapeamento_calcos', 'job=eq.' + encodeURIComponent(job) + '&order=data_mapeamento.desc,criado_em.desc', '*');
 }
@@ -93,10 +100,19 @@ function renderizarCardMapeamento(job, mapeamentos) {
   const ultimo = mapeamentos && mapeamentos.length ? mapeamentos[0] : null;
   let html = '';
   if (ultimo) {
-    html += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px">
-      <div style="font-size:13px;color:#059669;font-weight:700">✅ Mapeamento feito em ${new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:2px">por ${ultimo.criado_por||'—'}${ultimo.observacao?' — '+ultimo.observacao:''}</div>
-    </div>`;
+    const dias = _diasDesdeMapeamento(ultimo.data_mapeamento);
+    const desatualizado = dias > _MAPEAMENTO_VALIDADE_DIAS;
+    if (desatualizado) {
+      html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-size:13px;color:#92400e;font-weight:700">⚠️ Mapeamento desatualizado — feito há ${dias} dias (válido por ${_MAPEAMENTO_VALIDADE_DIAS})</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">Último em ${new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')} por ${ultimo.criado_por||'—'}${ultimo.observacao?' — '+ultimo.observacao:''}</div>
+      </div>`;
+    } else {
+      html += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-size:13px;color:#059669;font-weight:700">✅ Mapeamento feito em ${new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">por ${ultimo.criado_por||'—'}${ultimo.observacao?' — '+ultimo.observacao:''} · válido por mais ${_MAPEAMENTO_VALIDADE_DIAS-dias} dias</div>
+      </div>`;
+    }
   } else {
     html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:12px">
       <div style="font-size:13px;color:#b91c1c;font-weight:700">⚠️ Nenhum mapeamento de calços registrado ainda</div>
@@ -124,8 +140,17 @@ async function _verificarMapeamentoCalcosApontamento(job) {
   if (!job) { el.style.display = 'none'; return; }
   try {
     const mapeamentos = await buscarMapeamentosCalcos(job);
-    if (mapeamentos && mapeamentos.length) { el.style.display = 'none'; return; }
-    el.innerHTML = `⚠️ Este molde ainda não tem <b>mapeamento de calços</b> registrado.`;
-    el.style.display = '';
+    if (!mapeamentos || !mapeamentos.length) {
+      el.innerHTML = `⚠️ Este molde ainda não tem <b>mapeamento de calços</b> registrado.`;
+      el.style.display = '';
+      return;
+    }
+    const dias = _diasDesdeMapeamento(mapeamentos[0].data_mapeamento);
+    if (dias > _MAPEAMENTO_VALIDADE_DIAS) {
+      el.innerHTML = `⚠️ O <b>mapeamento de calços</b> deste molde está desatualizado (feito há ${dias} dias) — precisa ser refeito.`;
+      el.style.display = '';
+      return;
+    }
+    el.style.display = 'none';
   } catch(e) { el.style.display = 'none'; }
 }
