@@ -21,6 +21,17 @@ const _SETORES_RESPONSAVEL = [
   { id:'PCM',       ico:'🗂️', cor:'#f59e0b' },
 ];
 
+// Níveis de criticidade da pendência — ordenados do mais pro menos crítico,
+// usado tanto pro seletor quanto pra ordenação das listas
+const _NIVEIS_CRITICIDADE = [
+  { id:'Alta',  ico:'🔴', cor:'#b91c1c', bg:'#fee2e2', peso:3 },
+  { id:'Média', ico:'🟡', cor:'#92400e', bg:'#fef3c7', peso:2 },
+  { id:'Baixa', ico:'🟢', cor:'#059669', bg:'#d1fae5', peso:1 },
+];
+function _infoCriticidade(nivel) {
+  return _NIVEIS_CRITICIDADE.find(n=>n.id===nivel) || _NIVEIS_CRITICIDADE[1];
+}
+
 function _infoSetor(setor) {
   return _SETORES_RESPONSAVEL.find(s=>s.id===setor) || { ico:'❔', cor:'#64748b' };
 }
@@ -304,7 +315,16 @@ async function carregarPainelPendencias(idLista, idLegenda) {
 
     let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
 
-    jobsFiltrados.forEach(([job, pends]) => {
+    // Ordena os moldes pela pendência mais crítica que cada um tem (mais crítico primeiro)
+    const pesoMax = pends => Math.max(...pends.filter(p=>!p.concluido).map(p=>_infoCriticidade(p.criticidade||'Média').peso), 0);
+    const jobsOrdenados = [...jobsFiltrados].sort((a,b) => pesoMax(b[1]) - pesoMax(a[1]));
+
+    jobsOrdenados.forEach(([job, pendsOriginais]) => {
+      // Dentro do card, sempre mostra a mais crítica primeiro
+      const pends = [...pendsOriginais].sort((a,b) => {
+        if (!!a.concluido !== !!b.concluido) return a.concluido ? 1 : -1;
+        return _infoCriticidade(b.criticidade||'Média').peso - _infoCriticidade(a.criticidade||'Média').peso;
+      });
       const molde = _dadosPCM.find(m => m.job === job);
       const loc   = molde?.localizacao || 'Na Ferramentaria';
       const info  = _infoLoc(loc);
@@ -324,6 +344,7 @@ async function carregarPainelPendencias(idLista, idLegenda) {
         <div style="display:flex;flex-direction:column;gap:6px">
           ${pends.slice(0,3).map(p=>{
             const setorInfo = p.setor_responsavel ? _infoSetor(p.setor_responsavel) : null;
+            const critInfo = _infoCriticidade(p.criticidade||'Média');
             if (p.concluido) {
               return `
               <div style="display:flex;align-items:flex-start;gap:8px">
@@ -341,7 +362,10 @@ async function carregarPainelPendencias(idLista, idLegenda) {
                 onchange="concluirPendenciaRapida(${p.id},'${jobEsc}',this,'${(p.texto||'').replace(/'/g,"\\\\'")}')">
               <div style="flex:1">
                 <span style="font-size:12px;color:#1e3a5f">${p.texto}</span>
-                ${setorInfo ? `<span style="display:block;margin-top:2px;background:${setorInfo.cor}20;color:${setorInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;width:fit-content">${setorInfo.ico} ${p.setor_responsavel}</span>` : ''}
+                <div style="display:flex;gap:4px;margin-top:2px;flex-wrap:wrap">
+                  <span style="background:${critInfo.bg};color:${critInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700">${critInfo.ico} ${p.criticidade||'Média'}</span>
+                  ${setorInfo ? `<span style="background:${setorInfo.cor}20;color:${setorInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700">${setorInfo.ico} ${p.setor_responsavel}</span>` : ''}
+                </div>
               </div>
             </div>`;
           }).join('')}
@@ -862,16 +886,29 @@ async function carregarPendencias(job) {
     'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*');
 }
 
+async function ciclarCriticidadePendencia(id, job, atual) {
+  const ordem = ['Alta','Média','Baixa'];
+  const idx = ordem.indexOf(atual);
+  const novo = ordem[(idx+1) % ordem.length];
+  try {
+    await db._patch('molde_pendencias', 'id=eq.'+id, { criticidade: novo });
+    await renderizarChecklist(job);
+    await _atualizarPainelPendenciasAtivo();
+  } catch(e) { toast('Erro ao atualizar criticidade.','erro'); }
+}
+
 async function adicionarPendencia(job) {
   const texto = document.getElementById('novaPendenciaInput')?.value?.trim();
   if (!texto) return toast('Digite o texto da pendência.','erro');
   const setorResp = document.getElementById('novaPendenciaSetor')?.value || null;
+  const criticidade = document.getElementById('novaPendenciaCriticidade')?.value || 'Média';
   const dataCriacao = document.getElementById('novaPendenciaData')?.value ||
     new Date().toISOString().split('T')[0];
   try {
     await db._post('molde_pendencias', {
       job, texto, concluido: false,
       setor_responsavel: setorResp,
+      criticidade,
       criado_por: _sessao?.nome || null,
       criado_em:  dataCriacao + 'T00:00:00'
     });
@@ -983,7 +1020,8 @@ async function renderizarChecklist(job) {
   const el = document.getElementById('checklistPendencias');
   if (!el) return;
   const pends      = await carregarPendencias(job);
-  const abertas    = (pends||[]).filter(p => !p.concluido);
+  const abertasOrdenadas = (pends||[]).filter(p => !p.concluido)
+    .sort((a,b) => _infoCriticidade(b.criticidade||'Média').peso - _infoCriticidade(a.criticidade||'Média').peso);
   const concluidas = (pends||[]).filter(p =>  p.concluido);
   const jobEsc     = job.replace(/'/g,"\\'");
 
@@ -991,8 +1029,9 @@ async function renderizarChecklist(job) {
   if (!pends.length) {
     html = `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">✅ Nenhuma pendência registrada</div>`;
   } else {
-    html += abertas.map(p => {
+    html += abertasOrdenadas.map(p => {
       const setorInfo = p.setor_responsavel ? _infoSetor(p.setor_responsavel) : null;
+      const critInfo = _infoCriticidade(p.criticidade||'Média');
       return `
       <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px dashed #f1f5f9">
         <input type="checkbox" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
@@ -1000,6 +1039,8 @@ async function renderizarChecklist(job) {
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:#1e3a5f;font-weight:500">${p.texto}</div>
           <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <span title="Clique pra mudar a criticidade" style="cursor:pointer;background:${critInfo.bg};color:${critInfo.cor};padding:1px 8px;border-radius:8px;font-weight:700"
+              onclick="ciclarCriticidadePendencia(${p.id},'${jobEsc}','${p.criticidade||'Média'}')">${critInfo.ico} ${p.criticidade||'Média'}</span>
             ${setorInfo ? `<span style="background:${setorInfo.cor}20;color:${setorInfo.cor};padding:1px 8px;border-radius:8px;font-weight:700">${setorInfo.ico} ${p.setor_responsavel}</span>` : `<span style="cursor:pointer;text-decoration:underline;color:#94a3b8" onclick="editarSetorPendencia(${p.id},'${jobEsc}')">➕ Atribuir setor</span>`}
             <span>👤 ${p.criado_por||'—'}</span>
             <span style="cursor:pointer;text-decoration:underline;color:#0369a1"
@@ -1065,6 +1106,10 @@ async function abrirModalPendencias(job) {
           <select id="novaPendenciaSetor" style="width:auto">
             <option value="">— Nenhum —</option>
             ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+          </select>
+          <label style="font-size:12px;color:#64748b;margin-left:8px">Criticidade:</label>
+          <select id="novaPendenciaCriticidade" style="width:auto">
+            ${_NIVEIS_CRITICIDADE.map(n=>`<option value="${n.id}" ${n.id==='Média'?'selected':''}>${n.ico} ${n.id}</option>`).join('')}
           </select>
         </div>
       </div>

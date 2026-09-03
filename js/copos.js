@@ -348,7 +348,7 @@ async function _verificarEstoqueMinimoEAlertar(copo) {
 
     await db._post('molde_pendencias', {
       job: copo.job, texto: textoAlerta, setor_responsavel: 'Usinagem',
-      concluido: false, criado_por: 'Sistema (estoque de copos)'
+      concluido: false, criticidade: 'Alta', criado_por: 'Sistema (estoque de copos)'
     });
   } catch(e) { console.error('Erro ao checar estoque mínimo do copo', e); }
 }
