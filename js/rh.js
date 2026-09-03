@@ -583,11 +583,61 @@ async function salvarEdicaoFuncionario(id) {
 
   if (!nome) return toast('Informe o nome.','erro');
 
+  const nomeAntigo = _fichaFuncCompleto?.nome;
+  const nomeMudou = nomeAntigo && nomeAntigo !== nome;
+  const aindaSoEmProdTecnicos = _fichaFuncCompleto?._origem === 'Producao';
+
+  if (aindaSoEmProdTecnicos) {
+    // Pessoa ainda não migrada — em vez de tentar editar em prod_tecnicos
+    // (perpetuando a divisão), migra ela pra funcionarios agora, completando
+    // a unificação, e desativa o registro antigo
+    if (nomeMudou) {
+      const ok = confirm(`Você está renomeando "${nomeAntigo}" para "${nome}".\n\nIsso vai atualizar TODOS os lançamentos já registrados no nome antigo, pra manter o histórico ligado a essa pessoa.\n\nConfirma a renomeação?`);
+      if (!ok) return;
+    }
+    try {
+      const res = await db.salvarFuncionario({ nome, setor, turno, cargo, supervisor:sup,
+        matricula, admissao, demissao: demissao||null, ativo, setor_apontamento_extra: setorExtra });
+      const novoId = res && res[0] ? res[0].id : null;
+      await db.excluirProdTecnico(id); // desativa o registro antigo em prod_tecnicos
+
+      if (nomeMudou) {
+        // Religa o histórico (lancamentos/banco de horas/faltas/férias usam nome
+        // ainda, então religa pelo nome antigo) e prod_lancamentos (texto solto)
+        await db._patch('lancamentos',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome, funcionario_id: novoId });
+        await db._patch('banco_horas',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome, funcionario_id: novoId });
+        await db._patch('rh_parciais',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome, funcionario_id: novoId });
+        await db._patch('ferias',       'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome, funcionario_id: novoId });
+        try {
+          const prodAfetados = await db._get('prod_lancamentos',
+            'tecnicos=ilike.*' + encodeURIComponent(nomeAntigo) + '*', 'id,tecnicos');
+          for (const p of (prodAfetados||[])) {
+            const nomes = (p.tecnicos||'').split(',').map(n=>n.trim());
+            if (!nomes.includes(nomeAntigo)) continue;
+            await db._patch('prod_lancamentos', 'id=eq.'+p.id, { tecnicos: nomes.map(n=>n===nomeAntigo?nome:n).join(', ') });
+          }
+        } catch(e) { console.error('Erro ao atualizar prod_lancamentos', e); }
+      } else if (novoId) {
+        // Nome não mudou, mas agora existe um ID de verdade — liga o histórico já existente
+        await db._patch('lancamentos',  'funcionario=eq.' + encodeURIComponent(nome), { funcionario_id: novoId });
+        await db._patch('banco_horas',  'funcionario=eq.' + encodeURIComponent(nome), { funcionario_id: novoId });
+        await db._patch('rh_parciais',  'funcionario=eq.' + encodeURIComponent(nome), { funcionario_id: novoId });
+        await db._patch('ferias',       'funcionario=eq.' + encodeURIComponent(nome), { funcionario_id: novoId });
+      }
+
+      if (typeof registrarLog === 'function') await registrarLog('funcionarios', novoId||id, 'editar', 'migracao', 'prod_tecnicos', 'funcionarios (unificado)');
+      toast('Funcionário atualizado e unificado ao cadastro principal!','sucesso');
+      fecharEdicaoFunc();
+      if (_fichaFuncAtual && _fichaFuncAtual.id === id && novoId) {
+        await carregarFichaFuncionarioPorId(novoId, 'Ferramentaria');
+      }
+    } catch(e) { toast('Erro ao salvar.','erro'); console.error(e); }
+    return;
+  }
+
   // Se o nome mudou, precisa confirmar antes — a mudança será propagada pros
   // lançamentos/banco de horas/férias/faltas já registrados, senão o histórico
   // dessa pessoa fica "órfão" (ligado ao nome antigo)
-  const nomeAntigo = _fichaFuncCompleto?.nome;
-  const nomeMudou = nomeAntigo && nomeAntigo !== nome;
   if (nomeMudou) {
     const ok = confirm(`Você está renomeando "${nomeAntigo}" para "${nome}".\n\nIsso vai atualizar TODOS os lançamentos, banco de horas, férias e faltas já registrados no nome antigo, pra manter o histórico ligado a essa pessoa.\n\nConfirma a renomeação?`);
     if (!ok) return;
@@ -602,6 +652,21 @@ async function salvarEdicaoFuncionario(id) {
       await db._patch('banco_horas',  'funcionario_id=eq.' + id, { funcionario: nome });
       await db._patch('rh_parciais',  'funcionario_id=eq.' + id, { funcionario: nome });
       await db._patch('ferias',       'funcionario_id=eq.' + id, { funcionario: nome });
+
+      // prod_lancamentos guarda vários nomes juntos numa célula de texto
+      // (ex: "João, Maria") — não dá pra usar ID, então troca só o nome exato
+      // dentro da lista, preservando os outros nomes do mesmo lançamento
+      try {
+        const prodAfetados = await db._get('prod_lancamentos',
+          'tecnicos=ilike.*' + encodeURIComponent(nomeAntigo) + '*', 'id,tecnicos');
+        for (const p of (prodAfetados||[])) {
+          const nomes = (p.tecnicos||'').split(',').map(n=>n.trim());
+          if (!nomes.includes(nomeAntigo)) continue; // evita trocar por engano um nome parecido
+          const novosNomes = nomes.map(n => n === nomeAntigo ? nome : n);
+          await db._patch('prod_lancamentos', 'id=eq.'+p.id, { tecnicos: novosNomes.join(', ') });
+        }
+      } catch(e) { console.error('Erro ao atualizar prod_lancamentos na renomeação', e); }
+
       if (typeof registrarLog === 'function') await registrarLog('funcionarios', id, 'editar', 'nome', nomeAntigo, nome);
       toast('Funcionário renomeado! Histórico atualizado.','sucesso');
     } else {
