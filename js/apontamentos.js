@@ -906,9 +906,35 @@ async function enviarWhatsapp() {
         maqMap[maq].itens.push({ key, txt:(i.job?i.job+' ['+i.tipo+'] - ':'['+i.tipo+'] ')+(i.descricao||'')+' '+icoStatus(i.status)+' '+(i.status||'Em andamento') });
       maqMap[maq].mins+=i.minutos||0;
     });
+
+    // Máquinas compartilhadas — Bancada às vezes usa Solda/Torno/Fresadora que
+    // fisicamente pertencem à Usinagem, então esse tempo também conta aqui
+    const MAPA_MAQUINAS_COMPARTILHADAS = {
+      'Solda Tig': 'Solda Tig', 'Solda Mig': 'Solda Mig', 'Solda Laser': 'Solda Laser',
+      'Torno': 'Torno Convencional', 'Torno Convencional': 'Torno Convencional',
+      'Fresadora': 'Fresadora Convencional', 'Fresadora Convencional': 'Fresadora Convencional'
+    };
+    const dataApont = document.getElementById('apontData')?.value;
+    try {
+      const bancadaDoDia = await db.buscarLancamentosDia('Bancada', dataApont, 'Todas');
+      (bancadaDoDia||[]).forEach(i => {
+        const maqReal = MAPA_MAQUINAS_COMPARTILHADAS[i.tipo];
+        if (!maqReal) return;
+        if (!maqMap[maqReal]) maqMap[maqReal] = { mins:0, itens:[] };
+        maqMap[maqReal].itens.push({ key:'bancada-'+i.id, txt:(i.job?i.job+' [Bancada · '+i.tipo+'] - ':'[Bancada · '+i.tipo+'] ')+(i.descricao||'')+' '+icoStatus(i.status)+' '+(i.status||'Em andamento') });
+        maqMap[maqReal].mins += i.minutos||0;
+      });
+    } catch(e) { /* segue sem os dados de Bancada se a busca falhar */ }
+
+    // Capacidade real de cada máquina (histórico com vigência), não mais um 528 fixo
+    let capHistoricoRel = [];
+    try { capHistoricoRel = await db._get('maquina_capacidade_historico', 'order=vigente_desde.desc', '*'); } catch(e) {}
+
     Object.keys(maqMap).forEach(maq => {
       if (maq==='Sem Máquina'||!maqMap[maq].itens.length) return;
-      t+=`\n📍 *${maq}* (Ocupação: ${Math.round(maqMap[maq].mins/528*100)}%)\n`;
+      const capDia = (typeof _capacidadeMaquinaNaData === 'function')
+        ? _capacidadeMaquinaNaData(capHistoricoRel, maq, dataApont) : 528;
+      t+=`\n📍 *${maq}* (Ocupação: ${Math.round(maqMap[maq].mins/capDia*100)}%)\n`;
       maqMap[maq].itens.forEach(i => t+=`  - ${i.txt}\n`);
     });
   } else if (_setorAtivo==='Bancada') {
