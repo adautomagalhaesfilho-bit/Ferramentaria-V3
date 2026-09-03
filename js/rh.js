@@ -237,13 +237,6 @@ function abrirFormFuncionario() {
           <label>Data de Admissão</label>
           <input type="date" id="fnAdmissao">
         </div>
-        <div class="form-group">
-          <label>Origem</label>
-          <select id="fnOrigem">
-            <option value="Ferramentaria">Ferramentaria</option>
-            <option value="Producao">Produção</option>
-          </select>
-        </div>
       </div>
       <div class="form-group">
         <label>Setor Extra de Apontamento (opcional)</label>
@@ -273,18 +266,13 @@ async function salvarNovoFuncionario() {
   const sup      = document.getElementById('fnSupervisor')?.value?.trim() || null;
   const admissao = document.getElementById('fnAdmissao')?.value || null;
   const matricula= document.getElementById('fnMatricula')?.value?.trim() || null;
-  const origem   = document.getElementById('fnOrigem')?.value;
   const setorExtra = document.getElementById('fnSetorExtra')?.value || null;
 
   if (!nome) return toast('Informe o nome.','erro');
 
   try {
-    if (origem === 'Producao') {
-      await db.salvarProdTecnico({ nome, turno, supervisor:sup, ativo:true });
-    } else {
-      await db.salvarFuncionario({ nome, setor, turno, cargo, supervisor:sup,
-        matricula, admissao, ativo:true, setor_apontamento_extra: setorExtra });
-    }
+    await db.salvarFuncionario({ nome, setor, turno, cargo, supervisor:sup,
+      matricula, admissao, ativo:true, setor_apontamento_extra: setorExtra });
     toast('Funcionário adicionado!','sucesso');
     fecharModalFunc();
     carregarFuncionariosRH();
@@ -302,6 +290,7 @@ function fecharModalFunc() {
 // 👤 FICHA DO FUNCIONÁRIO — Página própria (como Ficha do Molde)
 // ==========================================
 var _fichaFuncAtual = null; // { id, origem, nome } do funcionário atualmente exibido
+var _fichaFuncCompleto = null; // objeto completo do funcionário exibido, usado pelo Editar
 
 // ==========================================
 // 🔗 ATALHO GLOBAL — clicar no nome do técnico em qualquer lugar do sistema
@@ -383,6 +372,7 @@ async function carregarFichaFuncionarioPorId(id, origem) {
     if (!f) { conteudo.innerHTML='<div class="empty-msg">Funcionário não encontrado.</div>'; return; }
 
     _fichaFuncAtual = { id: f.id, origem: f._origem, nome: f.nome };
+    _fichaFuncCompleto = f; // objeto completo, usado pelo botão Editar (evita serializar em JSON no HTML)
     const elBusca = document.getElementById('fichaFuncNomeInput');
     if (elBusca) elBusca.value = f.nome;
 
@@ -413,7 +403,7 @@ async function carregarFichaFuncionarioPorId(id, origem) {
           </div>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(${JSON.stringify(f).replace(/"/g,'&quot;')})">✏️ Editar</button>
+          <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(_fichaFuncCompleto)">✏️ Editar</button>
           ${typeof isAdmin === 'function' && isAdmin() ? `<button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}','${(f.nome||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>` : ''}
         </div>
       </div>
@@ -592,10 +582,31 @@ async function salvarEdicaoFuncionario(id) {
   const setorExtra = document.getElementById('efSetorExtra')?.value || null;
 
   if (!nome) return toast('Informe o nome.','erro');
+
+  // Se o nome mudou, precisa confirmar antes — a mudança será propagada pros
+  // lançamentos/banco de horas/férias/faltas já registrados, senão o histórico
+  // dessa pessoa fica "órfão" (ligado ao nome antigo)
+  const nomeAntigo = _fichaFuncCompleto?.nome;
+  const nomeMudou = nomeAntigo && nomeAntigo !== nome;
+  if (nomeMudou) {
+    const ok = confirm(`Você está renomeando "${nomeAntigo}" para "${nome}".\n\nIsso vai atualizar TODOS os lançamentos, banco de horas, férias e faltas já registrados no nome antigo, pra manter o histórico ligado a essa pessoa.\n\nConfirma a renomeação?`);
+    if (!ok) return;
+  }
+
   try {
     await db.salvarFuncionario({ id, nome, setor, turno, cargo, supervisor:sup,
       matricula, admissao, demissao: demissao||null, ativo, setor_apontamento_extra: setorExtra });
-    toast('Funcionário atualizado!','sucesso');
+
+    if (nomeMudou) {
+      await db._patch('lancamentos',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
+      await db._patch('banco_horas',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
+      await db._patch('rh_parciais',  'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
+      await db._patch('ferias',       'funcionario=eq.' + encodeURIComponent(nomeAntigo), { funcionario: nome });
+      if (typeof registrarLog === 'function') await registrarLog('funcionarios', id, 'editar', 'nome', nomeAntigo, nome);
+      toast('Funcionário renomeado! Histórico atualizado.','sucesso');
+    } else {
+      toast('Funcionário atualizado!','sucesso');
+    }
     fecharEdicaoFunc();
     // Se estiver na página da ficha, recarrega os dados atualizados
     if (_fichaFuncAtual && _fichaFuncAtual.id === id) {
@@ -695,7 +706,7 @@ async function excluirFuncConfirm(id, origem, nome) {
       if (origem==='Producao') await db.excluirProdTecnico(id);
       else await db.excluirFuncionario(id);
       if (typeof registrarLog === 'function') {
-        await registrarLog(origem==='Producao' ? 'prod_tecnicos' : 'funcioraios', id, 'excluir', null, nome || null, null);
+        await registrarLog(origem==='Producao' ? 'prod_tecnicos' : 'funcionarios', id, 'excluir', null, nome || null, null);
       }
       toast('Removido!','sucesso');
       // Se a exclusão veio da página da ficha, volta para a lista de Funcionários
