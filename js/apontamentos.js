@@ -816,6 +816,9 @@ async function aoSelecionarMaquinaUsinagem() {
 // ==========================================
 async function aoSelecionarJob(job) {
   await _atualizarSeletorRAM(job);
+  if (_setorAtivo === 'Bancada' && typeof _verificarMapeamentoCalcosApontamento === 'function') {
+    await _verificarMapeamentoCalcosApontamento(job);
+  }
   if (_setorAtivo !== 'Usinagem' || !job) return;
   const maq = document.getElementById('formMaq')?.value || '';
   try {
@@ -863,6 +866,8 @@ function resetarForm() {
   if (grupoRam) grupoRam.style.display = 'none';
   const selRam = document.getElementById('formRamSelect');
   if (selRam) selRam.innerHTML = '<option value="">Nenhuma — apontamento comum</option>';
+  const avisoMap = document.getElementById('avisoMapeamentoCalcos');
+  if (avisoMap) avisoMap.style.display = 'none';
   ['formData','formFunc','formMaq','formTipoUsina','formMotivo',
    'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim',
    'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada','formObservacao']

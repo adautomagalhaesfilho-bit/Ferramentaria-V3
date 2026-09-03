@@ -49,11 +49,17 @@ async function buscarFicha() {
       try { res.rams = await buscarRAMsPorJob(job); } catch(e) {}
     }
 
+    // Mapeamento de Calços
+    res.mapeamentosCalcos = [];
+    if (typeof buscarMapeamentosCalcos === 'function') {
+      try { res.mapeamentosCalcos = await buscarMapeamentosCalcos(job); } catch(e) {}
+    }
+
     _dadosFicha     = res;
     _lancsFicha     = res.lancamentos || [];
     _lancsProdFicha = res.prodLancamentos || [];
 
-    if (!res.jobExiste && !_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length && !res.histLoc.length && !res.localizacao && !(res.anexos&&res.anexos.length) && !(res.rams&&res.rams.length)) {
+    if (!res.jobExiste && !_lancsFicha.length && !_lancsProdFicha.length && !res.pendencias.length && !res.intervencoes.length && !res.histLoc.length && !res.localizacao && !(res.anexos&&res.anexos.length) && !(res.rams&&res.rams.length) && !(res.mapeamentosCalcos&&res.mapeamentosCalcos.length)) {
       elConteudo.style.display = 'none';
       elVazio.style.display    = 'block';
       elVazio.innerHTML = '<div style="font-size:48px">🔍</div><div>Nenhum molde encontrado com o nome "' + job + '"</div>';
@@ -178,6 +184,16 @@ function renderizarFicha(job, res) {
   <div class="grafico-card">
     <div class="grafico-titulo">🔧 Horas por Tipo de Atividade</div>
     <div style="height:280px"><canvas id="chartFichaTipos"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div style="font-weight:700;color:#1e3a5f;font-size:15px">📐 Mapeamento de Calços</div>
+      ${typeof podeGerenciarMapeamento==='function' && podeGerenciarMapeamento()
+        ? `<button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovoMapeamento('${job.replace(/'/g,"\\'")}')">+ Registrar Mapeamento</button>`
+        : ''}
+    </div>
+    ${typeof renderizarCardMapeamento === 'function' ? renderizarCardMapeamento(job, res.mapeamentosCalcos||[]) : ''}
   </div>
 
   <div class="card">
