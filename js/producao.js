@@ -282,9 +282,24 @@ const _ATIVIDADES_SETUP_COM_OUTRA_INJET  = ['Transferência de Molde'];
 function atualizarCamposSetup() {
   const tipo = document.getElementById('prodFormTipo')?.value;
   const atividade = document.getElementById('prodFormAtividade')?.value;
-  const mostrarAtual = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade);
-  const mostrarNovo  = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_NOVO.includes(atividade);
-  const mostrarOutra = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade);
+  const estaEditando = !!document.getElementById('prodFormId')?.value;
+  const corrigindo = document.getElementById('prodFormCorrigirMolde')?.checked;
+  // Em edição, os campos de molde só aparecem se o usuário marcar que quer
+  // corrigir a movimentação — evita re-derivar "Molde Atual" a partir do
+  // estado JÁ ATUALIZADO do PCM quando alguém só está completando a hora final
+  const liberado = !estaEditando || corrigindo;
+
+  const ehSetupComMolde = tipo === 'Setup' && (
+    _ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade) ||
+    _ATIVIDADES_SETUP_COM_MOLDE_NOVO.includes(atividade) ||
+    _ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade)
+  );
+  const grupoCheckbox = document.getElementById('grupoCorrigirMoldeSetup');
+  if (grupoCheckbox) grupoCheckbox.style.display = (estaEditando && ehSetupComMolde) ? '' : 'none';
+
+  const mostrarAtual = liberado && tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade);
+  const mostrarNovo  = liberado && tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_NOVO.includes(atividade);
+  const mostrarOutra = liberado && tipo === 'Setup' && _ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade);
 
   const grupoWrap  = document.getElementById('grupoSetupMolde');
   const grupoAtual = document.getElementById('grupoSetupMoldeAtual');
@@ -511,9 +526,12 @@ async function salvarFormProducao() {
       atualizarBotoesStatusProd();
     } else {
       await db.atualizarProdLancamento(id, dados);
-      // Reaplica a movimentação também na edição — cobre o caso de o PCM precisar
-      // corrigir qual molde estava certo (ex: apontamento tinha o molde errado)
-      await processarMovimentacaoSetupPCM(dados);
+      // Só reaplica a movimentação do PCM na edição se o usuário marcou
+      // explicitamente que quer corrigir — senão, completar só a hora final
+      // não deve mexer em nada do molde/injetora
+      if (document.getElementById('prodFormCorrigirMolde')?.checked) {
+        await processarMovimentacaoSetupPCM(dados);
+      }
       toast('Lançamento atualizado!','sucesso');
       fecharModalFormProd();
     }
@@ -540,6 +558,8 @@ function resetarFormProducao() {
   const nomeAnexoProd = document.getElementById('prodFormAnexoNome'); if(nomeAnexoProd) nomeAnexoProd.innerText='Nenhum arquivo selecionado.';
   const grupoRamP = document.getElementById('grupoRamProd'); if(grupoRamP) grupoRamP.style.display='none';
   const selRamP = document.getElementById('prodFormRamSelect'); if(selRamP) selRamP.innerHTML='<option value="">Nenhuma — apontamento comum</option>';
+  const chkCorrigir = document.getElementById('prodFormCorrigirMolde'); if(chkCorrigir) chkCorrigir.checked = false;
+  const grupoCorrigir = document.getElementById('grupoCorrigirMoldeSetup'); if(grupoCorrigir) grupoCorrigir.style.display = 'none';
   atualizarCamposSetup();
   _tecnicosSelecionadosProd = [];
   renderizarTecnicos();
@@ -552,3 +572,4 @@ function setSelectP(id, val) {
   if(sel.tagName !== 'SELECT') { sel.value = val; return; }
   for(let i=0;i<sel.options.length;i++) if(sel.options[i].value===val){sel.selectedIndex=i;return;}
 }
+
