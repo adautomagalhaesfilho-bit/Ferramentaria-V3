@@ -715,6 +715,13 @@
       </div>
 
       <!-- 4b. CAMPOS AUTOMÁTICOS DE MOVIMENTAÇÃO DE MOLDE (só aparecem conforme a Atividade de Setup) -->
+      <div class="form-group" id="grupoCorrigirMoldeSetup" style="display:none">
+        <label class="checkbox-label">
+          <input type="checkbox" id="prodFormCorrigirMolde" onchange="if(typeof atualizarCamposSetup==='function') atualizarCamposSetup()">
+          🔧 Corrigir movimentação de molde no PCM
+        </label>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Marque só se o molde/injetora foi registrado errado. Editar pra só completar a hora final não precisa disso.</div>
+      </div>
       <div class="form-row" id="grupoSetupMolde" style="display:none">
         <div class="form-group" id="grupoSetupMoldeAtual" style="display:none"><label>Molde Atual (que está saindo) *</label>
           <div class="autocomplete-wrap">
