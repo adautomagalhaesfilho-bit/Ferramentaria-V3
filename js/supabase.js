@@ -603,7 +603,9 @@ const db = {
       status: dados.status || 'Em andamento',
       maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
       numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null,
-      ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null
+      ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null,
+      molde_atual: dados.moldeAtual || null, molde_novo: dados.moldeNovo || null,
+      outra_injetora: dados.outraInjetora || null, molde_outra_injetora: dados.moldeOutraInjetora || null
     });
   },
 
@@ -618,7 +620,9 @@ const db = {
       status: dados.status || 'Em andamento',
       maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
       numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null,
-      ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null
+      ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null,
+      molde_atual: dados.moldeAtual || null, molde_novo: dados.moldeNovo || null,
+      outra_injetora: dados.outraInjetora || null, molde_outra_injetora: dados.moldeOutraInjetora || null
     });
   },
 

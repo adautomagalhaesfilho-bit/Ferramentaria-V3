@@ -194,6 +194,12 @@ async function editarProd(id) {
   document.getElementById('prodFormHrFim').value = item.hora_fim    ? item.hora_fim.substring(0,5)    : '';
   document.getElementById('prodFormInjetora').value = item.injetora || '';
   document.getElementById('prodFormMolde').value = item.molde || '';
+  // Restaura os valores de molde congelados no momento da criação — evita que o
+  // sistema tente "adivinhar" de novo a partir do estado atual (já mudado) do PCM
+  document.getElementById('prodFormMoldeAtual').value = item.molde_atual || '';
+  document.getElementById('prodFormMoldeNovo').value = item.molde_novo || '';
+  document.getElementById('prodFormOutraInjetora').value = item.outra_injetora || '';
+  document.getElementById('prodFormMoldeOutraInjetora').value = item.molde_outra_injetora || '';
   setSelectP('prodFormTipo', item.tipo);
   atualizarAtividades();
   setTimeout(() => { setSelectP('prodFormAtividade', item.atividade); atualizarCamposSetup(); }, 150);
@@ -284,10 +290,9 @@ function atualizarCamposSetup() {
   const atividade = document.getElementById('prodFormAtividade')?.value;
   const estaEditando = !!document.getElementById('prodFormId')?.value;
   const corrigindo = document.getElementById('prodFormCorrigirMolde')?.checked;
-  // Em edição, os campos de molde só aparecem se o usuário marcar que quer
-  // corrigir a movimentação — evita re-derivar "Molde Atual" a partir do
-  // estado JÁ ATUALIZADO do PCM quando alguém só está completando a hora final
-  const liberado = !estaEditando || corrigindo;
+  // Na edição, os campos sempre aparecem (mostrando o que foi congelado na
+  // criação) — só ficam travados pra edição a não ser que marque "Corrigir"
+  const travado = estaEditando && !corrigindo;
 
   const ehSetupComMolde = tipo === 'Setup' && (
     _ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade) ||
@@ -297,9 +302,9 @@ function atualizarCamposSetup() {
   const grupoCheckbox = document.getElementById('grupoCorrigirMoldeSetup');
   if (grupoCheckbox) grupoCheckbox.style.display = (estaEditando && ehSetupComMolde) ? '' : 'none';
 
-  const mostrarAtual = liberado && tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade);
-  const mostrarNovo  = liberado && tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_NOVO.includes(atividade);
-  const mostrarOutra = liberado && tipo === 'Setup' && _ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade);
+  const mostrarAtual = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_ATUAL.includes(atividade);
+  const mostrarNovo  = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_MOLDE_NOVO.includes(atividade);
+  const mostrarOutra = tipo === 'Setup' && _ATIVIDADES_SETUP_COM_OUTRA_INJET.includes(atividade);
 
   const grupoWrap  = document.getElementById('grupoSetupMolde');
   const grupoAtual = document.getElementById('grupoSetupMoldeAtual');
@@ -312,6 +317,13 @@ function atualizarCamposSetup() {
   if (grupoOutra) grupoOutra.style.display = mostrarOutra ? '' : 'none';
   if (grupoMoldeOutra) grupoMoldeOutra.style.display = mostrarOutra ? '' : 'none';
 
+  // Trava os campos pra visualização quando estiver editando sem marcar "Corrigir"
+  // — mostra o que foi congelado na criação, mas não deixa mexer sem querer
+  ['prodFormMoldeAtual','prodFormMoldeNovo','prodFormOutraInjetora','prodFormMoldeOutraInjetora'].forEach(fid => {
+    const el = document.getElementById(fid);
+    if (el) el.readOnly = travado;
+  });
+
   // Autocomplete dos campos (molde vem da lista de jobs; outra injetora vem da lista de injetoras)
   if (_listas) setupAC('prodFormMoldeAtual', 'prodFormMoldeAtualList', _listas.jobs || []);
   if (_listas) setupAC('prodFormMoldeNovo',  'prodFormMoldeNovoList',  _listas.jobs || []);
@@ -319,8 +331,10 @@ function atualizarCamposSetup() {
   // Ao escolher a "outra injetora", puxa automaticamente qual molde está instalado nela (editável se PCM estiver errado)
   setupAC('prodFormOutraInjetora', 'prodFormOutraInjetoraList', _injetoras.map(i=>i.nome), () => _prefillMoldeDaOutraInjetora());
 
-  // Pré-preenche "Molde Atual" com o que já está cadastrado na injetora selecionada (só ajuda, continua editável)
-  if (mostrarAtual) _prefillMoldeAtualDaInjetora();
+  // Pré-preenche "Molde Atual" com o que já está cadastrado na injetora selecionada
+  // (só ajuda em lançamentos NOVOS ou quando está corrigindo — na edição travada
+  // os campos já vêm com o valor congelado da criação)
+  if (mostrarAtual && !travado) _prefillMoldeAtualDaInjetora();
 }
 
 async function _prefillMoldeAtualDaInjetora() {
