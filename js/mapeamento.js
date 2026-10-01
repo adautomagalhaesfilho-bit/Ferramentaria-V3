@@ -94,23 +94,86 @@ async function salvarNovoMapeamento(job) {
 }
 
 // ==========================================
+// Editar um registro de mapeamento já existente
+// ==========================================
+function abrirEdicaoMapeamento(id, job, dataAtual, obsAtual) {
+  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor ou Admin podem editar o mapeamento.', 'erro');
+  const div = document.createElement('div');
+  div.id = 'modalMapeamentoWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharModalMapeamento()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:420px">
+    <div class="modal-header"><h3>✏️ Editar Mapeamento — ${job}</h3><button onclick="fecharModalMapeamento()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Data do Mapeamento *</label>
+        <input type="date" id="mapDataInput" value="${dataAtual||''}">
+      </div>
+      <div class="form-group">
+        <label>Observação</label>
+        <textarea id="mapObsInput" rows="2" placeholder="Opcional...">${(obsAtual||'').replace(/</g,'&lt;')}</textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="salvarEdicaoMapeamento(${id},'${job.replace(/'/g,"\\'")}')">💾 Salvar</button>
+      <button class="btn-secondary" onclick="fecharModalMapeamento()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+async function salvarEdicaoMapeamento(id, job) {
+  const data = document.getElementById('mapDataInput')?.value;
+  const obs  = document.getElementById('mapObsInput')?.value?.trim() || null;
+  if (!data) return toast('Informe a data do mapeamento.', 'erro');
+  try {
+    await db._patch('molde_mapeamento_calcos', 'id=eq.'+id, { data_mapeamento: data, observacao: obs });
+    if (typeof registrarLog === 'function') await registrarLog('molde_mapeamento_calcos', id, 'editar', null, null, job);
+    toast('Mapeamento atualizado!', 'sucesso');
+    fecharModalMapeamento();
+    if (typeof buscarFicha === 'function') await buscarFicha();
+  } catch(e) { toast('Erro ao salvar.', 'erro'); }
+}
+
+function excluirMapeamento(id, job) {
+  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor ou Admin podem excluir o mapeamento.', 'erro');
+  confirmarExclusao('Excluir este registro de mapeamento?', async () => {
+    try {
+      await db._delete('molde_mapeamento_calcos', 'id=eq.'+id);
+      if (typeof registrarLog === 'function') await registrarLog('molde_mapeamento_calcos', id, 'excluir', null, job, null);
+      toast('Mapeamento excluído!', 'sucesso');
+      if (typeof buscarFicha === 'function') await buscarFicha();
+    } catch(e) { toast('Erro ao excluir.', 'erro'); }
+  });
+}
+
+// ==========================================
 // Card na Ficha do Molde
 // ==========================================
 function renderizarCardMapeamento(job, mapeamentos) {
+  const jobEsc = job.replace(/'/g,"\\'");
+  const podeEditar = typeof podeGerenciarMapeamento === 'function' && podeGerenciarMapeamento();
   const ultimo = mapeamentos && mapeamentos.length ? mapeamentos[0] : null;
   let html = '';
   if (ultimo) {
     const dias = _diasDesdeMapeamento(ultimo.data_mapeamento);
     const desatualizado = dias > _MAPEAMENTO_VALIDADE_DIAS;
+    const obsEsc = (ultimo.observacao||'').replace(/'/g,"\\'");
+    const botoes = podeEditar ? `<div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn-secondary" style="font-size:11px;padding:3px 10px" onclick="abrirEdicaoMapeamento(${ultimo.id},'${jobEsc}','${ultimo.data_mapeamento}','${obsEsc}')">✏️ Editar</button>
+        <button class="btn-danger" style="font-size:11px;padding:3px 10px" onclick="excluirMapeamento(${ultimo.id},'${jobEsc}')">🗑️ Excluir</button>
+      </div>` : '';
     if (desatualizado) {
       html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:12px">
         <div style="font-size:13px;color:#92400e;font-weight:700">⚠️ Mapeamento desatualizado — feito há ${dias} dias (válido por ${_MAPEAMENTO_VALIDADE_DIAS})</div>
         <div style="font-size:12px;color:#64748b;margin-top:2px">Último em ${new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')} por ${ultimo.criado_por||'—'}${ultimo.observacao?' — '+ultimo.observacao:''}</div>
+        ${botoes}
       </div>`;
     } else {
       html += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px">
         <div style="font-size:13px;color:#059669;font-weight:700">✅ Mapeamento feito em ${new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')}</div>
         <div style="font-size:12px;color:#64748b;margin-top:2px">por ${ultimo.criado_por||'—'}${ultimo.observacao?' — '+ultimo.observacao:''} · válido por mais ${_MAPEAMENTO_VALIDADE_DIAS-dias} dias</div>
+        ${botoes}
       </div>`;
     }
   } else {
@@ -122,9 +185,16 @@ function renderizarCardMapeamento(job, mapeamentos) {
     html += `<details style="margin-bottom:4px">
       <summary style="cursor:pointer;font-size:12px;color:#0056b3;font-weight:600">Ver histórico de mapeamentos anteriores</summary>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
-        ${mapeamentos.slice(1).map(m => `<div style="font-size:12px;color:#64748b;padding:4px 0;border-bottom:1px dashed #f1f5f9">
-          ${new Date(m.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')} — ${m.criado_por||'—'}${m.observacao?' — '+m.observacao:''}
-        </div>`).join('')}
+        ${mapeamentos.slice(1).map(m => {
+          const obsEsc = (m.observacao||'').replace(/'/g,"\\'");
+          return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#64748b;padding:4px 0;border-bottom:1px dashed #f1f5f9">
+            <span>${new Date(m.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')} — ${m.criado_por||'—'}${m.observacao?' — '+m.observacao:''}</span>
+            ${podeEditar ? `<span style="display:flex;gap:6px;flex-shrink:0;margin-left:8px">
+              <button class="btn-secondary" style="font-size:10px;padding:2px 7px" onclick="abrirEdicaoMapeamento(${m.id},'${jobEsc}','${m.data_mapeamento}','${obsEsc}')">✏️</button>
+              <button class="btn-danger" style="font-size:10px;padding:2px 7px" onclick="excluirMapeamento(${m.id},'${jobEsc}')">🗑️</button>
+            </span>` : ''}
+          </div>`;
+        }).join('')}
       </div>
     </details>`;
   }
