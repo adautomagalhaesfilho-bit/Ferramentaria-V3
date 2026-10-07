@@ -82,12 +82,16 @@
     <div class="footer">© 2026 Desenvolvido por Adauto J M Filho</div>
   </div>
 
-  <script src="js/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="js/supabase.js?v=20261008"></script>
   <script>
-    // Redireciona se já logado
-    if (sessionStorage.getItem('ferramentaria_user')) {
-      window.location.href = 'app.html';
-    }
+    // Limpa o login antigo (antes do Supabase Auth)
+    sessionStorage.removeItem('ferramentaria_user');
+
+    // Redireciona se já houver sessão válida no Supabase Auth
+    sbClient.auth.getSession().then(function(r) {
+      if (r.data && r.data.session) window.location.href = 'app.html';
+    });
 
     async function fazerLogin() {
       var nome  = document.getElementById('inputNome').value.trim();
@@ -102,7 +106,6 @@
       try {
         var user = await db.login(nome, senha);
         if (user) {
-          sessionStorage.setItem('ferramentaria_user', JSON.stringify(user));
           window.location.href = 'app.html';
         } else {
           erro.innerText = 'Usuário ou senha incorretos.';

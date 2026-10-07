@@ -5,11 +5,32 @@
 const SUPABASE_URL = 'https://iiaxqbswpqfsjxrsoiqd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpYXhxYnN3cHFmc2p4cnNvaXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzA2ODMsImV4cCI6MjA5NzgwNjY4M30.4jFGu-QoRQNqE4k_GkOxYxqqi0cGD9vsQ1UZkVQiLIc';
 
-async function hashSenha(senha) {
-  const encoder = new TextEncoder();
-  const data    = encoder.encode(senha);
-  const buffer  = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+// Login via Supabase Auth. O usuário digita só o nome (ex: "Diogo.leonam"); a conta
+// no Auth usa o e-mail "<nome em minúsculas>@" + DOMINIO_LOGIN. Se digitar um "@",
+// o texto é usado como e-mail direto.
+const DOMINIO_LOGIN = 'ferramentaria.local';
+
+function emailDoLogin(nome) {
+  const n = (nome || '').trim().toLowerCase();
+  return n.includes('@') ? n : n + '@' + DOMINIO_LOGIN;
+}
+
+// Cliente oficial do Supabase (biblioteca carregada via CDN antes deste arquivo).
+// A sessão fica no sessionStorage, como antes: fechar o navegador desloga — importante
+// nos computadores compartilhados da fábrica.
+const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true }
+});
+
+// Token do usuário logado (renovado automaticamente pela biblioteca quando expira).
+// Sem sessão, cai na chave anon — que, depois do script 02, não acessa mais nada.
+async function tokenAcesso() {
+  const { data } = await sbClient.auth.getSession();
+  return data?.session?.access_token || SUPABASE_KEY;
+}
+
+async function headersAuth() {
+  return { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + await tokenAcesso() };
 }
 
 const db = {
@@ -17,8 +38,7 @@ const db = {
   _fetch: async function(endpoint, options = {}) {
     const url = SUPABASE_URL + '/rest/v1/' + endpoint;
     const headers = {
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      ...(await headersAuth()),
       'Content-Type': 'application/json',
       ...options.headers
     };
@@ -34,6 +54,8 @@ const db = {
       const err = await res.text();
       if (res.status === 401 || res.status === 403) {
         console.error('Sessão expirada ou sem permissão');
+        // Token inválido/expirado sem renovação possível → volta para o login
+        if (res.status === 401 && /JWT/i.test(err) && typeof fazerLogout === 'function') fazerLogout();
         throw new Error('Sem permissão: ' + err);
       }
       throw new Error('Supabase error ' + res.status + ': ' + err);
@@ -69,18 +91,26 @@ const db = {
     return await db._fetch(tabela + '?' + filtro, { method: 'DELETE' });
   },
 
+  // Autentica no Supabase Auth e devolve o perfil do usuário vinculado (ou null)
   login: async function(nome, senha) {
+    const { error } = await sbClient.auth.signInWithPassword({ email: emailDoLogin(nome), password: senha });
+    if (error) return null;
+    const perfil = await db.perfilLogado();
+    if (!perfil) await sbClient.auth.signOut(); // conta do Auth sem vínculo ou usuário inativo
+    return perfil;
+  },
+
+  // Perfil (tabela usuarios) ligado à conta do Auth logada agora
+  perfilLogado: async function() {
+    const { data } = await sbClient.auth.getUser();
+    const authId = data?.user?.id;
+    if (!authId) return null;
     const res = await db._get('usuarios',
-      'nome=ilike.' + encodeURIComponent(nome) + '&ativo=eq.true'
-    );
+      'auth_user_id=eq.' + authId + '&ativo=eq.true', 'id,nome,perfil,setor,permissoes');
     if (!res || res.length === 0) return null;
-    const senhaHash = await hashSenha(senha);
-    const user = res.find(u => u.senha === senhaHash);
-    if (!user) return null;
-    return {
-      id: user.id, nome: user.nome, perfil: user.perfil,
-      setor: user.setor, permissoes: user.permissoes
-    };
+    const u = res[0];
+    return { id: u.id, nome: u.nome, perfil: u.perfil, setor: u.setor, permissoes: u.permissoes,
+             email: data.user.email };
   },
 
   obterListas: async function() {
@@ -457,14 +487,13 @@ const db = {
   },
 
   listarUsuarios: async function() {
-    return await db._get('usuarios', 'order=nome.asc', 'id,nome,perfil,setor,ativo,permissoes');
+    return await db._get('usuarios', 'order=nome.asc', 'id,nome,perfil,setor,ativo,permissoes,auth_user_id,email_login');
   },
 
+  // Senhas agora ficam no Supabase Auth — aqui só perfil, setor, permissões e ativo
   salvarUsuario: async function(dados) {
     const payload = { ...dados };
-    if (payload.senha && payload.senha.length !== 64) {
-      payload.senha = await hashSenha(payload.senha);
-    }
+    delete payload.senha;
     if (payload.permissoes && typeof payload.permissoes === 'string') {
       try { payload.permissoes = JSON.parse(payload.permissoes); } catch(e) {}
     }
@@ -472,16 +501,12 @@ const db = {
     return await db._post('usuarios', payload);
   },
 
-  // Troca a própria senha — exige a senha atual correta antes de atualizar
-  trocarPropriaSenha: async function(userId, senhaAtual, senhaNova) {
-    const res = await db._get('usuarios', 'id=eq.' + userId, 'id,senha');
-    if (!res || !res.length) throw new Error('Usuário não encontrado.');
-    const hashAtualDigitada = await hashSenha(senhaAtual);
-    if (hashAtualDigitada !== res[0].senha) {
-      return { ok: false, motivo: 'senha_atual_incorreta' };
-    }
-    const novoHash = await hashSenha(senhaNova);
-    await db._patch('usuarios', 'id=eq.' + userId, { senha: novoHash });
+  // Troca a própria senha no Supabase Auth — confere a senha atual antes de atualizar
+  trocarPropriaSenha: async function(email, senhaAtual, senhaNova) {
+    const conf = await sbClient.auth.signInWithPassword({ email, password: senhaAtual });
+    if (conf.error) return { ok: false, motivo: 'senha_atual_incorreta' };
+    const { error } = await sbClient.auth.updateUser({ password: senhaNova });
+    if (error) throw error;
     return { ok: true };
   },
 
