@@ -8,7 +8,8 @@ var _lancsProdFicha = [];
 var _chartsFicha = {};
 
 function abrirFichaMolde(job) {
-  document.getElementById('fichaJobInput').value = job;
+  const el = document.getElementById('fichaJobInput');
+  if (el) el.value = job;
   irPara('ficha', document.getElementById('menuFicha'));
   setTimeout(() => buscarFicha(), 100);
 }

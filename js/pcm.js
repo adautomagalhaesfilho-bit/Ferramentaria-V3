@@ -120,6 +120,9 @@ function _infoLoc(loc) {
 async function inicializarPCM() {
   const el = document.getElementById('telaPCM');
   if (!el) return;
+  // Mesmo motivo da página de Pendências: filtros zerados junto com a tela redesenhada
+  _filtroSetorPendencias = 'Todos';
+  _mostrarTodasPendencias = false;
   el.innerHTML = `
   <div class="page-header">
     <h1>🗂️ PCM — Controle de Moldes</h1>
@@ -416,6 +419,10 @@ async function concluirPendenciaRapida(id, job, checkbox, texto) {
 async function inicializarPainelPendenciasDedicado() {
   const el = document.getElementById('telaPendencias');
   if (!el) return;
+  // Zera os filtros compartilhados com o painel do PCM, pra a tela (caixinhas e
+  // seletores recém-desenhados) e o que está de fato filtrado começarem iguais
+  _filtroSetorPendencias = 'Todos';
+  _mostrarTodasPendencias = false;
   _filtroJobPendencias = '';
   _filtroStatusPendencias = 'abertas';
   el.innerHTML = `

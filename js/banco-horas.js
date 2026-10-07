@@ -387,7 +387,7 @@ function _renderizarTabelaExtratoBH(lista) {
       <td style="font-weight:700;color:${corTipo}">${fmtMinSaldo(r.tipo==='Credito'?r.minutos:-r.minutos)}</td>
       <td style="font-size:12px;color:#64748b">${r.descricao||'—'}</td>
       <td>
-        ${ehManual ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick='abrirEdicaoBancoHoras(${JSON.stringify(r).replace(/'/g,"&apos;")})'>✏️</button>` : ''}
+        ${ehManual ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoBancoHoras(_obj(${_guardarObj(r)}))">✏️</button>` : ''}
         <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirBancoHorasConfirm(${r.id})">🗑️</button>
       </td>
     </tr>`;

@@ -398,8 +398,8 @@ async function _atualizarSeletorCopo(job) {
     }
     compativeis = compativeis.filter(c => !(proprios||[]).some(p=>p.id===c.id));
     if (!(proprios&&proprios.length) && !compativeis.length) {
-      grupo.style.display = 'none';
-      sel.innerHTML = '<option value="">Nenhum copo cadastrado para este molde</option>';
+      sel.innerHTML = '<option value="">Nenhum copo cadastrado para este molde — pode salvar sem selecionar</option>';
+      grupo.style.display = '';
       return;
     }
     let html = '<option value="">Selecione...</option>';
@@ -674,11 +674,18 @@ function coletarDadosForm(setor) {
     if (!hrIni) { toast('Informe a hora de início.','erro'); return null; }
     if (!hrFim) { toast('Informe a hora de fim.','erro');    return null; }
     const trocaCopo  = document.getElementById('formTrocaCopo')?.checked || false;
-    const tipoCopo   = trocaCopo ? (document.getElementById('formTipoCopo')?.value || null) : null;
+    // Lê do campo interno e, se vier vazio, do botão que estiver marcado na tela
+    const tipoCopo   = trocaCopo ? (document.getElementById('formTipoCopo')?.value
+                         || document.querySelector('input[name="tipoCopo"]:checked')?.value || null) : null;
     const descCopo   = trocaCopo ? (document.getElementById('formDescCopo')?.value?.trim() || null) : null;
-    const copoId     = trocaCopo ? (document.getElementById('formCopoSelect')?.value || null) : null;
+    const selCopoEl  = document.getElementById('formCopoSelect');
+    // Só existe opção de verdade se tiver mais de 1 item na lista (além do
+    // "Selecione..."/"Nenhum copo cadastrado") — evita travar o lançamento
+    // quando o molde ainda não tem copo cadastrado no sistema
+    const temOpcoesCopo = !!(selCopoEl && selCopoEl.options.length > 1);
+    const copoId     = trocaCopo ? (selCopoEl?.value || null) : null;
     if (trocaCopo && !tipoCopo) { toast('Selecione o tipo do copo.','erro'); return null; }
-    if (trocaCopo && !copoId) { toast('Selecione qual copo foi usado.','erro'); return null; }
+    if (trocaCopo && temOpcoesCopo && !copoId) { toast('Selecione qual copo foi usado.','erro'); return null; }
     const temObservacao = document.getElementById('formTemObservacao')?.checked || false;
     const observacao     = temObservacao ? (document.getElementById('formObservacao')?.value?.trim() || null) : null;
     if (temObservacao && !observacao) { toast('Descreva a observação.','erro'); return null; }

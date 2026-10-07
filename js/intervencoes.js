@@ -27,7 +27,7 @@ function renderizarIntervencoesHTML(lista, job) {
               ${iv.tipo?`<span style="background:#d1fae5;color:#065f46;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${iv.tipo}</span>`:''}
             </div>
             ${podeGerenciar ? `<div style="display:flex;gap:4px;flex-shrink:0">
-              <button onclick='abrirModalIntervencao("${jobEsc}",${JSON.stringify(iv).replace(/'/g,"&apos;")})' style="background:none;border:none;color:#0056b3;cursor:pointer;font-size:12px;padding:0">✏️</button>
+              <button onclick='abrirModalIntervencao("${jobEsc}",_obj(${_guardarObj(iv)}))' style="background:none;border:none;color:#0056b3;cursor:pointer;font-size:12px;padding:0">✏️</button>
               <button onclick="excluirIntervencaoConfirm(${iv.id},'${jobEsc}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;padding:0">🗑️</button>
             </div>` : ''}
           </div>

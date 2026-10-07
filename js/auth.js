@@ -7,6 +7,13 @@ var _sessao = null;
 // Jobs como "SV - Automação", "SV - Bancada" etc. são categorias de serviço
 // interno, não moldes físicos — usado pra tirar esses nomes de qualquer lugar
 // que trate "job" como se fosse sempre um molde (cadastro de copo, RAM, etc.)
+// Guarda um objeto na memória e devolve um número de referência — usado nos botões
+// de editar, pra NÃO serializar o objeto inteiro dentro do HTML (frágil com aspas
+// e caracteres especiais nos textos)
+var _registroObjetos = [];
+function _guardarObj(o) { _registroObjetos.push(o); return _registroObjetos.length - 1; }
+function _obj(i) { return _registroObjetos[i]; }
+
 function _ehJobServico(nome) { return /^SV\s*-/i.test(nome||''); }
 function _listaSoMoldes() { return ((_listas && _listas.jobs) || []).filter(j => !_ehJobServico(j)); }
 var _listas = null;

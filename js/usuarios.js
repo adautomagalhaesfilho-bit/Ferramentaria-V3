@@ -51,7 +51,7 @@ async function carregarUsuarios() {
       <td>${u.setor||'—'}</td>
       <td><span style="background:${u.ativo?'#d1fae5':'#fee2e2'};color:${u.ativo?'#059669':'#b91c1c'};padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600">${u.ativo?'Ativo':'Inativo'}</span></td>
       <td>
-        <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarUsuario(${JSON.stringify(u).replace(/"/g,'&quot;')})">✏️</button>
+        <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarUsuario(_obj(${_guardarObj(u)}))">✏️</button>
         <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="confirmarExclusao('Excluir usuário ${u.nome}?',()=>excluirUsuario(${u.id}))">🗑️</button>
       </td>
     </tr>`).join('') : '<tr><td colspan="5" class="empty-msg">Nenhum usuário.</td></tr>';

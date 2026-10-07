@@ -1076,9 +1076,3 @@ function criarChart(id,config){
   _chartsDash[id]=new Chart(ctx,config);
 }
 
-function abrirFichaMolde(job){
-  const el=document.getElementById('fichaJobInput');
-  if(el) el.value=job;
-  irPara('ficha',document.getElementById('menuFicha'));
-  setTimeout(()=>buscarFicha(),100);
-}

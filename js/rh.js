@@ -880,7 +880,7 @@ async function carregarFerias() {
           <td>${f.fim?f.fim.split('-').reverse().join('/'):'—'}</td>
           <td style="color:${f.motivo?.includes('Falta')?'#ef4444':'#059669'};font-weight:600">${f.motivo}</td>
           <td>
-            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick='abrirEdicaoFerias(${JSON.stringify(f).replace(/'/g,"&apos;")})'>✏️</button>
+            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoFerias(_obj(${_guardarObj(f)}))">✏️</button>
             <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriasConfirm(${f.id})">🗑️</button>
           </td>
         </tr>`).join('')
@@ -1031,7 +1031,7 @@ async function _renderizarParciais() {
             ? `<a href="${p.imagem_url}" target="_blank"><img src="${p.imagem_url}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer"></a>`
             : '<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
           <td>
-            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick='abrirEdicaoParcial(${JSON.stringify(p).replace(/'/g,"&apos;")})'>✏️</button>
+            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoParcial(_obj(${_guardarObj(p)}))">✏️</button>
             <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcialConfirm(${p.id})">🗑️</button>
           </td>
         </tr>`).join('')
