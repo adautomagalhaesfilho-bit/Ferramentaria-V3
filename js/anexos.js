@@ -54,7 +54,7 @@ async function uploadAnexoMolde(file, job, statusElId) {
   const res  = await fetch(url, {
     method: 'POST',
     headers: {
-      'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY,
+      ...(await headersAuth()),
       'Content-Type': isVideo ? file.type : 'image/jpeg', 'x-upsert': 'true'
     },
     body: blob

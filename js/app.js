@@ -35,7 +35,7 @@ document.addEventListener('visibilitychange', () => {
 // 🚀 INICIALIZAÇÃO
 // ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
-  if (!carregarSessao()) return;
+  if (!(await carregarSessao())) return;
 
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
@@ -289,7 +289,7 @@ function abrirTrocaSenha() {
     <div class="modal-header"><h3>🔑 Trocar Senha</h3><button onclick="fecharTrocaSenha()">✕</button></div>
     <div class="modal-body">
       <div class="form-group"><label>Senha Atual *</label><input type="password" id="tsSenhaAtual" placeholder="Digite sua senha atual"></div>
-      <div class="form-group"><label>Nova Senha *</label><input type="password" id="tsSenhaNova" placeholder="Mínimo 4 caracteres"></div>
+      <div class="form-group"><label>Nova Senha *</label><input type="password" id="tsSenhaNova" placeholder="Mínimo 6 caracteres"></div>
       <div class="form-group"><label>Confirmar Nova Senha *</label><input type="password" id="tsSenhaConfirma" placeholder="Repita a nova senha"
         onkeydown="if(event.key==='Enter') salvarTrocaSenha()"></div>
       <div id="tsErro" style="display:none;background:#fee2e2;border:1px solid #fecaca;color:#dc2626;padding:10px 12px;border-radius:8px;font-size:12px;margin-top:6px"></div>
@@ -320,14 +320,14 @@ async function salvarTrocaSenha() {
   if (errEl) errEl.style.display = 'none';
 
   if (!atual || !nova || !confirma) return _mostrarErroTrocaSenha('Preencha todos os campos.');
-  if (nova.length < 4) return _mostrarErroTrocaSenha('A nova senha deve ter pelo menos 4 caracteres.');
+  if (nova.length < 6) return _mostrarErroTrocaSenha('A nova senha deve ter pelo menos 6 caracteres.');
   if (nova !== confirma) return _mostrarErroTrocaSenha('A nova senha e a confirmação não coincidem.');
-  if (!_sessao?.id) return _mostrarErroTrocaSenha('Sessão inválida. Faça login novamente.');
+  if (!_sessao?.email) return _mostrarErroTrocaSenha('Sessão inválida. Faça login novamente.');
 
   const btn = document.getElementById('btnSalvarTrocaSenha');
   if (btn) { btn.disabled = true; btn.innerText = 'Salvando...'; }
   try {
-    const res = await db.trocarPropriaSenha(_sessao.id, atual, nova);
+    const res = await db.trocarPropriaSenha(_sessao.email, atual, nova);
     if (!res.ok) {
       _mostrarErroTrocaSenha('Senha atual incorreta.');
     } else {

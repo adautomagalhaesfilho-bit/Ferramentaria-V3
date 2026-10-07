@@ -1142,7 +1142,7 @@ async function _uploadImagemParcial(file, funcionario, data) {
   const url  = `${SUPABASE_URL}/storage/v1/object/rh-anexos/${nome}`;
   const res  = await fetch(url, {
     method:'POST',
-    headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'image/jpeg', 'x-upsert':'true' },
+    headers:{ ...(await headersAuth()), 'Content-Type':'image/jpeg', 'x-upsert':'true' },
     body: blob
   });
   if (!res.ok) throw new Error('Upload falhou: '+(await res.text()));

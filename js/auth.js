@@ -58,21 +58,27 @@ function podeVerMoldes()  { return _temPermissao('moldes'); }
 function isAdmin()        { return _sessao?.perfil === 'admin'; }
 function isPCM()          { return _sessao?.perfil === 'pcm' || isAdmin(); }
 
-function fazerLogout() {
-  sessionStorage.removeItem('ferramentaria_user');
+async function fazerLogout() {
+  try { await sbClient.auth.signOut(); } catch(e) { console.error('Erro ao sair:', e); }
+  sessionStorage.removeItem('ferramentaria_user'); // resto do login antigo
   window.location.href = 'index.html';
 }
 
-function carregarSessao() {
-  const dados = sessionStorage.getItem('ferramentaria_user');
-  if (!dados) { window.location.href = 'index.html'; return false; }
+// Confere a sessão do Supabase Auth e recarrega o perfil do banco a cada abertura,
+// assim mudanças de perfil/permissões/ativo valem já no próximo acesso
+async function carregarSessao() {
   try {
-    _sessao = JSON.parse(dados);
-    return true;
+    _sessao = await db.perfilLogado();
   } catch(e) {
+    console.error('Erro ao carregar sessão:', e);
+    _sessao = null;
+  }
+  if (!_sessao) {
+    try { await sbClient.auth.signOut(); } catch(e) {}
     window.location.href = 'index.html';
     return false;
   }
+  return true;
 }
 
 function aplicarPermissoes() {

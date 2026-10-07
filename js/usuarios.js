@@ -46,7 +46,8 @@ async function carregarUsuarios() {
   try {
     const res = await db.listarUsuarios();
     tbody.innerHTML = res.length ? res.map(u => `<tr>
-      <td><b>${u.nome}</b></td>
+      <td><b>${u.nome}</b>
+        <div style="font-size:11px;color:${u.auth_user_id?'#64748b':'#b91c1c'}">${u.auth_user_id ? '🔑 ' + (u.email_login || emailDoLogin(u.nome)) : '⚠️ Sem conta de acesso (criar no Supabase Auth: ' + emailDoLogin(u.nome) + ')'}</div></td>
       <td><span style="background:${_corPerfil(u.perfil)}20;color:${_corPerfil(u.perfil)};padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600">${_labelPerfil(u.perfil)}</span></td>
       <td>${u.setor||'—'}</td>
       <td><span style="background:${u.ativo?'#d1fae5':'#fee2e2'};color:${u.ativo?'#059669':'#b91c1c'};padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600">${u.ativo?'Ativo':'Inativo'}</span></td>
@@ -90,11 +91,15 @@ function abrirFormUsuario(user) {
     <div class="form-row">
       <div class="form-group">
         <label>Nome de Usuário *</label>
-        <input type="text" id="uNome" value="${user?.nome||''}" placeholder="Ex: João Silva">
+        <input type="text" id="uNome" value="${user?.nome||''}" placeholder="Ex: Joao.Silva">
       </div>
       <div class="form-group">
-        <label>Senha ${user?'':'*'}</label>
-        <input type="text" id="uSenha" value="" placeholder="${user?'Deixe em branco para manter a senha atual':'Ex: Senha@123'}">
+        <label>Login / Senha</label>
+        <div style="font-size:12px;color:#64748b;padding:8px 0;line-height:1.5">
+          A senha é gerenciada no Supabase Auth (painel → Authentication → Users).<br>
+          E-mail da conta: <b id="uEmailLogin">${user?.email_login || emailDoLogin(user?.nome || '')}</b>
+          ${user && !user.auth_user_id ? '<br><span style="color:#b91c1c">⚠️ Conta de acesso ainda não criada.</span>' : ''}
+        </div>
       </div>
     </div>
 
@@ -148,6 +153,12 @@ function abrirFormUsuario(user) {
   el.style.display = 'block';
   el.scrollIntoView({ behavior:'smooth' });
 
+  // Mostra o e-mail de login conforme o nome é digitado
+  // (só antes do vínculo — depois de vinculada, a conta mantém o e-mail original)
+  document.getElementById('uNome').addEventListener('input', function() {
+    if (!user?.auth_user_id) document.getElementById('uEmailLogin').innerText = emailDoLogin(this.value);
+  });
+
   // Atualiza desc do perfil ao mudar
   document.getElementById('uPerfil').addEventListener('change', function() {
     document.getElementById('descPerfil').innerText = _descPerfil(this.value);
@@ -173,10 +184,11 @@ function editarUsuario(u) { abrirFormUsuario(u); }
 
 async function salvarUsuario() {
   const nome  = document.getElementById('uNome')?.value.trim();
-  const senha = document.getElementById('uSenha')?.value.trim();
   const isEdicao = !!_editandoUserId;
   if (!nome) return toast('Preencha o nome.','erro');
-  if (!isEdicao && !senha) return toast('Preencha a senha do novo usuário.','erro');
+  // O nome vira o e-mail de login no Supabase Auth — sem espaços nem acentos
+  if (!isEdicao && !/^[A-Za-z0-9._-]+$/.test(nome))
+    return toast('Use só letras sem acento, números, ponto, hífen ou _ no nome (ex: Joao.Silva).','erro');
 
   // Coleta permissões
   const permItems = ['dashboard','usinagem','bancada','projeto','producao','moldes','ficha','historico','pcm','rh','admin','editar','competencias','intervencoes'];
@@ -193,8 +205,6 @@ async function salvarUsuario() {
     ativo:      document.getElementById('uAtivo').checked,
     permissoes: permissoes
   };
-  // Só manda a senha se foi preenchida — em branco na edição significa "manter a atual"
-  if (senha) dados.senha = senha;
   if (isEdicao) dados.id = _editandoUserId;
 
   try {
@@ -204,7 +214,7 @@ async function salvarUsuario() {
       await registrarLog('usuarios', idLog, isEdicao ? 'editar' : 'criar', isEdicao ? 'dados' : null,
         isEdicao ? 'Atualização de usuário' : null, `${nome} (${dados.perfil})`);
     }
-    toast(isEdicao ? 'Usuário atualizado!' : 'Usuário criado!', 'sucesso');
+    toast(isEdicao ? 'Usuário atualizado!' : 'Usuário criado! Agora crie a conta ' + emailDoLogin(nome) + ' no Supabase Auth.', 'sucesso');
     fecharFormUsuario();
     carregarUsuarios();
   } catch(e) { toast('Erro ao salvar.','erro'); }
