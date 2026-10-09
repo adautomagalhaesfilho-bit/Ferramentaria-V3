@@ -110,7 +110,7 @@ function renderizarMoldesSemCopo(jobsInfo) {
 
   el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:16px;border-left:3px solid #94a3b8;background:#f8fafc;border-radius:6px">
     <span style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap">🕳️ Sem copo cadastrado (${semCopo.length})</span>
-    ${semCopo.map(job => `<span onclick="abrirModalCopo(null,'${job.replace(/'/g,"\\'")}')" style="font-size:11px;color:#475569;background:#e2e8f0;padding:2px 9px;border-radius:10px;white-space:nowrap;cursor:pointer">${job}</span>`).join('')}
+    ${semCopo.map(job => `<span onclick="abrirModalCopo(null,'${escJs(job)}')" style="font-size:11px;color:#475569;background:#e2e8f0;padding:2px 9px;border-radius:10px;white-space:nowrap;cursor:pointer">${esc(job)}</span>`).join('')}
   </div>`;
 }
 
@@ -130,27 +130,27 @@ function renderizarListaCopos(copos) {
       return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
           <div>
-            <div style="font-weight:700;color:#1e3a5f;font-size:14px">Copo ${c.codigo}</div>
-            <div style="font-size:12px;color:#0056b3;font-weight:600;cursor:pointer" onclick="abrirFichaMolde('${c.job.replace(/'/g,"\\'")}')">${c.job}</div>
+            <div style="font-weight:700;color:#1e3a5f;font-size:14px">Copo ${esc(c.codigo)}</div>
+            <div style="font-size:12px;color:#0056b3;font-weight:600;cursor:pointer" onclick="abrirFichaMolde('${escJs(c.job)}')">${esc(c.job)}</div>
           </div>
-          <span style="background:${status.bg};color:${status.cor};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${status.txt}</span>
+          <span style="background:${esc(status.bg)};color:${esc(status.cor)};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${esc(status.txt)}</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:#64748b;margin-bottom:10px">
-          <div>Ø gate <b style="color:#1e3a5f">${c.gate_diametro||'—'}mm</b></div>
-          <div>Ø boca <b style="color:#1e3a5f">${c.boca_diametro||'—'}mm</b></div>
-          <div>Comprimento <b style="color:#1e3a5f">${c.comprimento||'—'}mm</b></div>
-          <div>Gate <b style="color:#1e3a5f">${c.gate_tipo||'—'}</b></div>
+          <div>Ø gate <b style="color:#1e3a5f">${esc(c.gate_diametro||'—')}mm</b></div>
+          <div>Ø boca <b style="color:#1e3a5f">${esc(c.boca_diametro||'—')}mm</b></div>
+          <div>Comprimento <b style="color:#1e3a5f">${esc(c.comprimento||'—')}mm</b></div>
+          <div>Gate <b style="color:#1e3a5f">${esc(c.gate_tipo||'—')}</b></div>
         </div>
         <div style="font-size:11px;color:#94a3b8;margin-bottom:10px">${c.tem_difusor?'✓ Com difusor de fluxo':'Sem difusor de fluxo'}</div>
         <div style="display:flex;gap:8px;margin-bottom:10px">
-          <span style="background:#dbeafe;color:#1d4ed8;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">Novo: ${c.estoque_novo||0}</span>
-          <span style="background:#ede9fe;color:#7c3aed;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">Embuchado: ${c.estoque_embuchado||0}</span>
+          <span style="background:#dbeafe;color:#1d4ed8;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">Novo: ${esc(c.estoque_novo||0)}</span>
+          <span style="background:#ede9fe;color:#7c3aed;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">Embuchado: ${esc(c.estoque_embuchado||0)}</span>
         </div>
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:10px">Mínimo (cavidades do molde): ${minimo}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:10px">Mínimo (cavidades do molde): ${esc(minimo)}</div>
         ${(_mapaCompatCache[c.id]||[]).length ? `<div style="font-size:11px;color:#0056b3;margin-bottom:10px;padding:6px 8px;background:#eff6ff;border-radius:6px">
           🔗 Compatível com: ${_mapaCompatCache[c.id].map(idCompat => {
             const cc = _todosCoposCache.find(x=>x.id===idCompat);
-            return cc ? `<b>${cc.codigo}</b> (Novo:${cc.estoque_novo||0} Emb:${cc.estoque_embuchado||0})` : null;
+            return cc ? `<b>${esc(cc.codigo)}</b> (Novo:${esc(cc.estoque_novo||0)} Emb:${esc(cc.estoque_embuchado||0)})` : null;
           }).filter(Boolean).join(', ')}
         </div>` : ''}
         ${podeGerenciarCopos() ? `<button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirModalCopo(${c.id})">Gerenciar</button>` : ''}
@@ -173,16 +173,16 @@ function abrirModalCopo(id, jobPredefinido) {
     <div class="modal-header"><h3>🔩 ${copo?'Editar':'Novo'} Copo</h3><button onclick="fecharModalCopo()">✕</button></div>
     <div class="modal-body">
       <div class="form-row">
-        <div class="form-group"><label>Código do Copo *</label><input type="text" id="copoCodigo" value="${copo?copo.codigo.replace(/"/g,'&quot;'):''}" placeholder="Ex: 23629"></div>
+        <div class="form-group"><label>Código do Copo *</label><input type="text" id="copoCodigo" value="${esc(copo?copo.codigo:'')}" placeholder="Ex: 23629"></div>
         <div class="form-group"><label>Molde (dono) *</label>
           <div class="autocomplete-wrap">
-            <input type="text" id="copoJob" value="${copo?copo.job.replace(/"/g,'&quot;'):(jobPredefinido||'')}" placeholder="Busque o molde...">
+            <input type="text" id="copoJob" value="${esc(copo?copo.job:(jobPredefinido||''))}" placeholder="Busque o molde...">
             <div class="autocomplete-list" id="copoJobList"></div>
           </div>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Ø do Gate (mm)</label><input type="number" step="0.01" id="copoGateDiam" value="${copo&&copo.gate_diametro!=null?copo.gate_diametro:''}"></div>
+        <div class="form-group"><label>Ø do Gate (mm)</label><input type="number" step="0.01" id="copoGateDiam" value="${esc(copo&&copo.gate_diametro!=null?copo.gate_diametro:'')}"></div>
         <div class="form-group"><label>Tipo de Gate</label>
           <select id="copoGateTipo">
             <option value="">Selecione...</option>
@@ -192,8 +192,8 @@ function abrirModalCopo(id, jobPredefinido) {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Ø da Boca (mm)</label><input type="number" step="0.01" id="copoBocaDiam" value="${copo&&copo.boca_diametro!=null?copo.boca_diametro:''}"></div>
-        <div class="form-group"><label>Comprimento (mm)</label><input type="number" step="0.01" id="copoComprimento" value="${copo&&copo.comprimento!=null?copo.comprimento:''}"></div>
+        <div class="form-group"><label>Ø da Boca (mm)</label><input type="number" step="0.01" id="copoBocaDiam" value="${esc(copo&&copo.boca_diametro!=null?copo.boca_diametro:'')}"></div>
+        <div class="form-group"><label>Comprimento (mm)</label><input type="number" step="0.01" id="copoComprimento" value="${esc(copo&&copo.comprimento!=null?copo.comprimento:'')}"></div>
       </div>
       <label class="checkbox-label" style="margin-bottom:14px;display:block">
         <input type="checkbox" id="copoDifusor" ${copo&&copo.tem_difusor?'checked':''}> Possui difusor de fluxo
@@ -202,8 +202,8 @@ function abrirModalCopo(id, jobPredefinido) {
       <div style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:4px">
         <div style="font-weight:700;color:#1e3a5f;font-size:13px;margin-bottom:8px">Estoque (ajuste manual)</div>
         <div class="form-row">
-          <div class="form-group"><label>Novo</label><input type="number" min="0" id="copoEstoqueNovo" value="${copo.estoque_novo||0}"></div>
-          <div class="form-group"><label>Embuchado</label><input type="number" min="0" id="copoEstoqueEmbuchado" value="${copo.estoque_embuchado||0}"></div>
+          <div class="form-group"><label>Novo</label><input type="number" min="0" id="copoEstoqueNovo" value="${esc(copo.estoque_novo||0)}"></div>
+          <div class="form-group"><label>Embuchado</label><input type="number" min="0" id="copoEstoqueEmbuchado" value="${esc(copo.estoque_embuchado||0)}"></div>
         </div>
         <div style="font-size:11px;color:#94a3b8">O estoque também se move sozinho quando alguém registra "Troca de Copo" no apontamento — use aqui só pra corrigir ou dar entrada.</div>
       </div>` : `<div style="font-size:11px;color:#94a3b8">O estoque inicial começa em 0 — ajuste depois de criar.</div>`}
@@ -282,7 +282,7 @@ async function renderizarCompatibilidadeCopo(copoId) {
     <div id="copoCompatLista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
       ${compativeis.length ? compativeis.map(c => `
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;background:#f8fafc;padding:6px 10px;border-radius:6px">
-          <span>Copo ${c.codigo} <span style="color:#94a3b8">(${c.job})</span></span>
+          <span>Copo ${esc(c.codigo)} <span style="color:#94a3b8">(${esc(c.job)})</span></span>
           <button class="btn-danger" style="font-size:10px;padding:2px 8px" onclick="removerCompatibilidadeCopo(${c._compatId},${copoId})">Remover</button>
         </div>`).join('') : '<div style="font-size:11px;color:#94a3b8">Nenhum copo compatível cadastrado.</div>'}
     </div>
@@ -329,7 +329,7 @@ async function baixarEstoqueCopo(copoId, tipo) {
       await registrarLog('copos', copoId, 'baixa_automatica', campo, valorAtual, novoValor);
     }
     await _verificarEstoqueMinimoEAlertar({ ...copo, [campo]: novoValor });
-  } catch(e) { console.error('Erro ao baixar estoque do copo', e); }
+  } catch(e) { avisarErro('baixar o estoque do copo', e); }
 }
 
 // Confere se o copo ficou abaixo do mínimo (cavidades do molde dono) e, se sim,
@@ -350,5 +350,5 @@ async function _verificarEstoqueMinimoEAlertar(copo) {
       job: copo.job, texto: textoAlerta, setor_responsavel: 'Usinagem',
       concluido: false, criticidade: 'Alta', criado_por: 'Sistema (estoque de copos)'
     });
-  } catch(e) { console.error('Erro ao checar estoque mínimo do copo', e); }
+  } catch(e) { avisarErro('checar o estoque mínimo do copo', e); }
 }

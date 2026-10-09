@@ -12,7 +12,7 @@ async function abrirFichaInjetora(nomeInjetora) {
   <div class="modal-overlay" onclick="fecharFichaInjetora()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:780px;max-height:90vh;overflow-y:auto">
     <div class="modal-header">
-      <h3>🏭 Ficha da Injetora — ${nomeInjetora}</h3>
+      <h3>🏭 Ficha da Injetora — ${esc(nomeInjetora)}</h3>
       <button onclick="fecharFichaInjetora()">✕</button>
     </div>
     <div class="modal-body" id="fichaInjetoraCorpo">
@@ -53,7 +53,7 @@ function renderizarFichaInjetora(nome, dados) {
   if (!lancs.length) {
     el.innerHTML = `
       ${info ? `<div style="font-size:13px;color:#64748b;margin-bottom:16px">
-        ${info.tonelagem?`🏋️ ${info.tonelagem} ton`:''} ${info.fabricante?'· '+info.fabricante:''}
+        ${esc(info.tonelagem?`🏋️ ${info.tonelagem} ton`:'')} ${esc(info.fabricante?'· '+info.fabricante:'')}
       </div>` : ''}
       <div class="empty-state"><div style="font-size:40px">🏭</div><div>Nenhuma manutenção registrada para esta injetora.</div></div>`;
     return;
@@ -91,7 +91,7 @@ function renderizarFichaInjetora(nome, dados) {
   let html = `
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px">
     <div style="font-size:13px;color:#64748b">
-      ${info?.tonelagem?`🏋️ <b>${info.tonelagem} ton</b> · `:''}${info?.fabricante||''}
+      ${info?.tonelagem?`🏋️ <b>${esc(info.tonelagem)} ton</b> · `:''}${esc(info?.fabricante||'')}
     </div>
     <div style="text-align:right;font-size:12px;color:#64748b">
       <div>📅 Primeiro registro: <b>${lancs[0].data.split('-').reverse().join('/')}</b></div>
@@ -107,20 +107,20 @@ function renderizarFichaInjetora(nome, dados) {
     </div>
     <div class="metric-card" style="border-left-color:#10b981">
       <div class="metric-icon">⏱️</div>
-      <div class="metric-valor" style="color:#10b981">${fmtMin(totalMins)}</div>
+      <div class="metric-valor" style="color:#10b981">${esc(fmtMin(totalMins))}</div>
       <div class="metric-label">Tempo Total</div>
     </div>
     <div class="metric-card" style="border-left-color:#ef4444">
       <div class="metric-icon">🔧</div>
-      <div class="metric-valor" style="color:${mttr>0?'#ef4444':'#94a3b8'}">${mttr} min</div>
+      <div class="metric-valor" style="color:${mttr>0?'#ef4444':'#94a3b8'}">${esc(mttr)} min</div>
       <div class="metric-label">MTTR</div>
       <div class="metric-sub">${corretivas.length} corretiva(s)</div>
     </div>
     <div class="metric-card" style="border-left-color:#f59e0b">
       <div class="metric-icon">🔴</div>
-      <div class="metric-valor" style="color:#f59e0b">${paradas}</div>
+      <div class="metric-valor" style="color:#f59e0b">${esc(paradas)}</div>
       <div class="metric-label">Paradas Não Planejadas</div>
-      <div class="metric-sub">${fmtMin(minsParadas)} parado</div>
+      <div class="metric-sub">${esc(fmtMin(minsParadas))} parado</div>
     </div>
   </div>
 
@@ -140,7 +140,7 @@ function renderizarFichaInjetora(nome, dados) {
     <div style="display:flex;flex-wrap:wrap;gap:6px">
       ${moldesUnicos.length
         ? moldesUnicos.map(m => `<span style="background:#f1f5f9;color:#1e3a5f;padding:4px 10px;border-radius:8px;font-size:12px;cursor:pointer"
-            onclick="fecharFichaInjetora();abrirFichaMolde('${m.replace(/'/g,"\\'")}')">${m}</span>`).join('')
+            onclick="fecharFichaInjetora();abrirFichaMolde('${escJs(m)}')">${esc(m)}</span>`).join('')
         : '<span style="color:#94a3b8;font-size:13px">Nenhum molde registrado</span>'}
     </div>
   </div>
@@ -154,7 +154,7 @@ function renderizarFichaInjetora(nome, dados) {
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div style="font-weight:700;color:#1e3a5f;font-size:14px">📋 Histórico de Manutenções</div>
-      <button class="btn-success" style="padding:5px 12px;font-size:11px" onclick="exportarFichaInjetoraCSV('${nome.replace(/'/g,"\\'")}')">📥 CSV</button>
+      <button class="btn-success" style="padding:5px 12px;font-size:11px" onclick="exportarFichaInjetoraCSV('${escJs(nome)}')">📥 CSV</button>
     </div>
     <div class="table-wrap">
       <table>
@@ -168,11 +168,11 @@ function renderizarFichaInjetora(nome, dados) {
             ].filter(Boolean).join(' ');
             return `<tr>
               <td><b>${l.data?l.data.split('-').reverse().join('/'):'—'}</b></td>
-              <td><span style="background:${corT}20;color:${corT};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${l.tipo}</span></td>
-              <td style="font-size:12px">${l.atividade||'—'}</td>
-              <td style="font-size:12px">${l.molde||'—'}</td>
-              <td style="font-size:12px">${(l.tecnicos||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t).join(', ') || '—'}</td>
-              <td style="color:#10b981;font-weight:700">${fmtMin(l.minutos||0)}</td>
+              <td><span style="background:${esc(corT)}20;color:${esc(corT)};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${esc(l.tipo)}</span></td>
+              <td style="font-size:12px">${esc(l.atividade||'—')}</td>
+              <td style="font-size:12px">${esc(l.molde||'—')}</td>
+              <td style="font-size:12px">${(l.tecnicos||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):esc(t)).join(', ') || '—'}</td>
+              <td style="color:#10b981;font-weight:700">${esc(fmtMin(l.minutos||0))}</td>
               <td style="font-size:11px">${flags||'—'}</td>
             </tr>`;
           }).join('')}

@@ -101,7 +101,7 @@ function abrirEdicaoDescricaoAnexo(id, criadoPor, descricaoAtual) {
     <div class="modal-body">
       <div class="form-group">
         <label>Descrição</label>
-        <textarea id="editDescAnexoTexto" rows="3">${(descricaoAtual||'').replace(/</g,'&lt;')}</textarea>
+        <textarea id="editDescAnexoTexto" rows="3">${esc(descricaoAtual||'')}</textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -144,7 +144,7 @@ function abrirModalAnexoMolde(job) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalAnexoMolde()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:440px">
-    <div class="modal-header"><h3>📎 Anexar Foto/Vídeo — ${job}</h3><button onclick="fecharModalAnexoMolde()">✕</button></div>
+    <div class="modal-header"><h3>📎 Anexar Foto/Vídeo — ${esc(job)}</h3><button onclick="fecharModalAnexoMolde()">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label>Arquivo (foto, ou vídeo de até 30s) *</label>
@@ -163,7 +163,7 @@ function abrirModalAnexoMolde(job) {
       <div id="anexoMoldeStatus" style="font-size:12px;color:#64748b"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarNovoAnexoMolde('${job.replace(/'/g,"\\'")}')">💾 Enviar</button>
+      <button class="btn-primary" onclick="salvarNovoAnexoMolde('${escJs(job)}')">💾 Enviar</button>
       <button class="btn-secondary" onclick="fecharModalAnexoMolde()">Cancelar</button>
     </div>
   </div>`;
@@ -203,15 +203,15 @@ function renderizarGaleriaAnexosMolde(anexos) {
       const podeExcluir = (typeof isAdmin === 'function' && isAdmin()) || (_sessao?.nome === a.criado_por);
       const dataFmt = a.criado_em ? new Date(a.criado_em).toLocaleDateString('pt-BR') : '—';
       const midia = a.tipo === 'Vídeo'
-        ? `<video src="${a.url}" controls style="width:100%;height:120px;object-fit:cover;border-radius:8px;background:#000"></video>`
-        : `<img src="${a.url}" onclick="window.open('${a.url}','_blank')" style="width:100%;height:120px;object-fit:cover;border-radius:8px;cursor:pointer">`;
+        ? `<video src="${esc(a.url)}" controls style="width:100%;height:120px;object-fit:cover;border-radius:8px;background:#000"></video>`
+        : `<img src="${esc(a.url)}" onclick="window.open('${escJs(a.url)}','_blank')" style="width:100%;height:120px;object-fit:cover;border-radius:8px;cursor:pointer">`;
       return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px">
         ${midia}
-        <div style="font-size:11px;color:#64748b;margin-top:6px">${dataFmt} · ${a.criado_por||'—'}${a.setor_origem&&a.setor_origem!=='Ficha'?' · '+a.setor_origem:''}</div>
-        ${a.descricao ? `<div style="font-size:12px;color:#1e3a5f;margin-top:2px">${a.descricao}</div>` : ''}
+        <div style="font-size:11px;color:#64748b;margin-top:6px">${esc(dataFmt)} · ${esc(a.criado_por||'—')}${esc(a.setor_origem&&a.setor_origem!=='Ficha'?' · '+a.setor_origem:'')}</div>
+        ${a.descricao ? `<div style="font-size:12px;color:#1e3a5f;margin-top:2px">${esc(a.descricao)}</div>` : ''}
         <div style="display:flex;gap:6px;margin-top:6px">
-          ${podeExcluir ? `<button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="abrirEdicaoDescricaoAnexo(${a.id},'${(a.criado_por||'').replace(/'/g,"\\'")}','${(a.descricao||'').replace(/'/g,"\\'").replace(/\n/g,' ')}')">✏️ Editar</button>` : ''}
-          ${podeExcluir ? `<button class="btn-danger" style="font-size:10px;padding:3px 8px" onclick="excluirAnexoMolde(${a.id},'${(a.criado_por||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>` : ''}
+          ${podeExcluir ? `<button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="abrirEdicaoDescricaoAnexo(${a.id},'${escJs(a.criado_por||'')}','${escJs(a.descricao||'')}')">✏️ Editar</button>` : ''}
+          ${podeExcluir ? `<button class="btn-danger" style="font-size:10px;padding:3px 8px" onclick="excluirAnexoMolde(${a.id},'${escJs(a.criado_por||'')}')">🗑️ Excluir</button>` : ''}
         </div>
       </div>`;
     }).join('')}

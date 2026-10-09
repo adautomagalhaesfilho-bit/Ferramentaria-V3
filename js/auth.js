@@ -74,7 +74,7 @@ async function carregarSessao() {
     _sessao = null;
   }
   if (!_sessao) {
-    try { await sbClient.auth.signOut(); } catch(e) {}
+    try { await sbClient.auth.signOut(); } catch(e) { /* saindo de qualquer forma */ }
     window.location.href = 'index.html';
     return false;
   }
