@@ -18,7 +18,7 @@ async function calcularSaldoBancoHoras(nome) {
     let saldo = 0;
     (res||[]).forEach(r => { saldo += (r.tipo==='Credito' ? 1 : -1) * (r.minutos||0); });
     return saldo;
-  } catch(e) { return 0; }
+  } catch(e) { avisarErro('calcular o saldo do banco de horas', e); return 0; }
 }
 
 // ==========================================
@@ -202,7 +202,7 @@ async function sincronizarDebitoParcial(parcial) {
       origem: parcial.motivo, minutos: minutosDebito, descricao,
       referencia_id: refId, criado_por: _sessao?.nome || null
     });
-  } catch(e) { console.error('Erro ao sincronizar débito do parcial:', e); }
+  } catch(e) { avisarErro('sincronizar o débito do parcial no banco de horas', e); }
 }
 
 // Remove o débito de banco de horas vinculado a um "parcial" excluído
@@ -210,7 +210,7 @@ async function removerDebitoParcial(parcialId) {
   try {
     const existentes = await db._get('banco_horas', 'referencia_id=eq.'+encodeURIComponent('PARC-'+parcialId), 'id');
     for (const ex of (existentes||[])) await db.excluirBancoHoras(ex.id);
-  } catch(e) { console.error('Erro ao remover débito do parcial:', e); }
+  } catch(e) { avisarErro('remover o débito do parcial do banco de horas', e); }
 }
 
 // ==========================================
@@ -233,7 +233,7 @@ async function registrarDebitoFolgaCompensatoria(funcionario, inicio, fim, feria
 
     let totalMin = 0;
     for (let d=new Date(inicio+'T12:00:00'); d<=new Date(fim+'T12:00:00'); d.setDate(d.getDate()+1)) {
-      const ds = d.toISOString().split('T')[0];
+      const ds = dataLocal(d);
       if (funcTrabalhaEmDia(turno, ds, feriadosArr)) totalMin += capMinutosPorTurno(turno);
     }
     if (totalMin <= 0) return;
@@ -245,7 +245,7 @@ async function registrarDebitoFolgaCompensatoria(funcionario, inicio, fim, feria
       referencia_id: refId, criado_por: _sessao?.nome || null
     });
     toast('Débito de banco de horas registrado automaticamente ('+fmtMinSaldo(totalMin)+').', 'sucesso');
-  } catch(e) { console.error('Erro ao registrar débito de folga compensatória:', e); }
+  } catch(e) { avisarErro('registrar o débito da folga compensatória', e); }
 }
 
 // ==========================================
@@ -262,16 +262,16 @@ async function inicializarBancoHoras() {
     .filter((v,i,a)=>a.indexOf(v)===i).sort();
 
   const hoje = new Date();
-  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
-  const hojeStr = hoje.toISOString().split('T')[0];
+  const primeiroDia = dataLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1, 12));
+  const hojeStr = dataLocal(hoje);
 
   el.innerHTML = `
   <div class="card" style="background:#eff6ff;border-color:#bfdbfe">
     <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:12px">🔄 Sincronizar Horas Extras (Crédito Automático)</div>
     <div style="font-size:12px;color:#64748b;margin-bottom:12px">Varre os lançamentos no período e credita automaticamente quem trabalhou fora da escala normal (feriados, fins de semana, folgas). Não duplica créditos já sincronizados.</div>
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-      <div class="form-group" style="margin-bottom:0"><label>Início</label><input type="date" id="bhSincIni" value="${primeiroDia}"></div>
-      <div class="form-group" style="margin-bottom:0"><label>Fim</label><input type="date" id="bhSincFim" value="${hojeStr}"></div>
+      <div class="form-group" style="margin-bottom:0"><label>Início</label><input type="date" id="bhSincIni" value="${esc(primeiroDia)}"></div>
+      <div class="form-group" style="margin-bottom:0"><label>Fim</label><input type="date" id="bhSincFim" value="${esc(hojeStr)}"></div>
       <button class="btn-primary" id="btnSincHE" onclick="sincronizarHorasExtras()">🔄 Sincronizar Horas Extras</button>
     </div>
   </div>
@@ -279,7 +279,7 @@ async function inicializarBancoHoras() {
   <div class="card">
     <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:12px">✏️ Lançamento Manual</div>
     <div class="form-row">
-      <div class="form-group"><label>Técnico *</label><select id="bhManFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${f}">${f}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Técnico *</label><select id="bhManFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
       <div class="form-group"><label>Tipo *</label>
         <select id="bhManTipo">
           <option value="Credito">➕ Crédito</option>
@@ -287,7 +287,7 @@ async function inicializarBancoHoras() {
         </select>
       </div>
       <div class="form-group"><label>Horas *</label><input type="number" id="bhManHoras" step="0.25" min="0" placeholder="Ex: 2.5"></div>
-      <div class="form-group"><label>Data *</label><input type="date" id="bhManData" value="${hojeStr}"></div>
+      <div class="form-group"><label>Data *</label><input type="date" id="bhManData" value="${esc(hojeStr)}"></div>
     </div>
     <div class="form-group"><label>Descrição</label><input type="text" id="bhManDesc" placeholder="Motivo do ajuste..."></div>
     <button class="btn-success" onclick="salvarBancoHorasManual()">+ Lançar</button>
@@ -303,7 +303,7 @@ async function inicializarBancoHoras() {
       <div style="font-size:13px;font-weight:700;color:#1e3a5f">📋 Extrato Completo</div>
       <select id="bhFiltroExtrato" onchange="filtrarExtratoBH()" style="width:auto">
         <option value="Todos">Todos os Técnicos</option>
-        ${funcs.map(f=>`<option value="${f}">${f}</option>`).join('')}
+        ${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}
       </select>
     </div>
     <div class="table-wrap">
@@ -347,9 +347,9 @@ function _renderizarResumoSaldosBH() {
     ${entradas.map(([nome,saldo]) => {
       const cor = saldo>0?'#059669':saldo<0?'#dc2626':'#64748b';
       const bg  = saldo>0?'#d1fae5':saldo<0?'#fee2e2':'#f1f5f9';
-      return `<div style="background:${bg};border-radius:10px;padding:12px;cursor:pointer" onclick="filtrarExtratoPorTecnicoBH('${nome.replace(/'/g,"\\'")}')">
-        <div style="font-size:12px;font-weight:600;color:#1e3a5f">${nome}</div>
-        <div style="font-size:20px;font-weight:800;color:${cor};margin-top:4px">${fmtMinSaldo(saldo)}</div>
+      return `<div style="background:${bg};border-radius:10px;padding:12px;cursor:pointer" onclick="filtrarExtratoPorTecnicoBH('${escJs(nome)}')">
+        <div style="font-size:12px;font-weight:600;color:#1e3a5f">${esc(nome)}</div>
+        <div style="font-size:20px;font-weight:800;color:${cor};margin-top:4px">${esc(fmtMinSaldo(saldo))}</div>
       </div>`;
     }).join('')}
   </div>`;
@@ -381,11 +381,11 @@ function _renderizarTabelaExtratoBH(lista) {
     const ehManual = r.origem === 'Ajuste Manual';
     return `<tr>
       <td><b>${r.data?r.data.split('-').reverse().join('/'):'—'}</b></td>
-      <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(r.funcionario):r.funcionario}</td>
-      <td><span style="color:${corTipo};font-weight:700">${icoTipo} ${r.tipo==='Credito'?'Crédito':'Débito'}</span></td>
-      <td style="font-size:11px;color:#64748b">${r.origem}</td>
-      <td style="font-weight:700;color:${corTipo}">${fmtMinSaldo(r.tipo==='Credito'?r.minutos:-r.minutos)}</td>
-      <td style="font-size:12px;color:#64748b">${r.descricao||'—'}</td>
+      <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(r.funcionario):esc(r.funcionario)}</td>
+      <td><span style="color:${esc(corTipo)};font-weight:700">${esc(icoTipo)} ${esc(r.tipo==='Credito'?'Crédito':'Débito')}</span></td>
+      <td style="font-size:11px;color:#64748b">${esc(r.origem)}</td>
+      <td style="font-weight:700;color:${esc(corTipo)}">${esc(fmtMinSaldo(r.tipo==='Credito'?r.minutos:-r.minutos))}</td>
+      <td style="font-size:12px;color:#64748b">${esc(r.descricao||'—')}</td>
       <td>
         ${ehManual ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoBancoHoras(_obj(${_guardarObj(r)}))">✏️</button>` : ''}
         <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirBancoHorasConfirm(${r.id})">🗑️</button>
@@ -436,7 +436,7 @@ function abrirEdicaoBancoHoras(r) {
     <div class="modal-header"><h3>✏️ Editar Lançamento</h3><button onclick="fecharEdicaoBancoHoras()">✕</button></div>
     <div class="modal-body">
       <div class="form-group"><label>Técnico *</label>
-        <select id="efBHFunc">${funcs.map(f=>`<option value="${f}" ${r.funcionario===f?'selected':''}>${f}</option>`).join('')}</select>
+        <select id="efBHFunc">${funcs.map(f=>`<option value="${esc(f)}" ${r.funcionario===f?'selected':''}>${esc(f)}</option>`).join('')}</select>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Tipo *</label>
@@ -445,10 +445,10 @@ function abrirEdicaoBancoHoras(r) {
             <option value="Debito" ${r.tipo==='Debito'?'selected':''}>➖ Débito</option>
           </select>
         </div>
-        <div class="form-group"><label>Horas *</label><input type="number" id="efBHHoras" step="0.25" min="0" value="${horasAtual}"></div>
+        <div class="form-group"><label>Horas *</label><input type="number" id="efBHHoras" step="0.25" min="0" value="${esc(horasAtual)}"></div>
       </div>
-      <div class="form-group"><label>Data *</label><input type="date" id="efBHData" value="${r.data||''}"></div>
-      <div class="form-group"><label>Descrição</label><input type="text" id="efBHDesc" value="${(r.descricao||'').replace(/"/g,'&quot;')}"></div>
+      <div class="form-group"><label>Data *</label><input type="date" id="efBHData" value="${esc(r.data||'')}"></div>
+      <div class="form-group"><label>Descrição</label><input type="text" id="efBHDesc" value="${esc(r.descricao||'')}"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="salvarEdicaoBancoHoras(${r.id})">💾 Salvar</button>
@@ -497,8 +497,8 @@ async function renderizarSaldoBancoHorasNaFicha(nome, containerId) {
     const cor = saldo>0?'#059669':saldo<0?'#dc2626':'#64748b';
     el.innerHTML = `
     <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">🏦 BANCO DE HORAS</div>
-    <div style="font-size:24px;font-weight:800;color:${cor};margin-bottom:4px">${fmtMinSaldo(saldo)}</div>
-    <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="_irParaBancoHorasFuncionario('${nome.replace(/'/g,"\\'")}')">📋 Ver extrato</button>`;
+    <div style="font-size:24px;font-weight:800;color:${cor};margin-bottom:4px">${esc(fmtMinSaldo(saldo))}</div>
+    <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="_irParaBancoHorasFuncionario('${escJs(nome)}')">📋 Ver extrato</button>`;
   } catch(e) {
     el.innerHTML = '<div style="font-size:12px;color:#94a3b8">Erro ao calcular saldo.</div>';
   }

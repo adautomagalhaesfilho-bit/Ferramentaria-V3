@@ -76,18 +76,18 @@ async function carregarAlertaPendencias() {
 
     el.innerHTML = `
     <div class="card" style="border-left:4px solid #f59e0b;background:#fffbeb;margin-bottom:16px;cursor:pointer"
-      onclick="abrirPCMComFiltroSetor('${isGestorOuAdmin ? 'Todos' : setorUsuario}')">
+      onclick="abrirPCMComFiltroSetor('${escJs(isGestorOuAdmin ? 'Todos' : setorUsuario)}')">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div style="display:flex;align-items:center;gap:10px">
           <div style="font-size:24px">⚠️</div>
           <div>
-            <div style="font-weight:700;color:#92400e;font-size:14px">${titulo}</div>
+            <div style="font-weight:700;color:#92400e;font-size:14px">${esc(titulo)}</div>
             <div style="font-size:12px;color:#78350f">Clique para ver no PCM</div>
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;max-width:60%">
-          ${pend.slice(0,3).map(p=>`<span style="background:#fff;border:1px solid #fde68a;padding:3px 10px;border-radius:8px;font-size:11px;color:#92400e"><b>${p.job}</b>: ${p.texto.length>28?p.texto.slice(0,28)+'…':p.texto}</span>`).join('')}
-          ${pend.length>3?`<span style="font-size:11px;color:#92400e;align-self:center;font-weight:700">+${pend.length-3}</span>`:''}
+          ${pend.slice(0,3).map(p=>`<span style="background:#fff;border:1px solid #fde68a;padding:3px 10px;border-radius:8px;font-size:11px;color:#92400e"><b>${esc(p.job)}</b>: ${esc(p.texto.length>28?p.texto.slice(0,28)+'…':p.texto)}</span>`).join('')}
+          ${pend.length>3?`<span style="font-size:11px;color:#92400e;align-self:center;font-weight:700">+${esc(pend.length-3)}</span>`:''}
         </div>
       </div>
     </div>`;
@@ -149,7 +149,7 @@ async function inicializarPCM() {
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
         <select id="pcmFiltroSetorPend" onchange="filtrarSetorPendencias(this.value)" style="width:auto;font-size:12px">
           <option value="Todos">Todos os Setores</option>
-          ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+          ${_SETORES_RESPONSAVEL.map(s=>`<option value="${esc(s.id)}">${esc(s.ico)} ${esc(s.id)}</option>`).join('')}
         </select>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">
           <input type="checkbox" id="pcmToggleTodas" onchange="toggleTodasPendencias(this.checked)"
@@ -166,8 +166,8 @@ async function inicializarPCM() {
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="pcmFiltrosBtns">
     <button class="btn-secondary" style="font-size:12px;padding:7px 14px;font-weight:700" onclick="setPcmFiltro('Todos',this)">Todos</button>
     ${_LOCALIZACOES.map(l=>`
-      <button class="btn-secondary" style="font-size:12px;padding:7px 14px;border-color:${l.cor};color:${l.cor}"
-        onclick="setPcmFiltro('${l.id}',this)">${l.ico} ${l.id}</button>`).join('')}
+      <button class="btn-secondary" style="font-size:12px;padding:7px 14px;border-color:${esc(l.cor)};color:${esc(l.cor)}"
+        onclick="setPcmFiltro('${escJs(l.id)}',this)">${esc(l.ico)} ${esc(l.id)}</button>`).join('')}
   </div>
   <div id="pcmLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Carregando...</span></div>
   <div id="pcmLista"></div>`;
@@ -218,7 +218,7 @@ async function carregarPCM() {
         const dataProd = ultProd && ultProd[0] ? ultProd[0].data : null;
         const ultimaData = [dataFerr, dataProd].filter(Boolean).sort().pop() || null;
         if (ultimaData) {
-          const hoje = new Date().toISOString().split('T')[0];
+          const hoje = hojeLocal();
           const dias = Math.floor((new Date(hoje) - new Date(ultimaData)) / 86400000);
           m.diasParado = dias;
           m.ultimaMovimentacao = ultimaData;
@@ -331,15 +331,14 @@ async function carregarPainelPendencias(idLista, idLegenda) {
       const molde = _dadosPCM.find(m => m.job === job);
       const loc   = molde?.localizacao || 'Na Ferramentaria';
       const info  = _infoLoc(loc);
-      const jobEsc = job.replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
       html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#0056b3;cursor:pointer" onclick="abrirFichaMolde('${jobEsc}')">${job}</div>
-            <span style="background:${info.bg};color:${info.cor};font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700">${info.ico} ${loc}${molde?.maquina?' — '+molde.maquina:''}</span>
+            <div style="font-size:13px;font-weight:700;color:#0056b3;cursor:pointer" onclick="abrirFichaMolde('${escJs(job)}')">${esc(job)}</div>
+            <span style="background:${esc(info.bg)};color:${esc(info.cor)};font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700">${esc(info.ico)} ${esc(loc)}${esc(molde?.maquina?' — '+molde.maquina:'')}</span>
           </div>
-          <button onclick="abrirModalPendencias('${jobEsc}')"
+          <button onclick="abrirModalPendencias('${escJs(job)}')"
             style="background:#fff;border:1px solid #fde68a;color:#92400e;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap">
             ✏️ Gerenciar
           </button>
@@ -353,27 +352,27 @@ async function carregarPainelPendencias(idLista, idLegenda) {
               <div style="display:flex;align-items:flex-start;gap:8px">
                 <span style="margin-top:2px;color:#059669;flex-shrink:0">✓</span>
                 <div style="flex:1">
-                  <span style="font-size:12px;color:#94a3b8;text-decoration:line-through">${p.texto}</span>
-                  <span style="display:block;font-size:10px;color:#94a3b8">concluída em ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</span>
-                  ${setorInfo ? `<span style="display:block;margin-top:2px;background:${setorInfo.cor}20;color:${setorInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;width:fit-content">${setorInfo.ico} ${p.setor_responsavel}</span>` : ''}
+                  <span style="font-size:12px;color:#94a3b8;text-decoration:line-through">${esc(p.texto)}</span>
+                  <span style="display:block;font-size:10px;color:#94a3b8">concluída em ${esc(p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—')}</span>
+                  ${setorInfo ? `<span style="display:block;margin-top:2px;background:${esc(setorInfo.cor)}20;color:${esc(setorInfo.cor)};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700;width:fit-content">${esc(setorInfo.ico)} ${esc(p.setor_responsavel)}</span>` : ''}
                 </div>
               </div>`;
             }
             return `
             <div style="display:flex;align-items:flex-start;gap:8px">
               <input type="checkbox" style="margin-top:2px;width:14px;height:14px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
-                onchange="concluirPendenciaRapida(${p.id},'${jobEsc}',this,'${(p.texto||'').replace(/'/g,"\\\\'")}')">
+                onchange="concluirPendenciaRapida(${p.id},'${escJs(job)}',this,'${escJs(p.texto||'')}')">
               <div style="flex:1">
-                <span style="font-size:12px;color:#1e3a5f">${p.texto}</span>
+                <span style="font-size:12px;color:#1e3a5f">${esc(p.texto)}</span>
                 <div style="display:flex;gap:4px;margin-top:2px;flex-wrap:wrap">
-                  <span style="background:${critInfo.bg};color:${critInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700">${critInfo.ico} ${p.criticidade||'Média'}</span>
-                  ${setorInfo ? `<span style="background:${setorInfo.cor}20;color:${setorInfo.cor};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700">${setorInfo.ico} ${p.setor_responsavel}</span>` : ''}
+                  <span style="background:${esc(critInfo.bg)};color:${esc(critInfo.cor)};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700">${esc(critInfo.ico)} ${esc(p.criticidade||'Média')}</span>
+                  ${setorInfo ? `<span style="background:${esc(setorInfo.cor)}20;color:${esc(setorInfo.cor)};font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700">${esc(setorInfo.ico)} ${esc(p.setor_responsavel)}</span>` : ''}
                 </div>
               </div>
             </div>`;
           }).join('')}
           ${pends.length > 3
-            ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">+${pends.length-3} mais pendência(s)...</div>`
+            ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">+${esc(pends.length-3)} mais pendência(s)...</div>`
             : ''}
         </div>
       </div>`;
@@ -398,7 +397,7 @@ function _perguntarIntervencaoDePendencia(job, texto, dataConclusao) {
 }
 
 async function concluirPendenciaRapida(id, job, checkbox, texto) {
-  const dataConclusao = new Date().toISOString().split('T')[0];
+  const dataConclusao = hojeLocal();
   try {
     await db._patch('molde_pendencias', 'id=eq.' + id, {
       concluido: true, data_conclusao: dataConclusao
@@ -443,7 +442,7 @@ async function inicializarPainelPendenciasDedicado() {
           </select>
           <select id="pcmFiltroSetorPend" onchange="filtrarSetorPendencias(this.value)" style="width:auto;font-size:12px">
             <option value="Todos">Todos os Setores</option>
-            ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+            ${_SETORES_RESPONSAVEL.map(s=>`<option value="${esc(s.id)}">${esc(s.ico)} ${esc(s.id)}</option>`).join('')}
           </select>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#64748b">
             <input type="checkbox" id="pcmToggleTodas" onchange="toggleTodasPendencias(this.checked)"
@@ -488,7 +487,7 @@ function renderizarStatsPendencias(todasPend) {
   let html = metricCard('✅', labelTotal, todasPend.length, 'no total', '#f59e0b');
   if (top) {
     const infoTop = _infoSetor(top[0]);
-    html += metricCard(infoTop.ico, 'Setor com Mais Pendências', top[0], top[1]+' pendência'+(top[1]>1?'s':''), infoTop.cor);
+    html += metricCard(infoTop.ico, 'Setor com Mais Pendências', esc(top[0]), top[1]+' pendência'+(top[1]>1?'s':''), infoTop.cor);
   }
   ranking.filter(([,n])=>n>0).forEach(([setor,n]) => {
     const info = _infoSetor(setor);
@@ -563,14 +562,14 @@ function renderizarResumoPCM() {
   _LOCALIZACOES.forEach(l => contagem[l.id] = 0);
   _dadosPCM.forEach(m => { if (contagem[m.localizacao]!==undefined) contagem[m.localizacao]++; });
   el.innerHTML = _LOCALIZACOES.map(l => `
-    <div class="metric-card" style="border-left-color:${l.cor};cursor:pointer;transition:transform 0.15s"
-      onclick="setPcmFiltro('${l.id}',null)"
+    <div class="metric-card" style="border-left-color:${esc(l.cor)};cursor:pointer;transition:transform 0.15s"
+      onclick="setPcmFiltro('${escJs(l.id)}',null)"
       onmouseover="this.style.transform='translateY(-2px)'"
       onmouseout="this.style.transform=''">
-      <div style="font-size:22px;margin-bottom:6px">${l.ico}</div>
-      <div style="font-size:28px;font-weight:700;color:${l.cor}">${contagem[l.id]}</div>
-      <div style="font-size:13px;font-weight:600;color:#1e3a5f">${l.id}</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:2px">${l.desc}</div>
+      <div style="font-size:22px;margin-bottom:6px">${esc(l.ico)}</div>
+      <div style="font-size:28px;font-weight:700;color:${esc(l.cor)}">${esc(contagem[l.id])}</div>
+      <div style="font-size:13px;font-weight:600;color:#1e3a5f">${esc(l.id)}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px">${esc(l.desc)}</div>
     </div>`).join('');
 }
 
@@ -610,7 +609,7 @@ function renderizarListaPCM(lista) {
     html += `
     <div class="card" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--borda)">
-        <span style="background:${info.bg};color:${info.cor};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${info.ico} ${loc.id}</span>
+        <span style="background:${esc(info.bg)};color:${esc(info.cor)};padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700">${esc(info.ico)} ${esc(loc.id)}</span>
         <span style="background:#f1f5f9;color:#64748b;padding:4px 10px;border-radius:10px;font-size:12px;font-weight:600">${items.length} molde(s)</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
@@ -622,42 +621,41 @@ function renderizarListaPCM(lista) {
 }
 
 function _criarCardPCM(m, info) {
-  const jobEsc = m.job.replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const dt = m.atualizado ? new Date(m.atualizado).toLocaleDateString('pt-BR') : '—';
   const estaParado = m.localizacao === 'Na Ferramentaria' && m.diasParado !== null && m.diasParado >= DIAS_ALERTA_PARADO;
   const corBorda = estaParado ? '#ef4444' : info.cor;
   const bgCard = estaParado ? '#fef2f2' : '#f8fafc';
-  return `<div style="background:${bgCard};border:1px solid ${estaParado?'#fecaca':'var(--borda)'};border-left:4px solid ${corBorda};border-radius:10px;padding:14px">
+  return `<div style="background:${esc(bgCard)};border:1px solid ${estaParado?'#fecaca':'var(--borda)'};border-left:4px solid ${esc(corBorda)};border-radius:10px;padding:14px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
       <div>
-        <div style="font-size:14px;font-weight:700;color:#1e3a5f">${m.job}</div>
+        <div style="font-size:14px;font-weight:700;color:#1e3a5f">${esc(m.job)}</div>
         ${m.localizacao==='Em Máquina'&&m.maquina
-          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px">🏭 ${m.maquina}</div>`
+          ? `<div style="font-size:11px;color:#10b981;font-weight:600;margin-top:2px">🏭 ${esc(m.maquina)}</div>`
           : ''}
         ${estaParado
-          ? `<div style="font-size:11px;color:#dc2626;font-weight:700;margin-top:2px">⏰ Parado há ${m.diasParado} dia(s) sem lançamento</div>`
+          ? `<div style="font-size:11px;color:#dc2626;font-weight:700;margin-top:2px">⏰ Parado há ${esc(m.diasParado)} dia(s) sem lançamento</div>`
           : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="abrirModalPendencias('${jobEsc}')"
+        <button onclick="abrirModalPendencias('${escJs(m.job)}')"
           style="background:#fefce8;border:1px solid #fde68a;color:#92400e;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">✅ Pendências</button>
         ${typeof podeRegistrarIntervencao === 'function' && podeRegistrarIntervencao() ? `
-        <button onclick="abrirModalIntervencao('${jobEsc}')"
+        <button onclick="abrirModalIntervencao('${escJs(m.job)}')"
           style="background:#f0fdf4;border:1px solid #bbf7d0;color:#059669;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">🛠️ Intervenção</button>` : ''}
-        <button onclick="abrirModalHistoricoLoc('${jobEsc}')"
+        <button onclick="abrirModalHistoricoLoc('${escJs(m.job)}')"
           style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">📋 Histórico</button>
-        <button onclick="gerarQRCode('${jobEsc}')"
+        <button onclick="gerarQRCode('${escJs(m.job)}')"
           style="background:#f5f3ff;border:1px solid #ddd6fe;color:#7c3aed;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">📱</button>
-        <button onclick="abrirFichaDoMolde('${jobEsc}')"
+        <button onclick="abrirFichaDoMolde('${escJs(m.job)}')"
           style="background:#f0fdf4;border:1px solid #bbf7d0;color:#059669;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">📄 Ficha</button>
-        <button onclick="abrirModalLocalizacao('${jobEsc}')"
+        <button onclick="abrirModalLocalizacao('${escJs(m.job)}')"
           style="background:#fff;border:1px solid var(--borda);color:#475569;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer">✏️</button>
       </div>
     </div>
-    ${m.observacao ? `<div style="font-size:11px;color:#64748b;margin-bottom:8px">📝 ${m.observacao}</div>` : ''}
+    ${m.observacao ? `<div style="font-size:11px;color:#64748b;margin-bottom:8px">📝 ${esc(m.observacao)}</div>` : ''}
     <div style="font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9">
-      <span>📅 ${dt}</span>
-      ${m.atualizadoPor?`<span>👤 ${m.atualizadoPor}</span>`:''}
+      <span>📅 ${esc(dt)}</span>
+      ${m.atualizadoPor?`<span>👤 ${esc(m.atualizadoPor)}</span>`:''}
     </div>
   </div>`;
 }
@@ -678,7 +676,7 @@ function abrirModalLocalizacao(job) {
   <div class="modal-overlay" onclick="fecharModalLocalizacao()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:500px">
     <div class="modal-header">
-      <h3>${job ? '📍 Localização: '+job : '📍 Registrar Localização'}</h3>
+      <h3>${esc(job ? '📍 Localização: '+job : '📍 Registrar Localização')}</h3>
       <button onclick="fecharModalLocalizacao()">✕</button>
     </div>
     <div class="modal-body">
@@ -693,29 +691,29 @@ function abrirModalLocalizacao(job) {
         <label>Localização *</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px" id="pcmLocBtns">
           ${_LOCALIZACOES.map(l=>`
-            <label style="cursor:pointer;border:2px solid ${dados?.localizacao===l.id?l.cor:'#e2e8f0'};background:${dados?.localizacao===l.id?l.bg:'#fff'};border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:${dados?.localizacao===l.id?l.cor:'#64748b'};transition:all 0.15s"
-              onclick="selecionarLocalizacao('${l.id}')">
-              <input type="radio" name="pcmLoc" value="${l.id}" ${dados?.localizacao===l.id?'checked':''} style="display:none">
-              ${l.ico} ${l.id}
+            <label style="cursor:pointer;border:2px solid ${esc(dados?.localizacao===l.id?l.cor:'#e2e8f0')};background:${esc(dados?.localizacao===l.id?l.bg:'#fff')};border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:${esc(dados?.localizacao===l.id?l.cor:'#64748b')};transition:all 0.15s"
+              onclick="selecionarLocalizacao('${escJs(l.id)}')">
+              <input type="radio" name="pcmLoc" value="${esc(l.id)}" ${dados?.localizacao===l.id?'checked':''} style="display:none">
+              ${esc(l.ico)} ${esc(l.id)}
             </label>`).join('')}
         </div>
-        <input type="hidden" id="pcmLocSelecionada" value="${dados?.localizacao||'Na Ferramentaria'}">
+        <input type="hidden" id="pcmLocSelecionada" value="${esc(dados?.localizacao||'Na Ferramentaria')}">
       </div>
-      <div class="form-group" id="pcmGrupoMaquina" style="${dados?.localizacao==='Em Máquina'?'':'display:none'}">
+      <div class="form-group" id="pcmGrupoMaquina" style="${esc(dados?.localizacao==='Em Máquina'?'':'display:none')}">
         <label>Injetora *</label>
         <select id="pcmLocMaquina" onchange="verificarMoldeNaMaquina()">
           <option value="">Selecione...</option>
-          ${injetoras.map(m=>`<option value="${m}" ${dados?.maquina===m?'selected':''}>${m}</option>`).join('')}
+          ${injetoras.map(m=>`<option value="${esc(m)}" ${dados?.maquina===m?'selected':''}>${esc(m)}</option>`).join('')}
         </select>
         <div id="pcmAvisoTrocaMaquina" style="display:none;margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e"></div>
       </div>
       <div class="form-group">
         <label>Observação</label>
-        <textarea id="pcmLocObs" rows="2" placeholder="Observações gerais...">${dados?.observacao||''}</textarea>
+        <textarea id="pcmLocObs" rows="2" placeholder="Observações gerais...">${esc(dados?.observacao||'')}</textarea>
       </div>
       <div class="form-group">
         <label>Data da movimentação</label>
-        <input type="date" id="pcmLocData" value="${new Date().toISOString().split('T')[0]}">
+        <input type="date" id="pcmLocData" value="${esc(hojeLocal())}">
       </div>
     </div>
     <div class="modal-footer">
@@ -755,14 +753,14 @@ function verificarMoldeNaMaquina() {
 
   if (moldeNaMaquina) {
     aviso.style.display = 'block';
-    aviso.innerHTML = `⚠️ A injetora <b>${maq}</b> está rodando o molde <b>${moldeNaMaquina.job}</b> atualmente.<br>
+    aviso.innerHTML = `⚠️ A injetora <b>${esc(maq)}</b> está rodando o molde <b>${esc(moldeNaMaquina.job)}</b> atualmente.<br>
       Ao salvar, ele será movido automaticamente para <b>🔧 Na Ferramentaria</b>.`;
   } else {
     aviso.style.display = 'block';
     aviso.style.background = '#d1fae5';
     aviso.style.borderColor = '#a7f3d0';
     aviso.style.color = '#065f46';
-    aviso.innerHTML = `✅ A injetora <b>${maq}</b> está livre no momento.`;
+    aviso.innerHTML = `✅ A injetora <b>${esc(maq)}</b> está livre no momento.`;
   }
 }
 
@@ -772,7 +770,7 @@ async function salvarLocalizacao() {
   const loc  = document.getElementById('pcmLocSelecionada')?.value;
   const maq  = document.getElementById('pcmLocMaquina')?.value || null;
   const obs  = document.getElementById('pcmLocObs')?.value?.trim() || null;
-  const data = document.getElementById('pcmLocData')?.value || new Date().toISOString().split('T')[0];
+  const data = document.getElementById('pcmLocData')?.value || hojeLocal();
   if (!loc) return toast('Selecione a localização.','erro');
   if (loc==='Em Máquina' && !maq) return toast('Selecione a injetora.','erro');
   try {
@@ -833,7 +831,7 @@ async function abrirModalHistoricoLoc(job) {
   <div class="modal-overlay" onclick="fecharModalHistoricoLoc()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:560px">
     <div class="modal-header">
-      <h3>📋 Histórico de Movimentação — ${job}</h3>
+      <h3>📋 Histórico de Movimentação — ${esc(job)}</h3>
       <button onclick="fecharModalHistoricoLoc()">✕</button>
     </div>
     <div class="modal-body">
@@ -865,14 +863,14 @@ async function abrirModalHistoricoLoc(job) {
         const dt = h.movido_em ? new Date(h.movido_em).toLocaleDateString('pt-BR') : '—';
         return `<div style="position:relative;margin-bottom:16px">
           ${i<hist.length-1?'<div style="position:absolute;left:-20px;top:20px;width:2px;height:calc(100% + 8px);background:#e2e8f0"></div>':''}
-          <div style="position:absolute;left:-28px;top:4px;width:16px;height:16px;border-radius:50%;background:${info.cor};border:2px solid #fff;box-shadow:0 0 0 2px ${info.cor}"></div>
-          <div style="background:${info.bg};border-radius:10px;border:1px solid ${info.cor}40;border-left:3px solid ${info.cor};padding:12px 14px">
+          <div style="position:absolute;left:-28px;top:4px;width:16px;height:16px;border-radius:50%;background:${esc(info.cor)};border:2px solid #fff;box-shadow:0 0 0 2px ${esc(info.cor)}"></div>
+          <div style="background:${esc(info.bg)};border-radius:10px;border:1px solid ${esc(info.cor)}40;border-left:3px solid ${esc(info.cor)};padding:12px 14px">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-              <span style="font-size:13px;font-weight:700;color:${info.cor}">${info.ico} ${h.localizacao}</span>
-              <span style="font-size:11px;color:#94a3b8">📅 ${dt} · 👤 ${h.movido_por||'—'}</span>
+              <span style="font-size:13px;font-weight:700;color:${esc(info.cor)}">${esc(info.ico)} ${esc(h.localizacao)}</span>
+              <span style="font-size:11px;color:#94a3b8">📅 ${esc(dt)} · 👤 ${esc(h.movido_por||'—')}</span>
             </div>
-            ${h.maquina?`<div style="font-size:12px;color:#64748b;margin-top:4px">🏭 ${h.maquina}</div>`:''}
-            ${h.observacao?`<div style="font-size:12px;color:#64748b;margin-top:4px">📝 ${h.observacao}</div>`:''}
+            ${h.maquina?`<div style="font-size:12px;color:#64748b;margin-top:4px">🏭 ${esc(h.maquina)}</div>`:''}
+            ${h.observacao?`<div style="font-size:12px;color:#64748b;margin-top:4px">📝 ${esc(h.observacao)}</div>`:''}
           </div>
         </div>`;
       }).join('') + '</div>';
@@ -910,7 +908,7 @@ async function adicionarPendencia(job) {
   const setorResp = document.getElementById('novaPendenciaSetor')?.value || null;
   const criticidade = document.getElementById('novaPendenciaCriticidade')?.value || 'Média';
   const dataCriacao = document.getElementById('novaPendenciaData')?.value ||
-    new Date().toISOString().split('T')[0];
+    hojeLocal();
   try {
     await db._post('molde_pendencias', {
       job, texto, concluido: false,
@@ -927,7 +925,7 @@ async function adicionarPendencia(job) {
 
 async function togglePendencia(id, job, concluido, texto) {
   if (!concluido) {
-    const dataConclusao = await _pedirData('Data de conclusão:', new Date().toISOString().split('T')[0]);
+    const dataConclusao = await _pedirData('Data de conclusão:', hojeLocal());
     if (dataConclusao === null) return;
     try {
       await db._patch('molde_pendencias', 'id=eq.' + id, { concluido: true, data_conclusao: dataConclusao });
@@ -945,7 +943,7 @@ async function togglePendencia(id, job, concluido, texto) {
 async function editarDataPendencia(id, job, campo, valorAtual) {
   const novaData = await _pedirData(
     campo === 'criado_em' ? 'Data de criação:' : 'Data de conclusão:',
-    valorAtual ? valorAtual.split('T')[0] : new Date().toISOString().split('T')[0]
+    valorAtual ? valorAtual.split('T')[0] : hojeLocal()
   );
   if (novaData === null) return;
   try {
@@ -968,11 +966,11 @@ function editarSetorPendencia(id, job) {
       <div class="modal-body">
         <select id="selSetorPend" style="width:100%">
           <option value="">— Nenhum —</option>
-          ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+          ${_SETORES_RESPONSAVEL.map(s=>`<option value="${esc(s.id)}">${esc(s.ico)} ${esc(s.id)}</option>`).join('')}
         </select>
       </div>
       <div class="modal-footer">
-        <button class="btn-primary" onclick="_confirmarSetorPendencia(${id},'${job.replace(/'/g,"\\'")}')">✓ Confirmar</button>
+        <button class="btn-primary" onclick="_confirmarSetorPendencia(${id},'${escJs(job)}')">✓ Confirmar</button>
         <button class="btn-secondary" onclick="document.getElementById('modalSetorPendWrap').remove()">Cancelar</button>
       </div>
     </div>`;
@@ -997,9 +995,9 @@ function _pedirData(label, valorDefault) {
     div.innerHTML = `
     <div class="modal-overlay" style="display:block;z-index:9999"></div>
     <div class="modal" style="display:block;max-width:340px;z-index:10000">
-      <div class="modal-header"><h3>${label}</h3></div>
+      <div class="modal-header"><h3>${esc(label)}</h3></div>
       <div class="modal-body">
-        <input type="date" id="modalDataInput" value="${valorDefault}" style="width:100%">
+        <input type="date" id="modalDataInput" value="${esc(valorDefault)}" style="width:100%">
       </div>
       <div class="modal-footer">
         <button class="btn-primary" onclick="
@@ -1030,7 +1028,6 @@ async function renderizarChecklist(job) {
   const abertasOrdenadas = (pends||[]).filter(p => !p.concluido)
     .sort((a,b) => _infoCriticidade(b.criticidade||'Média').peso - _infoCriticidade(a.criticidade||'Média').peso);
   const concluidas = (pends||[]).filter(p =>  p.concluido);
-  const jobEsc     = job.replace(/'/g,"\\'");
 
   let html = '';
   if (!pends.length) {
@@ -1042,22 +1039,22 @@ async function renderizarChecklist(job) {
       return `
       <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px dashed #f1f5f9">
         <input type="checkbox" style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
-          onchange="togglePendencia(${p.id},'${jobEsc}',false,'${(p.texto||'').replace(/'/g,"\\\\'")}')">
+          onchange="togglePendencia(${p.id},'${escJs(job)}',false,'${escJs(p.texto||'')}')">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:#1e3a5f;font-weight:500">${p.texto}</div>
+          <div style="font-size:13px;color:#1e3a5f;font-weight:500">${esc(p.texto)}</div>
           <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <span title="Clique pra mudar a criticidade" style="cursor:pointer;background:${critInfo.bg};color:${critInfo.cor};padding:1px 8px;border-radius:8px;font-weight:700"
-              onclick="ciclarCriticidadePendencia(${p.id},'${jobEsc}','${p.criticidade||'Média'}')">${critInfo.ico} ${p.criticidade||'Média'}</span>
-            ${setorInfo ? `<span style="background:${setorInfo.cor}20;color:${setorInfo.cor};padding:1px 8px;border-radius:8px;font-weight:700">${setorInfo.ico} ${p.setor_responsavel}</span>` : `<span style="cursor:pointer;text-decoration:underline;color:#94a3b8" onclick="editarSetorPendencia(${p.id},'${jobEsc}')">➕ Atribuir setor</span>`}
-            <span>👤 ${p.criado_por||'—'}</span>
+            <span title="Clique pra mudar a criticidade" style="cursor:pointer;background:${esc(critInfo.bg)};color:${esc(critInfo.cor)};padding:1px 8px;border-radius:8px;font-weight:700"
+              onclick="ciclarCriticidadePendencia(${p.id},'${escJs(job)}','${escJs(p.criticidade||'Média')}')">${esc(critInfo.ico)} ${esc(p.criticidade||'Média')}</span>
+            ${setorInfo ? `<span style="background:${esc(setorInfo.cor)}20;color:${esc(setorInfo.cor)};padding:1px 8px;border-radius:8px;font-weight:700">${esc(setorInfo.ico)} ${esc(p.setor_responsavel)}</span>` : `<span style="cursor:pointer;text-decoration:underline;color:#94a3b8" onclick="editarSetorPendencia(${p.id},'${escJs(job)}')">➕ Atribuir setor</span>`}
+            <span>👤 ${esc(p.criado_por||'—')}</span>
             <span style="cursor:pointer;text-decoration:underline;color:#0369a1"
-              onclick="editarDataPendencia(${p.id},'${jobEsc}','criado_em','${p.criado_em||''}')">
-              📅 ${p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—'} ✏️
+              onclick="editarDataPendencia(${p.id},'${escJs(job)}','criado_em','${escJs(p.criado_em||'')}')">
+              📅 ${esc(p.criado_em?new Date(p.criado_em).toLocaleDateString('pt-BR'):'—')} ✏️
             </span>
-            ${setorInfo ? `<span style="cursor:pointer;text-decoration:underline;color:#94a3b8" onclick="editarSetorPendencia(${p.id},'${jobEsc}')">✏️ setor</span>` : ''}
+            ${setorInfo ? `<span style="cursor:pointer;text-decoration:underline;color:#94a3b8" onclick="editarSetorPendencia(${p.id},'${escJs(job)}')">✏️ setor</span>` : ''}
           </div>
         </div>
-        <button onclick="excluirPendencia(${p.id},'${jobEsc}')"
+        <button onclick="excluirPendencia(${p.id},'${escJs(job)}')"
           style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;flex-shrink:0">🗑️</button>
       </div>`;
     }).join('');
@@ -1068,18 +1065,18 @@ async function renderizarChecklist(job) {
       html += concluidas.map(p => `
         <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed #f1f5f9;opacity:0.65">
           <input type="checkbox" checked style="margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:#10b981;flex-shrink:0"
-            onchange="togglePendencia(${p.id},'${jobEsc}',true)">
+            onchange="togglePendencia(${p.id},'${escJs(job)}',true)">
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:#64748b;text-decoration:line-through">${p.texto}</div>
+            <div style="font-size:13px;color:#64748b;text-decoration:line-through">${esc(p.texto)}</div>
             <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
-              <span>👤 ${p.criado_por||'—'}</span>
+              <span>👤 ${esc(p.criado_por||'—')}</span>
               <span style="cursor:pointer;text-decoration:underline;color:#059669"
-                onclick="editarDataPendencia(${p.id},'${jobEsc}','data_conclusao','${p.data_conclusao||''}')">
-                ✅ ${p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'} ✏️
+                onclick="editarDataPendencia(${p.id},'${escJs(job)}','data_conclusao','${escJs(p.data_conclusao||'')}')">
+                ✅ ${esc(p.data_conclusao?new Date(p.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—')} ✏️
               </span>
             </div>
           </div>
-          <button onclick="excluirPendencia(${p.id},'${jobEsc}')"
+          <button onclick="excluirPendencia(${p.id},'${escJs(job)}')"
             style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0;flex-shrink:0">🗑️</button>
         </div>`).join('');
     }
@@ -1090,12 +1087,11 @@ async function renderizarChecklist(job) {
 async function abrirModalPendencias(job) {
   const div = document.createElement('div');
   div.id = 'modalPendWrap';
-  const jobEsc = job.replace(/'/g,"\\'");
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalPendencias()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:540px">
     <div class="modal-header">
-      <h3>✅ Pendências — ${job}</h3>
+      <h3>✅ Pendências — ${esc(job)}</h3>
       <button onclick="fecharModalPendencias()">✕</button>
     </div>
     <div class="modal-body">
@@ -1103,20 +1099,20 @@ async function abrirModalPendencias(job) {
         <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:10px">+ NOVA PENDÊNCIA</div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <input type="text" id="novaPendenciaInput" placeholder="Descreva a pendência..." style="flex:1"
-            onkeydown="if(event.key==='Enter') adicionarPendencia('${jobEsc}')">
-          <button class="btn-primary" style="white-space:nowrap" onclick="adicionarPendencia('${jobEsc}')">+ Add</button>
+            onkeydown="if(event.key==='Enter') adicionarPendencia('${escJs(job)}')">
+          <button class="btn-primary" style="white-space:nowrap" onclick="adicionarPendencia('${escJs(job)}')">+ Add</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <label style="font-size:12px;color:#64748b">Data:</label>
-          <input type="date" id="novaPendenciaData" value="${new Date().toISOString().split('T')[0]}" style="width:auto">
+          <input type="date" id="novaPendenciaData" value="${esc(hojeLocal())}" style="width:auto">
           <label style="font-size:12px;color:#64748b;margin-left:8px">Setor Responsável:</label>
           <select id="novaPendenciaSetor" style="width:auto">
             <option value="">— Nenhum —</option>
-            ${_SETORES_RESPONSAVEL.map(s=>`<option value="${s.id}">${s.ico} ${s.id}</option>`).join('')}
+            ${_SETORES_RESPONSAVEL.map(s=>`<option value="${esc(s.id)}">${esc(s.ico)} ${esc(s.id)}</option>`).join('')}
           </select>
           <label style="font-size:12px;color:#64748b;margin-left:8px">Criticidade:</label>
           <select id="novaPendenciaCriticidade" style="width:auto">
-            ${_NIVEIS_CRITICIDADE.map(n=>`<option value="${n.id}" ${n.id==='Média'?'selected':''}>${n.ico} ${n.id}</option>`).join('')}
+            ${_NIVEIS_CRITICIDADE.map(n=>`<option value="${esc(n.id)}" ${n.id==='Média'?'selected':''}>${esc(n.ico)} ${esc(n.id)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1149,15 +1145,15 @@ async function gerarQRCode(job) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharQRCode()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:380px;text-align:center">
-    <div class="modal-header"><h3>📱 QR Code — ${job}</h3><button onclick="fecharQRCode()">✕</button></div>
+    <div class="modal-header"><h3>📱 QR Code — ${esc(job)}</h3><button onclick="fecharQRCode()">✕</button></div>
     <div class="modal-body" style="text-align:center;padding:24px">
       <div style="background:#fff;border:2px solid var(--borda);border-radius:12px;padding:16px;display:inline-block;margin-bottom:16px">
-        <img src="${qrUrl}" width="240" height="240" alt="QR Code ${job}" style="display:block;border-radius:4px">
+        <img src="${esc(qrUrl)}" width="240" height="240" alt="QR Code ${esc(job)}" style="display:block;border-radius:4px">
       </div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:16px;word-break:break-all">${url}</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:16px;word-break:break-all">${esc(url)}</div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <a href="${qrUrl}" download="QRCode_${job.replace(/\s/g,'_')}.png" class="btn-primary" style="text-decoration:none">📥 Baixar PNG</a>
-        <button class="btn-secondary" onclick="imprimirQRCode('${qrUrl}','${job.replace(/'/g,"\\'")}')">🖨️ Imprimir</button>
+        <a href="${esc(qrUrl)}" download="QRCode_${esc(job.replace(/\s/g,'_'))}.png" class="btn-primary" style="text-decoration:none">📥 Baixar PNG</a>
+        <button class="btn-secondary" onclick="imprimirQRCode('${escJs(qrUrl)}','${escJs(job)}')">🖨️ Imprimir</button>
         <button class="btn-secondary" onclick="fecharQRCode()">Fechar</button>
       </div>
     </div>
@@ -1169,10 +1165,10 @@ function fecharQRCode() { document.getElementById('qrModalWrap')?.remove(); }
 
 function imprimirQRCode(qrUrl, job) {
   const win = window.open('','_blank','width=400,height=500');
-  win.document.write(`<!DOCTYPE html><html><head><title>QR Code — ${job}</title>
+  win.document.write(`<!DOCTYPE html><html><head><title>QR Code — ${esc(job)}</title>
   <style>body{font-family:Inter,sans-serif;text-align:center;padding:30px}h2{color:#1e3a5f}img{border:2px solid #e2e8f0;border-radius:8px;padding:10px}</style>
-  </head><body><h2>${job}</h2><p style="color:#64748b;font-size:12px">Escaneie para ver a Ficha do Molde</p>
-  <img src="${qrUrl}" width="240" height="240">
+  </head><body><h2>${esc(job)}</h2><p style="color:#64748b;font-size:12px">Escaneie para ver a Ficha do Molde</p>
+  <img src="${esc(qrUrl)}" width="240" height="240">
   <p style="margin-top:16px;font-size:10px;color:#94a3b8">Ferramentaria V3 — BX</p>
   <script>window.onload=()=>window.print()<\/script></body></html>`);
   win.document.close();

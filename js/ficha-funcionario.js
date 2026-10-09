@@ -9,7 +9,9 @@ var _chartsFichaFunc = {};
 async function buscarHistoricoFuncionario(nome) {
   const [lancsFerramentaria, lancsProd] = await Promise.all([
     db._get('lancamentos', 'funcionario=eq.' + encodeURIComponent(nome) + '&order=data.asc', '*'),
-    db._get('prod_lancamentos', 'order=data.asc', '*') // busca todos, filtra técnico depois (campo texto)
+    // "tecnicos" é texto com vários nomes ("João, Maria"): o banco pré-filtra pelo
+    // trecho do nome e o filtro abaixo confirma o nome exato
+    db._get('prod_lancamentos', 'tecnicos=ilike.*' + encodeURIComponent(nome) + '*&order=data.asc', '*')
   ]);
 
   const prodFiltrado = (lancsProd || []).filter(l => {
@@ -69,17 +71,17 @@ async function renderizarHistoricoNaFicha(nome, containerId) {
     <div class="cards-row">
       <div class="metric-card" style="border-left-color:#10b981">
         <div class="metric-icon">⏱️</div>
-        <div class="metric-valor" style="color:#10b981">${fmtMin(minsFerr+minsProd)}</div>
+        <div class="metric-valor" style="color:#10b981">${esc(fmtMin(minsFerr+minsProd))}</div>
         <div class="metric-label">Total de Horas</div>
       </div>
       <div class="metric-card" style="border-left-color:#0056b3">
         <div class="metric-icon">📋</div>
-        <div class="metric-valor" style="color:#0056b3">${totalLancs}</div>
+        <div class="metric-valor" style="color:#0056b3">${esc(totalLancs)}</div>
         <div class="metric-label">Lançamentos</div>
       </div>
       <div class="metric-card" style="border-left-color:#8b5cf6">
         <div class="metric-icon">🔩</div>
-        <div class="metric-valor" style="color:#8b5cf6">${jobsUnicos.size}</div>
+        <div class="metric-valor" style="color:#8b5cf6">${esc(jobsUnicos.size)}</div>
         <div class="metric-label">Moldes/Jobs Distintos</div>
       </div>
     </div>
@@ -97,7 +99,7 @@ async function renderizarHistoricoNaFicha(nome, containerId) {
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:13px">📋 Últimos Lançamentos</div>
-      <button class="btn-success" style="padding:5px 12px;font-size:11px" onclick="exportarHistoricoFuncionario('${nome.replace(/'/g,"\\'")}')">📥 CSV</button>
+      <button class="btn-success" style="padding:5px 12px;font-size:11px" onclick="exportarHistoricoFuncionario('${escJs(nome)}')">📥 CSV</button>
     </div>
     <div class="table-wrap" style="max-height:300px;overflow-y:auto">
       <table>
@@ -112,10 +114,10 @@ async function renderizarHistoricoNaFicha(nome, containerId) {
     todosOrdenados.forEach(l => {
       html += `<tr>
         <td><b>${l.data?l.data.split('-').reverse().join('/'):'—'}</b></td>
-        <td><span style="color:${cors[l.setor]||'#64748b'};font-weight:600;font-size:12px">${icos[l.setor]||'🏭'} ${l.setor}</span></td>
-        <td style="font-size:12px">${l.job||'—'}</td>
-        <td style="font-size:12px">${l.tipo||'—'}</td>
-        <td style="color:#10b981;font-weight:700">${fmtMin(l.minutos||0)}</td>
+        <td><span style="color:${esc(cors[l.setor]||'#64748b')};font-weight:600;font-size:12px">${esc(icos[l.setor]||'🏭')} ${esc(l.setor)}</span></td>
+        <td style="font-size:12px">${esc(l.job||'—')}</td>
+        <td style="font-size:12px">${esc(l.tipo||'—')}</td>
+        <td style="color:#10b981;font-weight:700">${esc(fmtMin(l.minutos||0))}</td>
       </tr>`;
     });
 

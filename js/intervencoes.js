@@ -13,7 +13,6 @@ function renderizarIntervencoesHTML(lista, job) {
   if (!lista || !lista.length) {
     return '<div style="color:#94a3b8;font-size:13px;padding:8px 0">Nenhuma intervenção registrada para este molde.</div>';
   }
-  const jobEsc = job.replace(/'/g,"\\'");
   return `<div style="position:relative;padding-left:24px">
     ${lista.map(iv => {
       const dt = iv.data ? iv.data.split('-').reverse().join('/') : '—';
@@ -24,15 +23,15 @@ function renderizarIntervencoesHTML(lista, job) {
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:12px;font-weight:700;color:#059669">📅 ${dt}</span>
-              ${iv.tipo?`<span style="background:#d1fae5;color:#065f46;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${iv.tipo}</span>`:''}
+              ${iv.tipo?`<span style="background:#d1fae5;color:#065f46;font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${esc(iv.tipo)}</span>`:''}
             </div>
             ${podeGerenciar ? `<div style="display:flex;gap:4px;flex-shrink:0">
-              <button onclick='abrirModalIntervencao("${jobEsc}",_obj(${_guardarObj(iv)}))' style="background:none;border:none;color:#0056b3;cursor:pointer;font-size:12px;padding:0">✏️</button>
-              <button onclick="excluirIntervencaoConfirm(${iv.id},'${jobEsc}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;padding:0">🗑️</button>
+              <button onclick="abrirModalIntervencao('${escJs(job)}',_obj(${_guardarObj(iv)}))" style="background:none;border:none;color:#0056b3;cursor:pointer;font-size:12px;padding:0">✏️</button>
+              <button onclick="excluirIntervencaoConfirm(${iv.id},'${escJs(job)}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;padding:0">🗑️</button>
             </div>` : ''}
           </div>
-          <div style="font-size:13px;color:#1e3a5f;margin-top:6px">${iv.descricao}</div>
-          <div style="font-size:10.5px;color:#94a3b8;margin-top:6px">👤 ${iv.criado_por||'—'}</div>
+          <div style="font-size:13px;color:#1e3a5f;margin-top:6px">${esc(iv.descricao)}</div>
+          <div style="font-size:10.5px;color:#94a3b8;margin-top:6px">👤 ${esc(iv.criado_por||'—')}</div>
         </div>
       </div>`;
     }).join('')}
@@ -47,25 +46,25 @@ function abrirModalIntervencao(job, intervencaoExistente) {
   const iv = intervencaoExistente || null;
   const div = document.createElement('div');
   div.id = 'modalIntervencaoWrap';
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeLocal();
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalIntervencao()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px">
     <div class="modal-header"><h3>🛠️ ${iv&&iv.id?'Editar':'Registrar'} Intervenção</h3><button onclick="fecharModalIntervencao()">✕</button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:#64748b;margin-bottom:4px">Molde</div>
-      <div style="font-size:14px;font-weight:700;color:#1e3a5f;margin-bottom:14px">${job}</div>
+      <div style="font-size:14px;font-weight:700;color:#1e3a5f;margin-bottom:14px">${esc(job)}</div>
       <div class="form-row">
-        <div class="form-group"><label>Data *</label><input type="date" id="ivData" value="${iv?.data || hoje}"></div>
-        <div class="form-group"><label>Tipo</label><input type="text" id="ivTipo" placeholder="Ex: Ajuste, Reforma, Troca de peça..." value="${(iv?.tipo||'').replace(/"/g,'&quot;')}"></div>
+        <div class="form-group"><label>Data *</label><input type="date" id="ivData" value="${esc(iv?.data || hoje)}"></div>
+        <div class="form-group"><label>Tipo</label><input type="text" id="ivTipo" placeholder="Ex: Ajuste, Reforma, Troca de peça..." value="${esc(iv?.tipo||'')}"></div>
       </div>
       <div class="form-group">
         <label>Descrição *</label>
-        <textarea id="ivDescricao" rows="4" placeholder="Descreva a intervenção realizada...">${iv?.descricao||''}</textarea>
+        <textarea id="ivDescricao" rows="4" placeholder="Descreva a intervenção realizada...">${esc(iv?.descricao||'')}</textarea>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarIntervencao('${job.replace(/'/g,"\\'")}'${iv?','+iv.id:''})">💾 Salvar</button>
+      <button class="btn-primary" onclick="salvarIntervencao('${escJs(job)}'${iv?','+iv.id:''})">💾 Salvar</button>
       <button class="btn-secondary" onclick="fecharModalIntervencao()">Cancelar</button>
     </div>
   </div>`;
@@ -112,5 +111,5 @@ async function _recarregarIntervencoesNaFicha(job) {
     const lista = await db.listarIntervencoesPorJob(job);
     if (_dadosFicha) _dadosFicha.intervencoes = lista;
     el.innerHTML = renderizarIntervencoesHTML(lista, job);
-  } catch(e) {}
+  } catch(e) { avisarErro('recarregar as intervenções', e); }
 }

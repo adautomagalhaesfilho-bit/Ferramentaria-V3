@@ -38,18 +38,18 @@ async function inicializarCompetencias() {
     <button class="btn-primary" onclick="abrirModalNovaCompetencia()">+ Nova Competência</button>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" id="compSetorTabs">
-    ${_SETORES_COMP.map(s => `<button onclick="mudarSetorCompetencia('${s}')"
-      style="padding:8px 18px;border-radius:20px;border:2px solid ${s===_setorAtivoComp?_CORES_SETOR_COMP[s]:'#e2e8f0'};
-      background:${s===_setorAtivoComp?_CORES_SETOR_COMP[s]:'#fff'};color:${s===_setorAtivoComp?'#fff':_CORES_SETOR_COMP[s]};
-      font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s" id="tabComp_${s}">${s}</button>`).join('')}
+    ${_SETORES_COMP.map(s => `<button onclick="mudarSetorCompetencia('${escJs(s)}')"
+      style="padding:8px 18px;border-radius:20px;border:2px solid ${esc(s===_setorAtivoComp?_CORES_SETOR_COMP[s]:'#e2e8f0')};
+      background:${esc(s===_setorAtivoComp?_CORES_SETOR_COMP[s]:'#fff')};color:${esc(s===_setorAtivoComp?'#fff':_CORES_SETOR_COMP[s])};
+      font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s" id="tabComp_${esc(s)}">${esc(s)}</button>`).join('')}
   </div>
   <div style="display:flex;gap:8px;margin-bottom:20px" id="compCategoriaTabs">
     <button onclick="mudarCategoriaCompetencia('Técnica')" id="catComp_Técnica"
       style="padding:7px 16px;border-radius:8px;border:none;font-weight:700;font-size:12px;cursor:pointer;
-      background:${_categoriaAtivaComp==='Técnica'?'#1e3a5f':'#f1f5f9'};color:${_categoriaAtivaComp==='Técnica'?'#fff':'#64748b'}">🔧 Técnicas</button>
+      background:${esc(_categoriaAtivaComp==='Técnica'?'#1e3a5f':'#f1f5f9')};color:${esc(_categoriaAtivaComp==='Técnica'?'#fff':'#64748b')}">🔧 Técnicas</button>
     <button onclick="mudarCategoriaCompetencia('Comportamental')" id="catComp_Comportamental"
       style="padding:7px 16px;border-radius:8px;border:none;font-weight:700;font-size:12px;cursor:pointer;
-      background:${_categoriaAtivaComp==='Comportamental'?'#1e3a5f':'#f1f5f9'};color:${_categoriaAtivaComp==='Comportamental'?'#fff':'#64748b'}">🤝 Comportamentais</button>
+      background:${esc(_categoriaAtivaComp==='Comportamental'?'#1e3a5f':'#f1f5f9')};color:${esc(_categoriaAtivaComp==='Comportamental'?'#fff':'#64748b')}">🤝 Comportamentais</button>
   </div>
   <div id="compLoader" class="loader-inline"><div class="spinner-sm"></div><span>Carregando matriz...</span></div>
   <div id="compConteudo" style="display:none;overflow-x:hidden;max-width:100%"></div>`;
@@ -136,13 +136,13 @@ function renderizarMatrizCompetencias() {
   if (!competencias.length) {
     el.innerHTML = `<div class="empty-state">
       <div style="font-size:48px">🎯</div>
-      <div>Nenhuma competência ${_categoriaAtivaComp==='Técnica'?'técnica':'comportamental'} cadastrada para ${_setorAtivoComp}.</div>
+      <div>Nenhuma competência ${esc(_categoriaAtivaComp==='Técnica'?'técnica':'comportamental')} cadastrada para ${esc(_setorAtivoComp)}.</div>
       <div style="margin-top:12px"><button class="btn-primary" onclick="abrirModalNovaCompetencia()">+ Cadastrar primeira competência</button></div>
     </div>`;
     return;
   }
   if (!funcionarios.length) {
-    el.innerHTML = `<div class="empty-state"><div style="font-size:48px">👥</div><div>Nenhum funcionário ativo em ${_setorAtivoComp}.</div></div>`;
+    el.innerHTML = `<div class="empty-state"><div style="font-size:48px">👥</div><div>Nenhum funcionário ativo em ${esc(_setorAtivoComp)}.</div></div>`;
     return;
   }
 
@@ -183,9 +183,9 @@ function renderizarMatrizCompetencias() {
   // ===== HTML =====
   let html = `<div class="cards-row">
     ${metricCard('📊','Nível Médio da Equipe', nivelMedioGeral.toFixed(1)+'/4', totalAvaliadas+' de '+totalCelulas+' avaliações feitas', cor)}
-    ${metricCard('🏆','Competência Mais Forte', maisForte?maisForte.competencia.nome:'—', maisForte?'Média '+maisForte.media.toFixed(1)+'/4':'Sem dados','#10b981')}
-    ${metricCard('⚠️','Competência Mais Fraca', maisFraca?maisFraca.competencia.nome:'—', maisFraca?'Média '+maisFraca.media.toFixed(1)+'/4':'Sem dados','#ef4444')}
-    ${metricCard('⭐','Mais Versátil', maisVersatil?maisVersatil.funcionario.nome:'—', maisVersatil?'Média '+maisVersatil.media.toFixed(1)+'/4':'Sem dados','#8b5cf6')}
+    ${metricCard('🏆','Competência Mais Forte', maisForte?esc(maisForte.competencia.nome):'—', maisForte?'Média '+maisForte.media.toFixed(1)+'/4':'Sem dados','#10b981')}
+    ${metricCard('⚠️','Competência Mais Fraca', maisFraca?esc(maisFraca.competencia.nome):'—', maisFraca?'Média '+maisFraca.media.toFixed(1)+'/4':'Sem dados','#ef4444')}
+    ${metricCard('⭐','Mais Versátil', maisVersatil?esc(maisVersatil.funcionario.nome):'—', maisVersatil?'Média '+maisVersatil.media.toFixed(1)+'/4':'Sem dados','#8b5cf6')}
   </div>
 
   <div class="graficos-2col">
@@ -209,7 +209,7 @@ function renderizarMatrizCompetencias() {
         <thead>
           <tr>
             <th style="text-align:left;min-width:170px;width:170px;position:sticky;left:0;background:#fff;z-index:3">Funcionário</th>
-            ${competencias.map(c=>`<th style="writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;padding:10px 4px;height:150px;width:44px;min-width:44px;max-width:44px;white-space:normal;word-break:break-word;line-height:1.2;cursor:default" title="${c.nome}">${c.nome}</th>`).join('')}
+            ${competencias.map(c=>`<th style="writing-mode:vertical-rl;text-orientation:mixed;font-size:11px;padding:10px 4px;height:150px;width:44px;min-width:44px;max-width:44px;white-space:normal;word-break:break-word;line-height:1.2;cursor:default" title="${esc(c.nome)}">${esc(c.nome)}</th>`).join('')}
             <th style="font-size:11px;width:60px;min-width:60px;position:sticky;right:0;background:#fff;z-index:3">Média</th>
           </tr>
         </thead>
@@ -217,25 +217,25 @@ function renderizarMatrizCompetencias() {
           ${funcionarios.map(f => {
             const mediaF = mediaPorFuncionario.find(m=>m.funcionario.nome===f.nome);
             return `<tr>
-              <td style="font-weight:600;font-size:12px;color:#1e3a5f;cursor:pointer;position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap" onclick="abrirRadarFuncionario('${f.nome.replace(/'/g,"\\'")}')">👤 ${f.nome}</td>
+              <td style="font-weight:600;font-size:12px;color:#1e3a5f;cursor:pointer;position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap" onclick="abrirRadarFuncionario('${escJs(f.nome)}')">👤 ${esc(f.nome)}</td>
               ${competencias.map(c => {
                 const av = _nivelAtual(f.nome, c.id);
                 const info = av ? _infoNivel(av.nivel) : { cor:'#cbd5e1', bg:'#f8fafc', label:'Não avaliado' };
                 const textoCelula = av ? (av.nivel === -1 ? 'N/A' : av.nivel) : '—';
                 return `<td style="text-align:center;padding:0;width:44px;min-width:44px">
-                  <div style="width:36px;height:36px;background:${info.bg};border:2px solid ${info.cor}40;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:800;color:${info.cor};font-size:${av && av.nivel===-1?'10px':'13px'};margin:0 auto"
-                    title="${f.nome} · ${c.nome}: ${info.label}"
-                    onclick="abrirPopoverAvaliar(event,'${f.nome.replace(/'/g,"\\'")}',${c.id},'${c.nome.replace(/'/g,"\\'")}')">
-                    ${textoCelula}
+                  <div style="width:36px;height:36px;background:${esc(info.bg)};border:2px solid ${esc(info.cor)}40;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:800;color:${esc(info.cor)};font-size:${av && av.nivel===-1?'10px':'13px'};margin:0 auto"
+                    title="${esc(f.nome)} · ${esc(c.nome)}: ${esc(info.label)}"
+                    onclick="abrirPopoverAvaliar(event,'${escJs(f.nome)}',${c.id},'${escJs(c.nome)}')">
+                    ${esc(textoCelula)}
                   </div>
                 </td>`;
               }).join('')}
-              <td style="text-align:center;font-weight:800;color:${cor};position:sticky;right:0;background:#fff;z-index:1">${mediaF.avaliados>0?mediaF.media.toFixed(1):'—'}</td>
+              <td style="text-align:center;font-weight:800;color:${esc(cor)};position:sticky;right:0;background:#fff;z-index:1">${esc(mediaF.avaliados>0?mediaF.media.toFixed(1):'—')}</td>
             </tr>`;
           }).join('')}
           <tr style="border-top:2px solid #e2e8f0">
             <td style="font-weight:700;font-size:12px;color:#64748b;position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap">Média da Competência</td>
-            ${mediaPorCompetencia.map(m=>`<td style="text-align:center;font-weight:700;font-size:12px;color:${cor};width:44px;min-width:44px">${m.avaliados>0?m.media.toFixed(1):'—'}</td>`).join('')}
+            ${mediaPorCompetencia.map(m=>`<td style="text-align:center;font-weight:700;font-size:12px;color:${esc(cor)};width:44px;min-width:44px">${esc(m.avaliados>0?m.media.toFixed(1):'—')}</td>`).join('')}
             <td style="position:sticky;right:0;background:#fff"></td>
           </tr>
         </tbody>
@@ -243,10 +243,10 @@ function renderizarMatrizCompetencias() {
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9">
       ${_NIVEIS_COMP.map(n=>`<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b">
-        <span style="width:14px;height:14px;background:${n.bg};border:2px solid ${n.cor}40;border-radius:4px;display:inline-block"></span>${n.v} — ${n.label}
+        <span style="width:14px;height:14px;background:${esc(n.bg)};border:2px solid ${esc(n.cor)}40;border-radius:4px;display:inline-block"></span>${esc(n.v)} — ${esc(n.label)}
       </span>`).join('')}
       <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#64748b">
-        <span style="width:14px;height:14px;background:${_NAO_APLICA.bg};border:2px dashed ${_NAO_APLICA.cor}80;border-radius:4px;display:inline-block"></span>N/A — Não se aplica
+        <span style="width:14px;height:14px;background:${esc(_NAO_APLICA.bg)};border:2px dashed ${esc(_NAO_APLICA.cor)}80;border-radius:4px;display:inline-block"></span>N/A — Não se aplica
       </span>
     </div>
   </div>
@@ -375,27 +375,27 @@ function abrirPopoverAvaliar(evt, funcionario, competenciaId, competenciaNome) {
     padding:10px;width:240px`;
 
   const botoesNivel = _NIVEIS_COMP.map(n => `
-    <button onclick="salvarAvaliacaoRapida('${funcionario.replace(/'/g,"\\'")}',${competenciaId},${n.v})"
-      style="flex:1;min-width:38px;padding:8px 0;border-radius:6px;border:2px solid ${avAtual?.nivel===n.v?n.cor:'#e2e8f0'};
-      background:${avAtual?.nivel===n.v?n.bg:'#fff'};color:${avAtual?.nivel===n.v?n.cor:'#64748b'};font-weight:800;font-size:13px;cursor:pointer"
-      title="${n.label}">${n.v}</button>`).join('');
+    <button onclick="salvarAvaliacaoRapida('${escJs(funcionario)}',${competenciaId},${n.v})"
+      style="flex:1;min-width:38px;padding:8px 0;border-radius:6px;border:2px solid ${esc(avAtual?.nivel===n.v?n.cor:'#e2e8f0')};
+      background:${esc(avAtual?.nivel===n.v?n.bg:'#fff')};color:${esc(avAtual?.nivel===n.v?n.cor:'#64748b')};font-weight:800;font-size:13px;cursor:pointer"
+      title="${esc(n.label)}">${esc(n.v)}</button>`).join('');
 
   div.innerHTML = `
-    <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">${funcionario}</div>
-    <div style="font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${competenciaNome}</div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">${esc(funcionario)}</div>
+    <div style="font-size:12.5px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${esc(competenciaNome)}</div>
     <div style="display:flex;gap:4px;margin-bottom:6px">${botoesNivel}</div>
-    <button onclick="salvarAvaliacaoRapida('${funcionario.replace(/'/g,"\\'")}',${competenciaId},-1)"
-      style="width:100%;padding:6px 0;border-radius:6px;border:2px dashed ${avAtual?.nivel===-1?_NAO_APLICA.cor:'#e2e8f0'};
-      background:${avAtual?.nivel===-1?_NAO_APLICA.bg:'#fff'};color:#64748b;font-weight:600;font-size:11px;cursor:pointer;margin-bottom:6px">
+    <button onclick="salvarAvaliacaoRapida('${escJs(funcionario)}',${competenciaId},-1)"
+      style="width:100%;padding:6px 0;border-radius:6px;border:2px dashed ${esc(avAtual?.nivel===-1?_NAO_APLICA.cor:'#e2e8f0')};
+      background:${esc(avAtual?.nivel===-1?_NAO_APLICA.bg:'#fff')};color:#64748b;font-weight:600;font-size:11px;cursor:pointer;margin-bottom:6px">
       🚫 Não se aplica
     </button>
-    <div id="popoverObsWrap" style="display:${avAtual?.observacao?'block':'none'}">
-      <input type="text" id="popoverObsInput" placeholder="Observação..." value="${(avAtual?.observacao||'').replace(/"/g,'&quot;')}"
+    <div id="popoverObsWrap" style="display:${esc(avAtual?.observacao?'block':'none')}">
+      <input type="text" id="popoverObsInput" placeholder="Observação..." value="${esc(avAtual?.observacao||'')}"
         style="width:100%;font-size:11px;padding:6px 8px;border:1px solid var(--borda);border-radius:6px;margin-bottom:4px">
-      <button onclick="salvarObsRapida('${funcionario.replace(/'/g,"\\'")}',${competenciaId})"
+      <button onclick="salvarObsRapida('${escJs(funcionario)}',${competenciaId})"
         style="width:100%;padding:5px 0;border-radius:6px;border:none;background:var(--azul,#0056b3);color:#fff;font-size:11px;font-weight:600;cursor:pointer">Salvar observação</button>
     </div>
-    <div id="popoverObsLink" style="text-align:center;display:${avAtual?.observacao?'none':'block'}">
+    <div id="popoverObsLink" style="text-align:center;display:${esc(avAtual?.observacao?'none':'block')}">
       <a href="javascript:void(0)" onclick="document.getElementById('popoverObsWrap').style.display='block';document.getElementById('popoverObsLink').style.display='none';document.getElementById('popoverObsInput')?.focus()"
         style="font-size:11px;color:#94a3b8;text-decoration:underline">+ observação</a>
     </div>
@@ -450,14 +450,14 @@ function abrirModalNovaCompetencia() {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalNovaCompetencia()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:440px">
-    <div class="modal-header"><h3>+ Nova Competência — ${_setorAtivoComp}</h3><button onclick="fecharModalNovaCompetencia()">✕</button></div>
+    <div class="modal-header"><h3>+ Nova Competência — ${esc(_setorAtivoComp)}</h3><button onclick="fecharModalNovaCompetencia()">✕</button></div>
     <div class="modal-body">
       <div class="form-group"><label>Categoria *</label>
         <div style="display:flex;gap:8px;margin-top:4px">
-          <label style="flex:1;cursor:pointer;border:2px solid ${_categoriaAtivaComp==='Técnica'?'#1e3a5f':'#e2e8f0'};background:${_categoriaAtivaComp==='Técnica'?'#f1f5f9':'#fff'};border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600">
+          <label style="flex:1;cursor:pointer;border:2px solid ${esc(_categoriaAtivaComp==='Técnica'?'#1e3a5f':'#e2e8f0')};background:${esc(_categoriaAtivaComp==='Técnica'?'#f1f5f9':'#fff')};border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600">
             <input type="radio" name="novaCompCategoria" value="Técnica" ${_categoriaAtivaComp==='Técnica'?'checked':''}> 🔧 Técnica
           </label>
-          <label style="flex:1;cursor:pointer;border:2px solid ${_categoriaAtivaComp==='Comportamental'?'#1e3a5f':'#e2e8f0'};background:${_categoriaAtivaComp==='Comportamental'?'#f1f5f9':'#fff'};border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600">
+          <label style="flex:1;cursor:pointer;border:2px solid ${esc(_categoriaAtivaComp==='Comportamental'?'#1e3a5f':'#e2e8f0')};background:${esc(_categoriaAtivaComp==='Comportamental'?'#f1f5f9':'#fff')};border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600">
             <input type="radio" name="novaCompCategoria" value="Comportamental" ${_categoriaAtivaComp==='Comportamental'?'checked':''}> 🤝 Comportamental
           </label>
         </div>
@@ -496,20 +496,20 @@ function abrirGerenciarCompetencias() {
   const comportamentais = todas.filter(c => c.categoria === 'Comportamental');
 
   const renderGrupo = (titulo, lista) => `
-    <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:14px 0 8px;text-transform:uppercase">${titulo} (${lista.length})</div>
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;margin:14px 0 8px;text-transform:uppercase">${esc(titulo)} (${lista.length})</div>
     ${lista.length ? lista.map(c => `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed #f1f5f9">
         <div style="min-width:0;flex:1">
-          <div style="font-size:13px;font-weight:600;color:#1e3a5f;word-break:break-word">${c.nome}</div>
-          ${c.descricao?`<div style="font-size:11px;color:#94a3b8;word-break:break-word;overflow-wrap:break-word;margin-top:2px">${c.descricao}</div>`:''}
+          <div style="font-size:13px;font-weight:600;color:#1e3a5f;word-break:break-word">${esc(c.nome)}</div>
+          ${c.descricao?`<div style="font-size:11px;color:#94a3b8;word-break:break-word;overflow-wrap:break-word;margin-top:2px">${esc(c.descricao)}</div>`:''}
         </div>
-        <button class="btn-icon danger" style="flex-shrink:0" onclick="excluirCompetenciaConfirm(${c.id},'${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
+        <button class="btn-icon danger" style="flex-shrink:0" onclick="excluirCompetenciaConfirm(${c.id},'${escJs(c.nome)}')">🗑️</button>
       </div>`).join('') : '<div style="font-size:12px;color:#cbd5e1;padding:6px 0">Nenhuma cadastrada.</div>'}
   `;
 
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharGerenciarCompetencias()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px;max-height:85vh;display:flex;flex-direction:column">
-    <div class="modal-header"><h3>⚙️ Competências — ${_setorAtivoComp}</h3><button onclick="fecharGerenciarCompetencias()">✕</button></div>
+    <div class="modal-header"><h3>⚙️ Competências — ${esc(_setorAtivoComp)}</h3><button onclick="fecharGerenciarCompetencias()">✕</button></div>
     <div class="modal-body" style="overflow-y:auto;flex:1">
       ${renderGrupo('🔧 Técnicas', tecnicas)}
       ${renderGrupo('🤝 Comportamentais', comportamentais)}

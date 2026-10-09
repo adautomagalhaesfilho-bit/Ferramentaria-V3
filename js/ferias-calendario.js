@@ -35,16 +35,16 @@ async function inicializarProgramacaoFerias() {
     <h1>🏖️ Programação de Férias</h1>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn-secondary" style="padding:6px 12px" onclick="mudarAnoFerias(-1)">◀</button>
-      <div style="font-size:18px;font-weight:700;color:#1e3a5f;min-width:60px;text-align:center" id="labelAnoFerias">${_anoAtualFerias}</div>
+      <div style="font-size:18px;font-weight:700;color:#1e3a5f;min-width:60px;text-align:center" id="labelAnoFerias">${esc(_anoAtualFerias)}</div>
       <button class="btn-secondary" style="padding:6px 12px" onclick="mudarAnoFerias(1)">▶</button>
       <button class="btn-primary" style="margin-left:12px" onclick="abrirNovaFeriasRapida()">+ Nova Férias</button>
     </div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="setorFeriasTabs">
-    ${_SETORES_FERIAS.map(s => `<button onclick="mudarSetorFerias('${s}')" id="tabFerias_${s}"
+    ${_SETORES_FERIAS.map(s => `<button onclick="mudarSetorFerias('${escJs(s)}')" id="tabFerias_${s}"
       style="padding:7px 16px;border-radius:20px;border:2px solid ${s===_setorAtivoFerias?_CORES_SETOR_FERIAS[s]:'#e2e8f0'};
       background:${s===_setorAtivoFerias?_CORES_SETOR_FERIAS[s]:'#fff'};color:${s===_setorAtivoFerias?'#fff':_CORES_SETOR_FERIAS[s]};
-      font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s">${s}</button>`).join('')}
+      font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s">${esc(s)}</button>`).join('')}
   </div>
   <div class="cards-row" id="resumoFeriasCards"></div>
   <div id="alertaFeriasWrap"></div>
@@ -69,7 +69,7 @@ async function inicializarProgramacaoFerias() {
 async function renderizarAlertasFerias() {
   const el = document.getElementById('alertaFeriasWrap');
   if (!el) return;
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeLocal();
   const setorMapeado = _setorAtivoFerias === 'Produção' ? ['Producao','Produção'] : [_setorAtivoFerias];
   const funcsAlvo = _setorAtivoFerias === 'Todos'
     ? _funcionariosFerias
@@ -95,7 +95,7 @@ async function renderizarAlertasFerias() {
       const cor = vencido ? '#b91c1c' : urgente ? '#c2410c' : '#a16207';
       const bg  = vencido ? '#fee2e2' : urgente ? '#ffedd5' : '#fef9c3';
       const prazoTxt = vencido ? `${Math.abs(a.diasAtePrazo)}d atrasado` : `${a.diasAtePrazo}d p/ vencer`;
-      return `<span title="${a.setor||''}" style="font-size:11px;color:${cor};background:${bg};padding:2px 9px;border-radius:10px;white-space:nowrap">${a.nome.split(' ')[0]} · ${a.saldo}d · ${prazoTxt}</span>`;
+      return `<span title="${esc(a.setor||'')}" style="font-size:11px;color:${esc(cor)};background:${esc(bg)};padding:2px 9px;border-radius:10px;white-space:nowrap">${esc(a.nome.split(' ')[0])} · ${esc(a.saldo)}d · ${esc(prazoTxt)}</span>`;
     }).join('')}
   </div>`;
 }
@@ -192,7 +192,7 @@ function _montarItensPorDia(registros) {
   _itensPorDiaFerias = {};
   registros.forEach(r => {
     for (let d = new Date(r.inicio+'T12:00:00'); d <= new Date(r.fim+'T12:00:00'); d.setDate(d.getDate()+1)) {
-      const ds = d.toISOString().split('T')[0];
+      const ds = dataLocal(d);
       if (ds < `${_anoAtualFerias}-01-01` || ds > `${_anoAtualFerias}-12-31`) continue;
       if (!_itensPorDiaFerias[ds]) _itensPorDiaFerias[ds] = [];
       _itensPorDiaFerias[ds].push({
@@ -221,11 +221,11 @@ function renderizarResumoFerias(registros) {
     : `
     <div class="resume-card" style="background:#dbeafe;border-left:4px solid #1d4ed8">
       <div style="font-size:11px;color:#0c4a6e;font-weight:600">👥 Pessoas de Férias</div>
-      <div style="font-size:28px;color:#1d4ed8;font-weight:700">${pessoas}</div>
+      <div style="font-size:28px;color:#1d4ed8;font-weight:700">${esc(pessoas)}</div>
     </div>
     <div class="resume-card" style="background:#ede9fe;border-left:4px solid #7c3aed">
       <div style="font-size:11px;color:#4c1d95;font-weight:600">📅 Total de Dias</div>
-      <div style="font-size:28px;color:#7c3aed;font-weight:700">${totalDias}</div>
+      <div style="font-size:28px;color:#7c3aed;font-weight:700">${esc(totalDias)}</div>
     </div>
   `;
 }
@@ -266,11 +266,11 @@ function _renderMesCalendarioFerias(mesIndex) {
         const itens = _itensPorDiaFerias[dataStr] || [];
         const temConflito = itens.some(x=>x.conflito);
         const visiveis = itens.slice(0,5);
-        const pontos = visiveis.map(x=>`<span style="width:5px;height:5px;border-radius:50%;background:${x.cor.cor};display:inline-block"></span>`).join('');
-        const extra = itens.length>5 ? `<span style="font-size:7px;color:#94a3b8;margin-left:1px">+${itens.length-5}</span>` : '';
+        const pontos = visiveis.map(x=>`<span style="width:5px;height:5px;border-radius:50%;background:${esc(x.cor.cor)};display:inline-block"></span>`).join('');
+        const extra = itens.length>5 ? `<span style="font-size:7px;color:#94a3b8;margin-left:1px">+${esc(itens.length-5)}</span>` : '';
         const tituloDia = itens.length ? itens.map(x=>x.nome).join(', ') : '';
-        dias.push(`<div title="${tituloDia}" style="padding:3px 2px;border:1px solid ${temConflito?'#ef4444':'#f1f5f9'};border-radius:4px;min-height:24px;font-size:10px;cursor:pointer">
-          <div style="color:${itens.length?'#1e3a5f':'#94a3b8'};font-weight:${itens.length?'600':'400'}">${diaAtual}</div>
+        dias.push(`<div title="${esc(tituloDia)}" style="padding:3px 2px;border:1px solid ${temConflito?'#ef4444':'#f1f5f9'};border-radius:4px;min-height:24px;font-size:10px;cursor:pointer">
+          <div style="color:${itens.length?'#1e3a5f':'#94a3b8'};font-weight:${itens.length?'600':'400'}">${esc(diaAtual)}</div>
           <div style="display:flex;align-items:center;gap:1px;margin-top:2px">${pontos}${extra}</div>
         </div>`);
         diaAtual++;
@@ -282,7 +282,7 @@ function _renderMesCalendarioFerias(mesIndex) {
   }
   return `
     <div style="background:#f9fafb;padding:12px;border-radius:8px;border:1px solid #e2e8f0">
-      <div style="font-weight:700;color:#1e3a5f;font-size:14px;margin-bottom:8px;text-align:center">${_NOMES_MES[mesIndex]}</div>
+      <div style="font-weight:700;color:#1e3a5f;font-size:14px;margin-bottom:8px;text-align:center">${esc(_NOMES_MES[mesIndex])}</div>
       <div style="font-size:9px;color:#64748b;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;text-align:center;font-weight:600">
         <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
       </div>
@@ -312,10 +312,10 @@ function abrirNovaFeriasRapida(dataPreenchida) {
     <div class="modal-header"><h3>🏖️ Nova Férias</h3><button onclick="fecharNovaFeriasRapida()">✕</button></div>
     <div class="modal-body">
       <div class="form-group"><label>Funcionário *</label>
-        <select id="nfcFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
+        <select id="nfcFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Data Inicial *</label><input type="date" id="nfcIni" value="${dataPreenchida||''}"></div>
+        <div class="form-group"><label>Data Inicial *</label><input type="date" id="nfcIni" value="${esc(dataPreenchida||'')}"></div>
         <div class="form-group"><label>Quantidade de Dias *</label><input type="number" id="nfcDias" value="1" min="1" max="30"></div>
       </div>
       <div id="nfcDataFimPreview" style="font-size:12px;color:#475569;margin-top:4px;padding:8px;background:#f1f5f9;border-radius:4px;display:none">
@@ -348,7 +348,7 @@ function abrirNovaFeriasRapida(dataPreenchida) {
       const dataIni = new Date(inicio + 'T12:00:00');
       const dataFim = new Date(dataIni);
       dataFim.setDate(dataFim.getDate() + dias - 1);
-      const fimStr = dataFim.toISOString().split('T')[0];
+      const fimStr = dataLocal(dataFim);
       fimSpan.innerText = fimStr.split('-').reverse().join('/');
       previewEl.style.display = 'block';
     } else {
@@ -360,7 +360,7 @@ function abrirNovaFeriasRapida(dataPreenchida) {
     if (!f || !f.admissao) { infoEl.innerHTML=''; return; }
     const saldo = await calcularSaldoFerias(nome, f.admissao);
     const faltam = 30 - saldo.usados;
-    infoEl.innerHTML = `<strong>Saldo:</strong> ${saldo.saldo} de 30 dias<br><strong>Período:</strong> ${saldo.periodoInicio.split('-').reverse().join('/')} a ${saldo.periodoFim.split('-').reverse().join('/')}`;
+    infoEl.innerHTML = `<strong>Saldo:</strong> ${esc(saldo.saldo)} de 30 dias<br><strong>Período:</strong> ${saldo.periodoInicio.split('-').reverse().join('/')} a ${saldo.periodoFim.split('-').reverse().join('/')}`;
   };
 
   if (selFunc) selFunc.onchange = atualizarPreview;
@@ -386,7 +386,7 @@ async function salvarNovaFeriasRapida() {
     const dataIni = new Date(inicio + 'T12:00:00');
     const dataFim = new Date(dataIni);
     dataFim.setDate(dataFim.getDate() + dias - 1);
-    const fim = dataFim.toISOString().split('T')[0];
+    const fim = dataLocal(dataFim);
     
     await db.salvarFerias({ funcionario, inicio, fim, motivo:'Férias' });
     toast('Férias registrada!','sucesso');
@@ -416,11 +416,11 @@ function abrirEdicaoFeriasCalendario(f) {
     <div class="modal-header"><h3>✏️ Editar Férias</h3><button onclick="fecharEdicaoFeriasCalendario()">✕</button></div>
     <div class="modal-body">
       <div class="form-group"><label>Funcionário *</label>
-        <select id="efcFunc">${funcs.map(fn=>`<option value="${fn}" ${f.funcionario===fn?'selected':''}>${fn}</option>`).join('')}</select>
+        <select id="efcFunc">${funcs.map(fn=>`<option value="${esc(fn)}" ${f.funcionario===fn?'selected':''}>${esc(fn)}</option>`).join('')}</select>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Data Inicial *</label><input type="date" id="efcIni" value="${f.inicio||''}"></div>
-        <div class="form-group"><label>Quantidade de Dias *</label><input type="number" id="efcDias" value="${dias}" min="1" max="30"></div>
+        <div class="form-group"><label>Data Inicial *</label><input type="date" id="efcIni" value="${esc(f.inicio||'')}"></div>
+        <div class="form-group"><label>Quantidade de Dias *</label><input type="number" id="efcDias" value="${esc(dias)}" min="1" max="30"></div>
       </div>
       <div id="efcDataFimPreview" style="font-size:12px;color:#475569;margin-top:4px;padding:8px;background:#f1f5f9;border-radius:4px">
         <strong>Fim em:</strong> <span id="efcDataFimSpan">${f.fim.split('-').reverse().join('/')}</span>
@@ -445,7 +445,7 @@ function abrirEdicaoFeriasCalendario(f) {
       const dataIni = new Date(inicio + 'T12:00:00');
       const dataFim = new Date(dataIni);
       dataFim.setDate(dataFim.getDate() + qtdDias - 1);
-      fimSpan.innerText = dataFim.toISOString().split('T')[0].split('-').reverse().join('/');
+      fimSpan.innerText = dataLocal(dataFim).split('-').reverse().join('/');
     }
   };
 
@@ -470,7 +470,7 @@ async function salvarEdicaoFeriasCalendario(id) {
     const dataIni = new Date(inicio + 'T12:00:00');
     const dataFim = new Date(dataIni);
     dataFim.setDate(dataFim.getDate() + dias - 1);
-    const fim = dataFim.toISOString().split('T')[0];
+    const fim = dataLocal(dataFim);
     
     await db.salvarFerias({ id, funcionario, inicio, fim, motivo:'Férias' });
     toast('Férias atualizada!','sucesso');
@@ -511,26 +511,25 @@ async function renderizarListaFeriasAno(registros) {
       // Calcular período faltante (dias até atingir 30 dias)
       if (saldo.saldo > 0) {
         const faltam = 30 - saldo.usados;
-        diasFaltando = `<span style="font-size:11px;background:#fef08a;color:#92400e;padding:2px 8px;border-radius:8px;margin-left:4px">Faltam ${faltam} dias para completar o período</span>`;
+        diasFaltando = `<span style="font-size:11px;background:#fef08a;color:#92400e;padding:2px 8px;border-radius:8px;margin-left:4px">Faltam ${esc(faltam)} dias para completar o período</span>`;
       }
     }
     
     const cor = _coresPorFuncionario[r.funcionario] || _PALETA_FERIAS[0];
-    const raw = JSON.stringify(r).replace(/'/g,"&apos;");
     const dias = Math.round((new Date(r.fim+'T12:00:00')-new Date(r.inicio+'T12:00:00'))/86400000) + 1;
     
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px dashed #f1f5f9">
       <div style="display:flex;align-items:center;gap:10px;flex:1">
-        <span style="width:10px;height:10px;border-radius:50%;background:${cor.cor};display:inline-block"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:${esc(cor.cor)};display:inline-block"></span>
         <div>
-          <div style="font-size:13px;font-weight:600;color:#1e3a5f">${r.funcionario}</div>
-          <div style="font-size:11px;color:#94a3b8">${f?.setor||'—'} · ${r.inicio.split('-').reverse().join('/')} a ${r.fim.split('-').reverse().join('/')} · ${dias} dias ${saldoTxt?'· '+saldoTxt:''}</div>
+          <div style="font-size:13px;font-weight:600;color:#1e3a5f">${esc(r.funcionario)}</div>
+          <div style="font-size:11px;color:#94a3b8">${esc(f?.setor||'—')} · ${r.inicio.split('-').reverse().join('/')} a ${r.fim.split('-').reverse().join('/')} · ${esc(dias)} dias ${esc(saldoTxt?'· '+saldoTxt:'')}</div>
           ${diasFaltando}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${r._conflito?'<span style="font-size:11px;background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:8px;font-weight:700">conflito</span>':''}
-        <button onclick='abrirEdicaoFeriasCalendario(${raw})' style="background:none;border:none;color:#0056b3;cursor:pointer">✏️</button>
+        <button onclick="abrirEdicaoFeriasCalendario(_obj(${_guardarObj(r)}))" style="background:none;border:none;color:#0056b3;cursor:pointer">✏️</button>
         <button onclick="excluirFeriasCalendarioConfirm(${r.id})" style="background:none;border:none;color:#ef4444;cursor:pointer">🗑️</button>
       </div>
     </div>`;
@@ -551,7 +550,7 @@ function _periodoAquisitivoAtual(admissaoStr, refDateStr) {
     fimTentativa.setFullYear(fimTentativa.getFullYear()+1);
     fimTentativa.setDate(fimTentativa.getDate()-1);
     if (ref <= fimTentativa) {
-      return { inicio: inicio.toISOString().split('T')[0], fim: fimTentativa.toISOString().split('T')[0] };
+      return { inicio: dataLocal(inicio), fim: dataLocal(fimTentativa) };
     }
     inicio.setFullYear(inicio.getFullYear()+1);
     guard++;
@@ -560,7 +559,7 @@ function _periodoAquisitivoAtual(admissaoStr, refDateStr) {
 }
 
 async function calcularSaldoFerias(funcionario, admissao, dataReferencia) {
-  const ref = dataReferencia || new Date().toISOString().split('T')[0];
+  const ref = dataReferencia || hojeLocal();
   const periodo = _periodoAquisitivoAtual(admissao, ref);
   let registros = _registrosFerias.filter(r => r.funcionario === funcionario);
   if (!registros.length) {

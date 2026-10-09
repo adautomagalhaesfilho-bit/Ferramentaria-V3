@@ -11,7 +11,7 @@ async function carregarCargosGlobal() {
   try {
     const res = await db.listarCargos();
     _cargos = (res || []).map(c => c.nome);
-  } catch(e) { console.error('Erro ao carregar cargos:', e); }
+  } catch(e) { avisarErro('carregar os cargos', e); }
 }
 
 // ==========================================
@@ -49,10 +49,10 @@ async function _renderizarCargosPainelRH() {
     if (!tbody) return;
     tbody.innerHTML = _todosCargosAdmin.length
       ? _todosCargosAdmin.map(c => `<tr>
-          <td><b>${c.nome}</b></td>
+          <td><b>${esc(c.nome)}</b></td>
           <td>
-            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoCargo(${c.id},'${c.nome.replace(/'/g,"\\'")}')">✏️</button>
-            <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirCargoConfirm(${c.id},'${c.nome.replace(/'/g,"\\'")}')">🗑️</button>
+            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoCargo(${c.id},'${escJs(c.nome)}')">✏️</button>
+            <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirCargoConfirm(${c.id},'${escJs(c.nome)}')">🗑️</button>
           </td>
         </tr>`).join('')
       : '<tr><td colspan="2" class="empty-msg">Nenhum cargo cadastrado.</td></tr>';
@@ -80,10 +80,10 @@ function abrirEdicaoCargo(id, nomeAtual) {
   <div class="modal" style="display:block;max-width:400px">
     <div class="modal-header"><h3>✏️ Editar Cargo</h3><button onclick="fecharEdicaoCargo()">✕</button></div>
     <div class="modal-body">
-      <div class="form-group"><label>Nome do Cargo *</label><input type="text" id="editCargoNome" value="${nomeAtual.replace(/"/g,'&quot;')}"></div>
+      <div class="form-group"><label>Nome do Cargo *</label><input type="text" id="editCargoNome" value="${esc(nomeAtual)}"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarEdicaoCargo(${id},'${nomeAtual.replace(/'/g,"\\'")}')">💾 Salvar</button>
+      <button class="btn-primary" onclick="salvarEdicaoCargo(${id},'${escJs(nomeAtual)}')">💾 Salvar</button>
       <button class="btn-secondary" onclick="fecharEdicaoCargo()">Cancelar</button>
     </div>
   </div>`;
@@ -166,12 +166,12 @@ function filtrarFuncionarios() {
 
   el.innerHTML = filtrado.map(f => {
     const cor = coresSe[f.setor]||'#64748b';
-    return `<div class="lista-item" style="cursor:pointer" onclick="abrirFichaFuncionario(${f.id},'${f._origem}')">
+    return `<div class="lista-item" style="cursor:pointer" onclick="abrirFichaFuncionario(${f.id},'${escJs(f._origem)}')">
       <div class="lista-item-info">
-        <div class="lista-item-nome">${f.nome} ${f.matricula?`<span style="font-size:11px;color:#94a3b8;font-weight:400">#${f.matricula}</span>`:''}</div>
+        <div class="lista-item-nome">${esc(f.nome)} ${f.matricula?`<span style="font-size:11px;color:#94a3b8;font-weight:400">#${esc(f.matricula)}</span>`:''}</div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:3px;flex-wrap:wrap">
-          <span style="background:${cor}15;color:${cor};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${f.setor||'—'}</span>
-          <span style="font-size:11px;color:#94a3b8">${f.turno||''} ${f.cargo?'· '+f.cargo:''} ${f.supervisor?'· Sup: '+f.supervisor:''}</span>
+          <span style="background:${esc(cor)}15;color:${esc(cor)};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${esc(f.setor||'—')}</span>
+          <span style="font-size:11px;color:#94a3b8">${esc(f.turno||'')} ${esc(f.cargo?'· '+f.cargo:'')} ${esc(f.supervisor?'· Sup: '+f.supervisor:'')}</span>
         </div>
       </div>
       <div class="lista-item-acoes">
@@ -209,13 +209,13 @@ function abrirFormFuncionario() {
         <div class="form-group">
           <label>Setor *</label>
           <select id="fnSetor">
-            ${_setores.map(s=>`<option value="${s}">${s}</option>`).join('')}
+            ${_setores.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label>Turno *</label>
           <select id="fnTurno">
-            ${_turnos.map(t=>`<option value="${t}">${t}</option>`).join('')}
+            ${_turnos.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -224,7 +224,7 @@ function abrirFormFuncionario() {
           <label>Cargo</label>
           <select id="fnCargo">
             <option value="">Selecione...</option>
-            ${_cargos.map(c=>`<option value="${c}">${c}</option>`).join('')}
+            ${_cargos.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -310,10 +310,9 @@ function abrirFichaTecnico(nome) {
 function nomeTecnicoClicavel(nome) {
   if (!nome) return '—';
   const nomeUpper = String(nome).toUpperCase();
-  if (nomeUpper.includes('SEM OPERADOR') || nomeUpper === '—') return nome;
-  if (!_podeVerFichaFuncionario()) return nome;
-  const nomeEsc = String(nome).replace(/'/g, "\\'");
-  return `<span style="cursor:pointer;color:#0056b3;text-decoration:underline dotted" onclick="event.stopPropagation();abrirFichaTecnico('${nomeEsc}')">${nome}</span>`;
+  if (nomeUpper.includes('SEM OPERADOR') || nomeUpper === '—') return esc(nome);
+  if (!_podeVerFichaFuncionario()) return esc(nome);
+  return `<span style="cursor:pointer;color:#0056b3;text-decoration:underline dotted" onclick="event.stopPropagation();abrirFichaTecnico('${escJs(nome)}')">${esc(nome)}</span>`;
 }
 
 // Chamada pela lista de Funcionários (mantém compatibilidade com onclick existente)
@@ -381,7 +380,7 @@ async function carregarFichaFuncionarioPorId(id, origem) {
     try {
       histTurno = await db._get('funcionario_turno_historico',
         'funcionario_id=eq.' + id + '&order=data_inicio.desc', '*') || [];
-    } catch(e) {}
+    } catch(e) { avisarErro('carregar o histórico de turno', e); }
 
     const cor = { Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6',
       Produção:'#10b981', Supervisão:'#f59e0b' }[f.setor] || '#64748b';
@@ -390,21 +389,21 @@ async function carregarFichaFuncionarioPorId(id, origem) {
 
     conteudo.innerHTML = `
     <!-- CABEÇALHO -->
-    <div class="card" style="background:linear-gradient(135deg,${cor}20,${cor}05);border:1px solid ${cor}30">
+    <div class="card" style="background:linear-gradient(135deg,${esc(cor)}20,${esc(cor)}05);border:1px solid ${esc(cor)}30">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:1px;margin-bottom:6px">FICHA DO FUNCIONÁRIO</div>
-          <div style="font-size:24px;font-weight:700;color:#1e3a5f">${f.nome}</div>
-          ${f.matricula?`<div style="font-size:13px;color:#64748b;margin-top:2px">Matrícula: <b>#${f.matricula}</b></div>`:''}
+          <div style="font-size:24px;font-weight:700;color:#1e3a5f">${esc(f.nome)}</div>
+          ${f.matricula?`<div style="font-size:13px;color:#64748b;margin-top:2px">Matrícula: <b>#${esc(f.matricula)}</b></div>`:''}
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <span style="background:${cor}20;color:${cor};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${f.setor||'—'}</span>
-            <span style="background:#f1f5f9;color:#475569;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600">⏰ ${f.turno||'—'}</span>
+            <span style="background:${esc(cor)}20;color:${esc(cor)};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${esc(f.setor||'—')}</span>
+            <span style="background:#f1f5f9;color:#475569;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600">⏰ ${esc(f.turno||'—')}</span>
             <span class="${f.ativo?'badge-ativo':'badge-inativo'}">${f.ativo?'ATIVO':'INATIVO'}</span>
           </div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn-primary" style="font-size:12px;padding:8px 14px" onclick="abrirEdicaoFuncionario(_fichaFuncCompleto)">✏️ Editar</button>
-          ${typeof isAdmin === 'function' && isAdmin() ? `<button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${f._origem}','${(f.nome||'').replace(/'/g,"\\'")}')">🗑️ Excluir</button>` : ''}
+          ${typeof isAdmin === 'function' && isAdmin() ? `<button class="btn-danger" style="font-size:12px;padding:8px 14px" onclick="excluirFuncConfirm(${f.id},'${escJs(f._origem)}','${escJs(f.nome||'')}')">🗑️ Excluir</button>` : ''}
         </div>
       </div>
     </div>
@@ -414,22 +413,22 @@ async function carregarFichaFuncionarioPorId(id, origem) {
       <div class="card" style="margin:0;padding:14px">
         <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">INFORMAÇÕES</div>
         <div style="font-size:13px;line-height:2">
-          <div>💼 <b>Cargo:</b> ${f.cargo||'—'}</div>
-          <div>👤 <b>Supervisor:</b> ${f.supervisor||'—'}</div>
-          <div>📅 <b>Admissão:</b> ${fmtDt(f.admissao)}</div>
-          ${f.demissao?`<div style="color:#ef4444">🚪 <b>Desligamento:</b> ${fmtDt(f.demissao)}</div>`:''}
+          <div>💼 <b>Cargo:</b> ${esc(f.cargo||'—')}</div>
+          <div>👤 <b>Supervisor:</b> ${esc(f.supervisor||'—')}</div>
+          <div>📅 <b>Admissão:</b> ${esc(fmtDt(f.admissao))}</div>
+          ${f.demissao?`<div style="color:#ef4444">🚪 <b>Desligamento:</b> ${esc(fmtDt(f.demissao))}</div>`:''}
         </div>
       </div>
       <div class="card" style="margin:0;padding:14px">
         <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">TURNO ATUAL</div>
-        <div style="font-size:24px;font-weight:700;color:#0056b3;margin-bottom:4px">${f.turno||'—'}</div>
+        <div style="font-size:24px;font-weight:700;color:#0056b3;margin-bottom:4px">${esc(f.turno||'—')}</div>
         <div style="font-size:12px;color:#64748b">
-          ${f.turno==='5x2'?'07:30 → 17:28 | Seg-Sex | 528 min':
+          ${esc(f.turno==='5x2'?'07:30 → 17:28 | Seg-Sex | 528 min':
             f.turno==='Turma A'||f.turno==='Turma B'?'07:30 → 19:30 | Rodízio 2x2 | 660 min':
             f.turno==='6x1'?'07:30 → 16:00 | Seg-Sab | 440 min':
-            f.turno==='Estágio'?'07:30 → 16:00 | Seg-Sex | 440 min':'—'}
+            f.turno==='Estágio'?'07:30 → 16:00 | Seg-Sex | 440 min':'—')}
         </div>
-        <button class="btn-secondary" style="margin-top:10px;font-size:11px;padding:5px 10px" onclick="abrirModalTrocaTurno(${id},'${f.turno||''}')">🔄 Registrar Mudança de Turno</button>
+        <button class="btn-secondary" style="margin-top:10px;font-size:11px;padding:5px 10px" onclick="abrirModalTrocaTurno(${id},'${escJs(f.turno||'')}')">🔄 Registrar Mudança de Turno</button>
       </div>
       <div class="card" style="margin:0;padding:14px" id="fichaFuncSaldoBH">
         <div style="font-size:12px;color:#94a3b8">Calculando saldo do banco de horas...</div>
@@ -446,12 +445,12 @@ async function carregarFichaFuncionarioPorId(id, origem) {
               <div style="position:absolute;left:-24px;top:4px;width:12px;height:12px;border-radius:50%;background:#0056b3;border:2px solid #fff;box-shadow:0 0 0 2px #0056b3"></div>
               <div style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;border-left:3px solid #0056b3;padding:10px 12px">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-                  <span style="font-size:13px;font-weight:700;color:#0056b3">${h.turno}</span>
+                  <span style="font-size:13px;font-weight:700;color:#0056b3">${esc(h.turno)}</span>
                   <span style="font-size:11px;color:#94a3b8">
-                    ${fmtDt(h.data_inicio)} ${h.data_fim?' → '+fmtDt(h.data_fim):'→ atual'}
+                    ${esc(fmtDt(h.data_inicio))} ${esc(h.data_fim?' → '+fmtDt(h.data_fim):'→ atual')}
                   </span>
                 </div>
-                ${h.motivo?`<div style="font-size:12px;color:#64748b;margin-top:4px">📝 ${h.motivo}</div>`:''}
+                ${h.motivo?`<div style="font-size:12px;color:#64748b;margin-top:4px">📝 ${esc(h.motivo)}</div>`:''}
               </div>
             </div>`).join('')}
         </div>` :
@@ -493,31 +492,31 @@ function abrirEdicaoFuncionario(f) {
   <div class="modal-overlay" onclick="fecharEdicaoFunc()" style="display:block"></div>
   <div class="modal" style="display:flex;flex-direction:column;max-width:560px;max-height:85vh">
     <div class="modal-header">
-      <h3>✏️ Editar — ${f.nome}</h3>
+      <h3>✏️ Editar — ${esc(f.nome)}</h3>
       <button onclick="fecharEdicaoFunc()">✕</button>
     </div>
     <div class="modal-body" style="overflow-y:auto;flex:1">
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label>Nome Completo *</label>
-          <input type="text" id="efNome" value="${f.nome||''}">
+          <input type="text" id="efNome" value="${esc(f.nome||'')}">
         </div>
         <div class="form-group">
           <label>Matrícula</label>
-          <input type="text" id="efMatricula" value="${f.matricula||''}">
+          <input type="text" id="efMatricula" value="${esc(f.matricula||'')}">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Setor *</label>
           <select id="efSetor">
-            ${_setores.map(s=>`<option value="${s}" ${f.setor===s?'selected':''}>${s}</option>`).join('')}
+            ${_setores.map(s=>`<option value="${esc(s)}" ${f.setor===s?'selected':''}>${esc(s)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label>Turno *</label>
           <select id="efTurno">
-            ${_turnos.map(t=>`<option value="${t}" ${f.turno===t?'selected':''}>${t}</option>`).join('')}
+            ${_turnos.map(t=>`<option value="${esc(t)}" ${f.turno===t?'selected':''}>${esc(t)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -526,22 +525,22 @@ function abrirEdicaoFuncionario(f) {
           <label>Cargo</label>
           <select id="efCargo">
             <option value="">Selecione...</option>
-            ${_cargos.map(c=>`<option value="${c}" ${f.cargo===c?'selected':''}>${c}</option>`).join('')}
+            ${_cargos.map(c=>`<option value="${esc(c)}" ${f.cargo===c?'selected':''}>${esc(c)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label>Supervisor</label>
-          <input type="text" id="efSupervisor" value="${f.supervisor||''}">
+          <input type="text" id="efSupervisor" value="${esc(f.supervisor||'')}">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Admissão</label>
-          <input type="date" id="efAdmissao" value="${f.admissao||''}">
+          <input type="date" id="efAdmissao" value="${esc(f.admissao||'')}">
         </div>
         <div class="form-group">
           <label>Desligamento</label>
-          <input type="date" id="efDemissao" value="${f.demissao||''}">
+          <input type="date" id="efDemissao" value="${esc(f.demissao||'')}">
         </div>
       </div>
       <div class="form-group">
@@ -616,7 +615,7 @@ async function salvarEdicaoFuncionario(id) {
             if (!nomes.includes(nomeAntigo)) continue;
             await db._patch('prod_lancamentos', 'id=eq.'+p.id, { tecnicos: nomes.map(n=>n===nomeAntigo?nome:n).join(', ') });
           }
-        } catch(e) { console.error('Erro ao atualizar prod_lancamentos', e); }
+        } catch(e) { avisarErro('atualizar o nome nos lançamentos de produção', e); }
       } else if (novoId) {
         // Nome não mudou, mas agora existe um ID de verdade — liga o histórico já existente
         await db._patch('lancamentos',  'funcionario=eq.' + encodeURIComponent(nome), { funcionario_id: novoId });
@@ -665,7 +664,7 @@ async function salvarEdicaoFuncionario(id) {
           const novosNomes = nomes.map(n => n === nomeAntigo ? nome : n);
           await db._patch('prod_lancamentos', 'id=eq.'+p.id, { tecnicos: novosNomes.join(', ') });
         }
-      } catch(e) { console.error('Erro ao atualizar prod_lancamentos na renomeação', e); }
+      } catch(e) { avisarErro('atualizar o nome nos lançamentos de produção', e); }
 
       if (typeof registrarLog === 'function') await registrarLog('funcionarios', id, 'editar', 'nome', nomeAntigo, nome);
       toast('Funcionário renomeado! Histórico atualizado.','sucesso');
@@ -700,17 +699,17 @@ function abrirModalTrocaTurno(id, turnoAtual) {
     <div class="modal-body">
       <div class="form-group">
         <label>Turno Atual</label>
-        <input type="text" value="${turnoAtual}" disabled style="background:#f1f5f9;color:#64748b">
+        <input type="text" value="${esc(turnoAtual)}" disabled style="background:#f1f5f9;color:#64748b">
       </div>
       <div class="form-group">
         <label>Novo Turno *</label>
         <select id="novoTurno">
-          ${_turnos.filter(t=>t!==turnoAtual).map(t=>`<option value="${t}">${t}</option>`).join('')}
+          ${_turnos.filter(t=>t!==turnoAtual).map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
         <label>Data de Início *</label>
-        <input type="date" id="trocaTurnoData" value="${new Date().toISOString().split('T')[0]}">
+        <input type="date" id="trocaTurnoData" value="${esc(hojeLocal())}">
       </div>
       <div class="form-group">
         <label>Motivo</label>
@@ -718,7 +717,7 @@ function abrirModalTrocaTurno(id, turnoAtual) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarTrocaTurno(${id},'${turnoAtual}')">💾 Confirmar</button>
+      <button class="btn-primary" onclick="salvarTrocaTurno(${id},'${escJs(turnoAtual)}')">💾 Confirmar</button>
       <button class="btn-secondary" onclick="fecharModalTrocaTurno()">Cancelar</button>
     </div>
   </div>`;
@@ -831,11 +830,11 @@ async function carregarFeriados() {
     document.getElementById('tbodyFeriados').innerHTML = res.length
       ? res.map(f=>`<tr>
           <td><b>${f.data?f.data.split('-').reverse().join('/'):'—'}</b></td>
-          <td>${f.nome}</td>
+          <td>${esc(f.nome)}</td>
           <td><button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriadoConfirm(${f.id})">🗑️</button></td>
         </tr>`).join('')
       : '<tr><td colspan="3" class="empty-msg">Nenhum feriado.</td></tr>';
-  } catch(e) {}
+  } catch(e) { avisarErro('carregar os feriados', e); }
 }
 
 async function salvarFeriado() {
@@ -847,7 +846,7 @@ async function salvarFeriado() {
 
 function excluirFeriadoConfirm(id) {
   confirmarExclusao('Excluir este feriado?', async()=>{
-    try { await db.excluirFeriado(id); toast('Removido!','sucesso'); carregarFeriados(); } catch(e){}
+    try { await db.excluirFeriado(id); toast('Removido!','sucesso'); carregarFeriados(); } catch(e){ avisarErro('excluir o feriado', e); }
   });
 }
 
@@ -862,10 +861,10 @@ async function carregarFerias() {
   const motivos = ['Atestado Médico','Falta Injustificada','Férias','Folga Compensatória','Licença / Outros'];
   el.innerHTML = `<div class="card">
     <div class="form-row">
-      <div class="form-group"><label>Técnico</label><select id="ferFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${f}">${f}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Técnico</label><select id="ferFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
       <div class="form-group"><label>Início</label><input type="date" id="ferIni"></div>
       <div class="form-group"><label>Fim</label><input type="date" id="ferFim"></div>
-      <div class="form-group"><label>Motivo</label><select id="ferMotivo">${motivos.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Motivo</label><select id="ferMotivo">${motivos.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}</select></div>
     </div>
     <button class="btn-success" onclick="salvarFerias()" style="margin-bottom:16px">+ Registrar</button>
     <div class="table-wrap"><table><thead><tr><th>Técnico</th><th>Início</th><th>Fim</th><th>Motivo</th><th>Ação</th></tr></thead>
@@ -875,17 +874,17 @@ async function carregarFerias() {
     const res = await db.listarFerias();
     document.getElementById('tbodyFerias').innerHTML = res.length
       ? res.map(f=>`<tr>
-          <td><b>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(f.funcionario):f.funcionario}</b></td>
+          <td><b>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(f.funcionario):esc(f.funcionario)}</b></td>
           <td>${f.inicio?f.inicio.split('-').reverse().join('/'):'—'}</td>
           <td>${f.fim?f.fim.split('-').reverse().join('/'):'—'}</td>
-          <td style="color:${f.motivo?.includes('Falta')?'#ef4444':'#059669'};font-weight:600">${f.motivo}</td>
+          <td style="color:${esc(f.motivo?.includes('Falta')?'#ef4444':'#059669')};font-weight:600">${esc(f.motivo)}</td>
           <td>
             <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoFerias(_obj(${_guardarObj(f)}))">✏️</button>
             <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirFeriasConfirm(${f.id})">🗑️</button>
           </td>
         </tr>`).join('')
       : '<tr><td colspan="5" class="empty-msg">Nenhum registro.</td></tr>';
-  } catch(e) {}
+  } catch(e) { avisarErro('carregar férias e faltas', e); }
 }
 
 async function salvarFerias() {
@@ -906,7 +905,7 @@ async function salvarFerias() {
 
 function excluirFeriasConfirm(id) {
   confirmarExclusao('Excluir este registro?', async()=>{
-    try { await db.excluirFerias(id); toast('Removido!','sucesso'); carregarFerias(); } catch(e){}
+    try { await db.excluirFerias(id); toast('Removido!','sucesso'); carregarFerias(); } catch(e){ avisarErro('excluir o registro', e); }
   });
 }
 
@@ -926,14 +925,14 @@ function abrirEdicaoFerias(f) {
     <div class="modal-header"><h3>✏️ Editar Ausência</h3><button onclick="fecharEdicaoFerias()">✕</button></div>
     <div class="modal-body">
       <div class="form-group"><label>Técnico *</label>
-        <select id="efFerFunc">${funcs.map(fn=>`<option value="${fn}" ${f.funcionario===fn?'selected':''}>${fn}</option>`).join('')}</select>
+        <select id="efFerFunc">${funcs.map(fn=>`<option value="${esc(fn)}" ${f.funcionario===fn?'selected':''}>${esc(fn)}</option>`).join('')}</select>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Início *</label><input type="date" id="efFerIni" value="${f.inicio||''}"></div>
-        <div class="form-group"><label>Fim *</label><input type="date" id="efFerFim" value="${f.fim||''}"></div>
+        <div class="form-group"><label>Início *</label><input type="date" id="efFerIni" value="${esc(f.inicio||'')}"></div>
+        <div class="form-group"><label>Fim *</label><input type="date" id="efFerFim" value="${esc(f.fim||'')}"></div>
       </div>
       <div class="form-group"><label>Motivo *</label>
-        <select id="efFerMotivo">${motivos.map(m=>`<option value="${m}" ${f.motivo===m?'selected':''}>${m}</option>`).join('')}</select>
+        <select id="efFerMotivo">${motivos.map(m=>`<option value="${esc(m)}" ${f.motivo===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
       </div>
     </div>
     <div class="modal-footer">
@@ -974,13 +973,13 @@ async function carregarParciais() {
   <div class="card" style="background:#fefce8;border-color:#fde68a">
     <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:16px">⏱️ Registrar Ocorrência</div>
     <div class="form-row">
-      <div class="form-group"><label>Técnico *</label><select id="parcFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${f}">${f}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Técnico *</label><select id="parcFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
       <div class="form-group"><label>Data *</label><input type="date" id="parcData"></div>
       <div class="form-group"><label>Saída</label><input type="time" id="parcIni"></div>
       <div class="form-group"><label>Retorno</label><input type="time" id="parcFim"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Motivo *</label><select id="parcMotivo">${motivos.map(m=>`<option value="${m}">${m}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Motivo *</label><select id="parcMotivo">${motivos.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}</select></div>
       <div class="form-group" style="flex:2"><label>Observação</label><input type="text" id="parcObs" placeholder="Detalhes adicionais..."></div>
     </div>
     <div style="border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:16px;background:#fff">
@@ -1022,13 +1021,13 @@ async function _renderizarParciais() {
     tbody.innerHTML = res.length
       ? res.map(p=>`<tr>
           <td><b>${p.data?p.data.split('-').reverse().join('/'):'—'}</b></td>
-          <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(p.funcionario):p.funcionario}</td>
-          <td>${p.inicio?p.inicio.substring(0,5):'—'}</td>
-          <td>${p.fim?p.fim.substring(0,5):'—'}</td>
-          <td style="color:${p.motivo?.includes('Injustificado')?'#ef4444':'#ca8a04'};font-weight:600">${p.motivo||'—'}</td>
-          <td style="font-size:12px;color:#64748b">${p.obs||'—'}</td>
+          <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(p.funcionario):esc(p.funcionario)}</td>
+          <td>${esc(p.inicio?p.inicio.substring(0,5):'—')}</td>
+          <td>${esc(p.fim?p.fim.substring(0,5):'—')}</td>
+          <td style="color:${esc(p.motivo?.includes('Injustificado')?'#ef4444':'#ca8a04')};font-weight:600">${esc(p.motivo||'—')}</td>
+          <td style="font-size:12px;color:#64748b">${esc(p.obs||'—')}</td>
           <td>${p.imagem_url
-            ? `<a href="${p.imagem_url}" target="_blank"><img src="${p.imagem_url}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer"></a>`
+            ? `<a href="${esc(p.imagem_url)}" target="_blank"><img src="${esc(p.imagem_url)}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer"></a>`
             : '<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
           <td>
             <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoParcial(_obj(${_guardarObj(p)}))">✏️</button>
@@ -1036,7 +1035,7 @@ async function _renderizarParciais() {
           </td>
         </tr>`).join('')
       : '<tr><td colspan="8" class="empty-msg">Nenhum registro.</td></tr>';
-  } catch(e) {}
+  } catch(e) { avisarErro('carregar as ausências parciais', e); }
 }
 
 // ==========================================
@@ -1055,17 +1054,17 @@ function abrirEdicaoParcial(p) {
     <div class="modal-header"><h3>✏️ Editar Ocorrência</h3><button onclick="fecharEdicaoParcial()">✕</button></div>
     <div class="modal-body">
       <div class="form-group"><label>Técnico *</label>
-        <select id="efParcFunc">${funcs.map(fn=>`<option value="${fn}" ${p.funcionario===fn?'selected':''}>${fn}</option>`).join('')}</select>
+        <select id="efParcFunc">${funcs.map(fn=>`<option value="${esc(fn)}" ${p.funcionario===fn?'selected':''}>${esc(fn)}</option>`).join('')}</select>
       </div>
-      <div class="form-group"><label>Data *</label><input type="date" id="efParcData" value="${p.data||''}"></div>
+      <div class="form-group"><label>Data *</label><input type="date" id="efParcData" value="${esc(p.data||'')}"></div>
       <div class="form-row">
-        <div class="form-group"><label>Saída</label><input type="time" id="efParcIni" value="${p.inicio?p.inicio.substring(0,5):''}"></div>
-        <div class="form-group"><label>Retorno</label><input type="time" id="efParcFim" value="${p.fim?p.fim.substring(0,5):''}"></div>
+        <div class="form-group"><label>Saída</label><input type="time" id="efParcIni" value="${esc(p.inicio?p.inicio.substring(0,5):'')}"></div>
+        <div class="form-group"><label>Retorno</label><input type="time" id="efParcFim" value="${esc(p.fim?p.fim.substring(0,5):'')}"></div>
       </div>
       <div class="form-group"><label>Motivo *</label>
-        <select id="efParcMotivo">${motivos.map(m=>`<option value="${m}" ${p.motivo===m?'selected':''}>${m}</option>`).join('')}</select>
+        <select id="efParcMotivo">${motivos.map(m=>`<option value="${esc(m)}" ${p.motivo===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
       </div>
-      <div class="form-group"><label>Observação</label><input type="text" id="efParcObs" value="${(p.obs||'').replace(/"/g,'&quot;')}"></div>
+      <div class="form-group"><label>Observação</label><input type="text" id="efParcObs" value="${esc(p.obs||'')}"></div>
       ${p.imagem_url ? `<div style="font-size:11px;color:#64748b">📎 Anexo atual será mantido (edição de imagem não suportada aqui — exclua e recrie se precisar trocar).</div>` : ''}
     </div>
     <div class="modal-footer">

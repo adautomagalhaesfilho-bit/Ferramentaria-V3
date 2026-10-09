@@ -28,11 +28,11 @@ function abrirModalNovoMapeamento(job) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalMapeamento()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:420px">
-    <div class="modal-header"><h3>📐 Mapeamento de Calços — ${job}</h3><button onclick="fecharModalMapeamento()">✕</button></div>
+    <div class="modal-header"><h3>📐 Mapeamento de Calços — ${esc(job)}</h3><button onclick="fecharModalMapeamento()">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label>Data do Mapeamento *</label>
-        <input type="date" id="mapDataInput" value="${new Date().toISOString().split('T')[0]}">
+        <input type="date" id="mapDataInput" value="${esc(hojeLocal())}">
       </div>
       <div class="form-group">
         <label>Observação</label>
@@ -51,7 +51,7 @@ function abrirModalNovoMapeamento(job) {
       <div id="mapStatus" style="font-size:12px;color:#64748b"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarNovoMapeamento('${job.replace(/'/g,"\\'")}')">💾 Registrar</button>
+      <button class="btn-primary" onclick="salvarNovoMapeamento('${escJs(job)}')">💾 Registrar</button>
       <button class="btn-secondary" onclick="fecharModalMapeamento()">Cancelar</button>
     </div>
   </div>`;
@@ -103,19 +103,19 @@ function abrirEdicaoMapeamento(id, job, dataAtual, obsAtual) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalMapeamento()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:420px">
-    <div class="modal-header"><h3>✏️ Editar Mapeamento — ${job}</h3><button onclick="fecharModalMapeamento()">✕</button></div>
+    <div class="modal-header"><h3>✏️ Editar Mapeamento — ${esc(job)}</h3><button onclick="fecharModalMapeamento()">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label>Data do Mapeamento *</label>
-        <input type="date" id="mapDataInput" value="${dataAtual||''}">
+        <input type="date" id="mapDataInput" value="${esc(dataAtual||'')}">
       </div>
       <div class="form-group">
         <label>Observação</label>
-        <textarea id="mapObsInput" rows="2" placeholder="Opcional...">${(obsAtual||'').replace(/</g,'&lt;')}</textarea>
+        <textarea id="mapObsInput" rows="2" placeholder="Opcional...">${esc(obsAtual||'')}</textarea>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarEdicaoMapeamento(${id},'${job.replace(/'/g,"\\'")}')">💾 Salvar</button>
+      <button class="btn-primary" onclick="salvarEdicaoMapeamento(${id},'${escJs(job)}')">💾 Salvar</button>
       <button class="btn-secondary" onclick="fecharModalMapeamento()">Cancelar</button>
     </div>
   </div>`;
@@ -151,28 +151,26 @@ function excluirMapeamento(id, job) {
 // Card na Ficha do Molde
 // ==========================================
 function renderizarCardMapeamento(job, mapeamentos) {
-  const jobEsc = job.replace(/'/g,"\\'");
   const podeEditar = typeof podeGerenciarMapeamento === 'function' && podeGerenciarMapeamento();
   const ultimo = mapeamentos && mapeamentos.length ? mapeamentos[0] : null;
   let html = '';
   if (ultimo) {
     const dias = _diasDesdeMapeamento(ultimo.data_mapeamento);
     const desatualizado = dias > _MAPEAMENTO_VALIDADE_DIAS;
-    const obsEsc = (ultimo.observacao||'').replace(/'/g,"\\'");
     const botoes = podeEditar ? `<div style="margin-top:8px;display:flex;gap:6px">
-        <button class="btn-secondary" style="font-size:11px;padding:3px 10px" onclick="abrirEdicaoMapeamento(${ultimo.id},'${jobEsc}','${ultimo.data_mapeamento}','${obsEsc}')">✏️ Editar</button>
-        <button class="btn-danger" style="font-size:11px;padding:3px 10px" onclick="excluirMapeamento(${ultimo.id},'${jobEsc}')">🗑️ Excluir</button>
+        <button class="btn-secondary" style="font-size:11px;padding:3px 10px" onclick="abrirEdicaoMapeamento(${ultimo.id},'${escJs(job)}','${escJs(ultimo.data_mapeamento)}','${escJs(ultimo.observacao||'')}')">✏️ Editar</button>
+        <button class="btn-danger" style="font-size:11px;padding:3px 10px" onclick="excluirMapeamento(${ultimo.id},'${escJs(job)}')">🗑️ Excluir</button>
       </div>` : '';
     if (desatualizado) {
       html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:12px">
-        <div style="font-size:13px;color:#92400e;font-weight:700">⚠️ Mapeamento desatualizado — feito há ${dias} dias (válido por ${_MAPEAMENTO_VALIDADE_DIAS})</div>
-        <div style="font-size:12px;color:#64748b;margin-top:2px">Último em ${new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')} por ${ultimo.criado_por||'—'}${ultimo.observacao?' — '+ultimo.observacao:''}</div>
+        <div style="font-size:13px;color:#92400e;font-weight:700">⚠️ Mapeamento desatualizado — feito há ${esc(dias)} dias (válido por ${esc(_MAPEAMENTO_VALIDADE_DIAS)})</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">Último em ${esc(new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR'))} por ${esc(ultimo.criado_por||'—')}${esc(ultimo.observacao?' — '+ultimo.observacao:'')}</div>
         ${botoes}
       </div>`;
     } else {
       html += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px">
-        <div style="font-size:13px;color:#059669;font-weight:700">✅ Mapeamento feito em ${new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')}</div>
-        <div style="font-size:12px;color:#64748b;margin-top:2px">por ${ultimo.criado_por||'—'}${ultimo.observacao?' — '+ultimo.observacao:''} · válido por mais ${_MAPEAMENTO_VALIDADE_DIAS-dias} dias</div>
+        <div style="font-size:13px;color:#059669;font-weight:700">✅ Mapeamento feito em ${esc(new Date(ultimo.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR'))}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">por ${esc(ultimo.criado_por||'—')}${esc(ultimo.observacao?' — '+ultimo.observacao:'')} · válido por mais ${esc(_MAPEAMENTO_VALIDADE_DIAS-dias)} dias</div>
         ${botoes}
       </div>`;
     }
@@ -186,12 +184,11 @@ function renderizarCardMapeamento(job, mapeamentos) {
       <summary style="cursor:pointer;font-size:12px;color:#0056b3;font-weight:600">Ver histórico de mapeamentos anteriores</summary>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
         ${mapeamentos.slice(1).map(m => {
-          const obsEsc = (m.observacao||'').replace(/'/g,"\\'");
           return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#64748b;padding:4px 0;border-bottom:1px dashed #f1f5f9">
-            <span>${new Date(m.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR')} — ${m.criado_por||'—'}${m.observacao?' — '+m.observacao:''}</span>
+            <span>${esc(new Date(m.data_mapeamento+'T12:00:00').toLocaleDateString('pt-BR'))} — ${esc(m.criado_por||'—')}${esc(m.observacao?' — '+m.observacao:'')}</span>
             ${podeEditar ? `<span style="display:flex;gap:6px;flex-shrink:0;margin-left:8px">
-              <button class="btn-secondary" style="font-size:10px;padding:2px 7px" onclick="abrirEdicaoMapeamento(${m.id},'${jobEsc}','${m.data_mapeamento}','${obsEsc}')">✏️</button>
-              <button class="btn-danger" style="font-size:10px;padding:2px 7px" onclick="excluirMapeamento(${m.id},'${jobEsc}')">🗑️</button>
+              <button class="btn-secondary" style="font-size:10px;padding:2px 7px" onclick="abrirEdicaoMapeamento(${m.id},'${escJs(job)}','${escJs(m.data_mapeamento)}','${escJs(m.observacao||'')}')">✏️</button>
+              <button class="btn-danger" style="font-size:10px;padding:2px 7px" onclick="excluirMapeamento(${m.id},'${escJs(job)}')">🗑️</button>
             </span>` : ''}
           </div>`;
         }).join('')}
@@ -217,7 +214,7 @@ async function _verificarMapeamentoCalcosApontamento(job) {
     }
     const dias = _diasDesdeMapeamento(mapeamentos[0].data_mapeamento);
     if (dias > _MAPEAMENTO_VALIDADE_DIAS) {
-      el.innerHTML = `⚠️ O <b>mapeamento de calços</b> deste molde está desatualizado (feito há ${dias} dias) — precisa ser refeito.`;
+      el.innerHTML = `⚠️ O <b>mapeamento de calços</b> deste molde está desatualizado (feito há ${esc(dias)} dias) — precisa ser refeito.`;
       el.style.display = '';
       return;
     }
