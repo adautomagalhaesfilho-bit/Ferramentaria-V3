@@ -76,9 +76,15 @@ async function buscarAnexosMolde(job) {
   return await db._get('molde_anexos', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*');
 }
 
+// Quem pode editar/excluir anexo: quem enviou, ou perfil de gestão (supervisor, gestor, admin)
+function _podeGerirAnexo(criadoPor) {
+  const perfil = _sessao?.perfil;
+  return ['admin','gestor','supervisor'].includes(perfil) || (_sessao?.nome === criadoPor);
+}
+
 function excluirAnexoMolde(id, criadoPor) {
-  const podeExcluir = (typeof isAdmin === 'function' && isAdmin()) || (_sessao?.nome === criadoPor);
-  if (!podeExcluir) { toast('Só quem enviou ou um administrador pode excluir este anexo.', 'erro'); return; }
+  const podeExcluir = _podeGerirAnexo(criadoPor);
+  if (!podeExcluir) { toast('Só quem enviou, o supervisor ou a gestão pode excluir este anexo.', 'erro'); return; }
   confirmarExclusao('Excluir este anexo?', async () => {
     try {
       await db._delete('molde_anexos', 'id=eq.' + id);
@@ -90,8 +96,8 @@ function excluirAnexoMolde(id, criadoPor) {
 
 // Edita a descrição de um anexo já enviado — mesma regra de permissão da exclusão
 function abrirEdicaoDescricaoAnexo(id, criadoPor, descricaoAtual) {
-  const podeEditar = (typeof isAdmin === 'function' && isAdmin()) || (_sessao?.nome === criadoPor);
-  if (!podeEditar) { toast('Só quem enviou ou um administrador pode editar esta descrição.', 'erro'); return; }
+  const podeEditar = _podeGerirAnexo(criadoPor);
+  if (!podeEditar) { toast('Só quem enviou, o supervisor ou a gestão pode editar esta descrição.', 'erro'); return; }
   const div = document.createElement('div');
   div.id = 'modalEditDescAnexoWrap';
   div.innerHTML = `
@@ -200,7 +206,7 @@ function renderizarGaleriaAnexosMolde(anexos) {
   const ordenados = [...anexos].sort((a,b) => new Date(b.criado_em) - new Date(a.criado_em));
   return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px">
     ${ordenados.map(a => {
-      const podeExcluir = (typeof isAdmin === 'function' && isAdmin()) || (_sessao?.nome === a.criado_por);
+      const podeExcluir = _podeGerirAnexo(a.criado_por);
       const dataFmt = a.criado_em ? new Date(a.criado_em).toLocaleDateString('pt-BR') : '—';
       const midia = a.tipo === 'Vídeo'
         ? `<video src="${a.url}" controls style="width:100%;height:120px;object-fit:cover;border-radius:8px;background:#000"></video>`
