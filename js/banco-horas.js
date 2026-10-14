@@ -12,13 +12,67 @@ function fmtMinSaldo(mins) {
   return sinal + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + 'h';
 }
 
+// ==========================================
+// 🧮 REGRA DO SALDO (valem para a tela, a ficha e o Dashboard)
+//  - "Acerto de Saldo" = saldo oficial digitado numa data. O saldo passa a ser:
+//      saldo do acerto + lançamentos VALIDADOS com data DEPOIS da data do acerto.
+//    O que é da data do acerto ou anterior fica no extrato, mas não soma.
+//  - Só lançamentos "Validado" entram no saldo. "Pendente" aparece à parte e "Recusado" não conta.
+// ==========================================
+const _ORIGEM_ACERTO_BH = 'Acerto de Saldo';
+function _sinalBH(r) { return (r.tipo==='Credito' ? 1 : -1) * (r.minutos||0); }
+function _statusBH(r) { return r.status || 'Validado'; }
+
+// registros = lançamentos de UM funcionário
+function calcularSaldoBH(registros) {
+  const acertos = (registros||[]).filter(r => r.origem === _ORIGEM_ACERTO_BH && _statusBH(r) !== 'Recusado')
+    .sort((a,b) => (a.data===b.data ? (a.id-b.id) : a.data.localeCompare(b.data)));
+  const acerto = acertos.length ? acertos[acertos.length-1] : null;
+  let saldo = acerto ? _sinalBH(acerto) : 0, pendente = 0, qtdPendente = 0;
+  (registros||[]).forEach(r => {
+    if (r === acerto || r.origem === _ORIGEM_ACERTO_BH) return;
+    if (acerto && r.data <= acerto.data) return;
+    const st = _statusBH(r);
+    if (st === 'Validado') saldo += _sinalBH(r);
+    else if (st === 'Pendente') { pendente += _sinalBH(r); qtdPendente++; }
+  });
+  return { saldo, pendente, qtdPendente, acertoData: acerto ? acerto.data : null };
+}
+
+// todos = lançamentos de vários funcionários -> { nome: {saldo, pendente, ...} }
+function calcularSaldosBH(todos) {
+  const porFunc = {};
+  (todos||[]).forEach(r => { if (r.funcionario) (porFunc[r.funcionario] = porFunc[r.funcionario] || []).push(r); });
+  const out = {};
+  Object.keys(porFunc).forEach(n => { out[n] = calcularSaldoBH(porFunc[n]); });
+  return out;
+}
+
 async function calcularSaldoBancoHoras(nome) {
   try {
     const res = await db.listarBancoHoras(nome);
-    let saldo = 0;
-    (res||[]).forEach(r => { saldo += (r.tipo==='Credito' ? 1 : -1) * (r.minutos||0); });
-    return saldo;
+    return calcularSaldoBH(res||[]).saldo;
   } catch(e) { avisarErro('calcular o saldo do banco de horas', e); return 0; }
+}
+
+function _podeValidarBH() { return ['admin','gestor','supervisor'].includes(_sessao?.perfil); }
+
+// Aceita "12:30", "-12:30", "+3", "-12,5", "2.25" -> minutos (com sinal) ou null
+function _parseHorasBH(txt) {
+  const t = String(txt||'').trim().replace(',', '.');
+  if (!t) return null;
+  const neg = t.startsWith('-');
+  const corpo = t.replace(/^[+-]/, '');
+  let min;
+  if (corpo.includes(':')) {
+    const [h, m] = corpo.split(':');
+    if (!/^\d+$/.test(h) || !/^\d{1,2}$/.test(m||'0')) return null;
+    min = parseInt(h,10)*60 + parseInt(m||'0',10);
+  } else {
+    if (!/^\d+(\.\d+)?$/.test(corpo)) return null;
+    min = Math.round(parseFloat(corpo)*60);
+  }
+  return neg ? -min : min;
 }
 
 // ==========================================
@@ -171,7 +225,8 @@ async function sincronizarDebitoParcial(parcial) {
 
     const refId = 'PARC-' + parcial.id;
     // Remove débito anterior deste registro (caso de edição) antes de recalcular
-    const existentes = await db._get('banco_horas', 'referencia_id=eq.'+encodeURIComponent(refId), 'id');
+    const existentes = await db._get('banco_horas', 'referencia_id=eq.'+encodeURIComponent(refId), 'id,status,validado_por,validado_em');
+    const anterior = (existentes||[])[0] || null; // mantém a validação já feita pelo supervisor
     for (const ex of (existentes||[])) await db.excluirBancoHoras(ex.id);
 
     const iniMin = _paraMinutosDoDia(parcial.inicio);
@@ -200,7 +255,8 @@ async function sincronizarDebitoParcial(parcial) {
     await db.salvarBancoHoras({
       funcionario: parcial.funcionario, data: parcial.data, tipo: 'Debito',
       origem: parcial.motivo, minutos: minutosDebito, descricao,
-      referencia_id: refId, criado_por: _sessao?.nome || null
+      referencia_id: refId, criado_por: _sessao?.nome || null,
+      ...(anterior ? { status: anterior.status || 'Pendente', validado_por: anterior.validado_por || null, validado_em: anterior.validado_em || null } : {})
     });
   } catch(e) { avisarErro('sincronizar o débito do parcial no banco de horas', e); }
 }
@@ -276,6 +332,32 @@ async function inicializarBancoHoras() {
     </div>
   </div>
 
+  ${_podeValidarBH() ? `
+  <div class="card" style="background:#faf5ff;border-color:#e9d5ff">
+    <div style="font-size:13px;font-weight:700;color:#6b21a8;margin-bottom:6px">🧮 Acerto de Saldo (digitar o saldo atual)</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:12px">Informe o saldo oficial do técnico numa data. A partir dela o sistema soma só o que for lançado <b>depois</b> daquele dia — o que é anterior continua no extrato, mas não soma por cima.</div>
+    <div class="form-row">
+      <div class="form-group"><label>Técnico *</label><select id="bhAcFunc" onchange="atualizarPreviaAcertoBH()"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Saldo oficial *</label><input type="text" id="bhAcSaldo" placeholder="Ex: 12:30 ou -8:15" oninput="atualizarPreviaAcertoBH()"></div>
+      <div class="form-group"><label>Data do saldo *</label><input type="date" id="bhAcData" value="${esc(hojeStr)}"></div>
+    </div>
+    <div class="form-group"><label>Observação</label><input type="text" id="bhAcObs" placeholder="Ex: Extrato do RH de 15/10"></div>
+    <div id="bhAcPrevia" style="font-size:12px;color:#475569;margin-bottom:10px"></div>
+    <button class="btn-primary" onclick="salvarAcertoSaldoBH()">🧮 Aplicar acerto</button>
+  </div>
+
+  <div class="card" style="background:#fffbeb;border-color:#fde68a">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;color:#92400e">⏳ Aguardando validação do supervisor</div>
+      <button class="btn-success" style="font-size:12px;padding:5px 12px" onclick="validarTodosPendentesBH()">✅ Validar todos (do filtro)</button>
+    </div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:10px">Hora extra e atrasos calculados automaticamente só entram no saldo depois de validados. Recusado não conta.</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Data</th><th>Técnico</th><th>Origem</th><th>Horas</th><th>Descrição</th><th>Ação</th></tr></thead>
+      <tbody id="tbodyPendentesBH"><tr><td colspan="6" class="empty-msg">Carregando...</td></tr></tbody>
+    </table></div>
+  </div>` : ''}
+
   <div class="card">
     <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:12px">✏️ Lançamento Manual</div>
     <div class="form-row">
@@ -308,8 +390,8 @@ async function inicializarBancoHoras() {
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Data</th><th>Técnico</th><th>Tipo</th><th>Origem</th><th>Horas</th><th>Descrição</th><th>Ação</th></tr></thead>
-        <tbody id="tbodyExtratoBH"><tr><td colspan="7" class="empty-msg">Carregando...</td></tr></tbody>
+        <thead><tr><th>Data</th><th>Técnico</th><th>Tipo</th><th>Origem</th><th>Horas</th><th>Situação</th><th>Descrição</th><th>Ação</th></tr></thead>
+        <tbody id="tbodyExtratoBH"><tr><td colspan="8" class="empty-msg">Carregando...</td></tr></tbody>
       </table>
     </div>
   </div>`;
@@ -321,6 +403,7 @@ async function renderizarBancoHoras() {
   try {
     _todosBancoHoras = await db.listarBancoHoras() || [];
     _renderizarResumoSaldosBH();
+    _renderizarPendentesBH();
     filtrarExtratoBH();
   } catch(e) {
     toast('Erro ao carregar banco de horas.','erro');
@@ -331,12 +414,8 @@ async function renderizarBancoHoras() {
 function _renderizarResumoSaldosBH() {
   const el = document.getElementById('resumoSaldosBH');
   if (!el) return;
-  const porFunc = {};
-  _todosBancoHoras.forEach(r => {
-    if (!porFunc[r.funcionario]) porFunc[r.funcionario] = 0;
-    porFunc[r.funcionario] += (r.tipo==='Credito' ? 1 : -1) * (r.minutos||0);
-  });
-  const entradas = Object.entries(porFunc).sort((a,b)=>a[0].localeCompare(b[0]));
+  const saldos = calcularSaldosBH(_todosBancoHoras);
+  const entradas = Object.entries(saldos).sort((a,b)=>a[0].localeCompare(b[0]));
 
   if (!entradas.length) {
     el.innerHTML = '<div style="color:#94a3b8;font-size:13px">Nenhum lançamento de banco de horas ainda.</div>';
@@ -344,12 +423,18 @@ function _renderizarResumoSaldosBH() {
   }
 
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-    ${entradas.map(([nome,saldo]) => {
+    ${entradas.map(([nome,d]) => {
+      const saldo = d.saldo;
       const cor = saldo>0?'#059669':saldo<0?'#dc2626':'#64748b';
       const bg  = saldo>0?'#d1fae5':saldo<0?'#fee2e2':'#f1f5f9';
+      const nota = [
+        d.acertoData ? `🧮 acerto de ${esc(d.acertoData.split('-').reverse().join('/'))}` : '',
+        d.qtdPendente ? `⏳ ${d.qtdPendente} pendente(s): ${esc(fmtMinSaldo(d.pendente))}` : ''
+      ].filter(Boolean).join(' · ');
       return `<div style="background:${bg};border-radius:10px;padding:12px;cursor:pointer" onclick="filtrarExtratoPorTecnicoBH('${escJs(nome)}')">
         <div style="font-size:12px;font-weight:600;color:#1e3a5f">${esc(nome)}</div>
         <div style="font-size:20px;font-weight:800;color:${cor};margin-top:4px">${esc(fmtMinSaldo(saldo))}</div>
+        ${nota?`<div style="font-size:10px;color:#64748b;margin-top:4px">${nota}</div>`:''}
       </div>`;
     }).join('')}
   </div>`;
@@ -366,28 +451,42 @@ function filtrarExtratoBH() {
   _filtroFuncBancoHoras = val;
   const filtrado = val === 'Todos' ? _todosBancoHoras : _todosBancoHoras.filter(r => r.funcionario === val);
   _renderizarTabelaExtratoBH(filtrado);
+  _renderizarPendentesBH();
 }
 
 function _renderizarTabelaExtratoBH(lista) {
   const tbody = document.getElementById('tbodyExtratoBH');
   if (!tbody) return;
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">Nenhum registro encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Nenhum registro encontrado.</td></tr>';
     return;
   }
+  const acertoPorFunc = {};
+  Object.keys(calcularSaldosBH(_todosBancoHoras)).forEach(n => { acertoPorFunc[n] = calcularSaldoBH(_todosBancoHoras.filter(x=>x.funcionario===n)).acertoData; });
   tbody.innerHTML = lista.map(r => {
     const corTipo = r.tipo==='Credito' ? '#059669' : '#dc2626';
     const icoTipo = r.tipo==='Credito' ? '➕' : '➖';
     const ehManual = r.origem === 'Ajuste Manual';
-    return `<tr>
+    const st = _statusBH(r);
+    const ehAcerto = r.origem === _ORIGEM_ACERTO_BH;
+    const dataAc = acertoPorFunc[r.funcionario];
+    const antesDoAcerto = !!(dataAc && !ehAcerto && r.data <= dataAc);
+    const situacao = ehAcerto ? '<span style="background:#f3e8ff;color:#6b21a8;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700">🧮 Saldo oficial</span>'
+      : antesDoAcerto ? '<span style="background:#f1f5f9;color:#64748b;font-size:10px;padding:2px 8px;border-radius:8px">anterior ao acerto</span>'
+      : st==='Pendente' ? '<span style="background:#fef3c7;color:#92400e;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700">⏳ Pendente</span>'
+      : st==='Recusado' ? '<span style="background:#fee2e2;color:#b91c1c;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700">❌ Recusado</span>'
+      : `<span style="background:#d1fae5;color:#047857;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700" title="${esc(r.validado_por?('Validado por '+r.validado_por):'')}">✅ Validado</span>`;
+    const apagado = (antesDoAcerto || st==='Recusado') ? 'opacity:.55;' : '';
+    return `<tr style="${apagado}">
       <td><b>${r.data?r.data.split('-').reverse().join('/'):'—'}</b></td>
       <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(r.funcionario):esc(r.funcionario)}</td>
       <td><span style="color:${esc(corTipo)};font-weight:700">${esc(icoTipo)} ${esc(r.tipo==='Credito'?'Crédito':'Débito')}</span></td>
       <td style="font-size:11px;color:#64748b">${esc(r.origem)}</td>
       <td style="font-weight:700;color:${esc(corTipo)}">${esc(fmtMinSaldo(r.tipo==='Credito'?r.minutos:-r.minutos))}</td>
+      <td>${situacao}</td>
       <td style="font-size:12px;color:#64748b">${esc(r.descricao||'—')}</td>
       <td>
-        ${ehManual ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoBancoHoras(_obj(${_guardarObj(r)}))">✏️</button>` : ''}
+        ${(ehManual) ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoBancoHoras(_obj(${_guardarObj(r)}))">✏️</button>` : ''}
         <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirBancoHorasConfirm(${r.id})">🗑️</button>
       </td>
     </tr>`;
@@ -485,6 +584,126 @@ function excluirBancoHorasConfirm(id) {
   });
 }
 
+
+// ==========================================
+// 🧮 ACERTO DE SALDO
+// ==========================================
+function atualizarPreviaAcertoBH() {
+  const el = document.getElementById('bhAcPrevia'); if (!el) return;
+  const nome = document.getElementById('bhAcFunc')?.value;
+  const novo = _parseHorasBH(document.getElementById('bhAcSaldo')?.value);
+  if (!nome) { el.innerHTML = ''; return; }
+  const atual = calcularSaldoBH(_todosBancoHoras.filter(r => r.funcionario === nome)).saldo;
+  el.innerHTML = `Saldo hoje no sistema: <b>${esc(fmtMinSaldo(atual))}</b>` +
+    (novo !== null ? ` → passará a ser <b>${esc(fmtMinSaldo(novo))}</b> (diferença de ${esc(fmtMinSaldo(novo-atual))})` : '');
+}
+
+async function salvarAcertoSaldoBH() {
+  if (!_podeValidarBH()) return toast('Só supervisor, gestor ou administrador pode fazer o acerto de saldo.','erro');
+  const funcionario = document.getElementById('bhAcFunc')?.value;
+  const minutos = _parseHorasBH(document.getElementById('bhAcSaldo')?.value);
+  const data = document.getElementById('bhAcData')?.value;
+  const obs = document.getElementById('bhAcObs')?.value?.trim();
+  if (!funcionario) return toast('Selecione o técnico.','erro');
+  if (minutos === null) return toast('Informe o saldo no formato 12:30 ou -8:15.','erro');
+  if (!data) return toast('Informe a data do saldo.','erro');
+  const atual = calcularSaldoBH(_todosBancoHoras.filter(r => r.funcionario === funcionario)).saldo;
+  confirmarAcao(`Definir o saldo de ${funcionario} como ${fmtMinSaldo(minutos)} em ${data.split('-').reverse().join('/')}? (hoje: ${fmtMinSaldo(atual)})`, 'Aplicar', async () => {
+    try {
+      await db.salvarBancoHoras({
+        funcionario, data, tipo: minutos >= 0 ? 'Credito' : 'Debito', origem: _ORIGEM_ACERTO_BH,
+        minutos: Math.abs(minutos), status: 'Validado', validado_por: _sessao?.nome || null, validado_em: new Date().toISOString(),
+        descricao: 'Saldo oficial informado: ' + fmtMinSaldo(minutos) + (obs ? ' — ' + obs : ''),
+        criado_por: _sessao?.nome || null
+      });
+      toast('Acerto de saldo aplicado!','sucesso');
+      ['bhAcSaldo','bhAcObs'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+      await renderizarBancoHoras();
+      atualizarPreviaAcertoBH();
+    } catch(e) { avisarErro('aplicar o acerto de saldo', e); }
+  });
+}
+
+// ==========================================
+// ⏳ VALIDAÇÃO DO SUPERVISOR
+// ==========================================
+function _renderizarPendentesBH() {
+  const tb = document.getElementById('tbodyPendentesBH'); if (!tb) return;
+  const pend = _todosBancoHoras.filter(r => _statusBH(r) === 'Pendente')
+    .sort((a,b) => a.data.localeCompare(b.data));
+  const filtro = _filtroFuncBancoHoras;
+  const lista = filtro && filtro !== 'Todos' ? pend.filter(r => r.funcionario === filtro) : pend;
+  if (!lista.length) { tb.innerHTML = '<tr><td colspan="6" class="empty-msg">Nada aguardando validação. ✅</td></tr>'; return; }
+  tb.innerHTML = lista.map(r => {
+    const cor = r.tipo==='Credito' ? '#059669' : '#dc2626';
+    return `<tr>
+      <td><b>${esc(r.data.split('-').reverse().join('/'))}</b></td>
+      <td>${esc(r.funcionario)}</td>
+      <td style="font-size:11px;color:#64748b">${esc(r.origem)}</td>
+      <td style="font-weight:700;color:${cor}">${esc(fmtMinSaldo(_sinalBH(r)))}</td>
+      <td style="font-size:12px;color:#64748b">${esc(r.descricao||'—')}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-success" style="padding:4px 8px;font-size:11px" onclick="validarLancamentoBH(${r.id},'Validado')">✅ Validar</button>
+        <button class="btn-warning" style="padding:4px 8px;font-size:11px" onclick="abrirAjusteValidacaoBH(${r.id})">✏️ Ajustar</button>
+        <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="validarLancamentoBH(${r.id},'Recusado')">❌ Recusar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function validarLancamentoBH(id, status, minutos) {
+  if (!_podeValidarBH()) return toast('Só supervisor, gestor ou administrador pode validar.','erro');
+  try {
+    const dados = { id, status, validado_por: _sessao?.nome || null, validado_em: new Date().toISOString() };
+    if (minutos) dados.minutos = minutos;
+    await db._patch('banco_horas', 'id=eq.' + id, dados);
+    toast(status === 'Validado' ? 'Validado!' : 'Recusado.', 'sucesso');
+    await renderizarBancoHoras();
+  } catch(e) { avisarErro('validar o lançamento do banco de horas', e); }
+}
+
+function abrirAjusteValidacaoBH(id) {
+  const r = _todosBancoHoras.find(x => x.id === id); if (!r) return;
+  const div = document.createElement('div');
+  div.id = 'modalAjusteBHWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharAjusteValidacaoBH()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:380px">
+    <div class="modal-header"><h3>✏️ Ajustar e validar</h3><button onclick="fecharAjusteValidacaoBH()">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px">${esc(r.funcionario)} · ${esc(r.data.split('-').reverse().join('/'))} · ${esc(r.origem)}<br>Calculado: <b>${esc(fmtMinSaldo(_sinalBH(r)))}</b></div>
+      <div class="form-group"><label>Horas corretas (sem sinal) *</label><input type="text" id="ajBHHoras" value="${esc(fmtMinSaldo(r.minutos).replace('h',''))}" placeholder="Ex: 1:30"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="confirmarAjusteValidacaoBH(${r.id})">✅ Ajustar e validar</button>
+      <button class="btn-secondary" onclick="fecharAjusteValidacaoBH()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+function fecharAjusteValidacaoBH() { document.getElementById('modalAjusteBHWrap')?.remove(); }
+async function confirmarAjusteValidacaoBH(id) {
+  const m = _parseHorasBH(document.getElementById('ajBHHoras')?.value);
+  if (m === null || m <= 0) return toast('Informe as horas no formato 1:30.','erro');
+  fecharAjusteValidacaoBH();
+  await validarLancamentoBH(id, 'Validado', Math.abs(m));
+}
+
+function validarTodosPendentesBH() {
+  if (!_podeValidarBH()) return toast('Só supervisor, gestor ou administrador pode validar.','erro');
+  const filtro = _filtroFuncBancoHoras;
+  const lista = _todosBancoHoras.filter(r => _statusBH(r) === 'Pendente' && (!filtro || filtro === 'Todos' || r.funcionario === filtro));
+  if (!lista.length) return toast('Nada para validar.','erro');
+  confirmarAcao(`Validar ${lista.length} lançamento(s) pendente(s)${filtro && filtro !== 'Todos' ? ' de ' + filtro : ''}?`, 'Validar', async () => {
+    try {
+      const quando = new Date().toISOString();
+      for (const r of lista) await db._patch('banco_horas', 'id=eq.' + r.id, { status:'Validado', validado_por:_sessao?.nome||null, validado_em:quando });
+      toast(lista.length + ' lançamento(s) validado(s)!', 'sucesso');
+      await renderizarBancoHoras();
+    } catch(e) { avisarErro('validar os lançamentos pendentes', e); }
+  });
+}
+
 // ==========================================
 // 🎫 SALDO NA FICHA DO FUNCIONÁRIO
 // ==========================================
@@ -493,11 +712,13 @@ async function renderizarSaldoBancoHorasNaFicha(nome, containerId) {
   if (!el) return;
   el.innerHTML = '<div style="font-size:12px;color:#94a3b8">Calculando saldo...</div>';
   try {
-    const saldo = await calcularSaldoBancoHoras(nome);
+    const d = calcularSaldoBH(await db.listarBancoHoras(nome) || []);
+    const saldo = d.saldo;
     const cor = saldo>0?'#059669':saldo<0?'#dc2626':'#64748b';
     el.innerHTML = `
     <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px">🏦 BANCO DE HORAS</div>
     <div style="font-size:24px;font-weight:800;color:${cor};margin-bottom:4px">${esc(fmtMinSaldo(saldo))}</div>
+    ${d.qtdPendente?`<div style="font-size:11px;color:#92400e;margin-bottom:6px">⏳ ${d.qtdPendente} pendente(s) de validação: ${esc(fmtMinSaldo(d.pendente))}</div>`:''}
     <button class="btn-secondary" style="font-size:11px;padding:5px 10px" onclick="_irParaBancoHorasFuncionario('${escJs(nome)}')">📋 Ver extrato</button>`;
   } catch(e) {
     el.innerHTML = '<div style="font-size:12px;color:#94a3b8">Erro ao calcular saldo.</div>';

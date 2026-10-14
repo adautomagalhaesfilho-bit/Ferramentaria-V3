@@ -265,7 +265,24 @@ function fecharModalFormProd() {
 // ==========================================
 // 🗑️ MODAL CONFIRMAÇÃO
 // ==========================================
+function _textosModalConf(icone, titulo, botao, classeBtn) {
+  const set = (id, t) => { const e = document.getElementById(id); if (e) e.innerText = t; };
+  set('modalConfIcone', icone); set('modalConfTitulo', titulo); set('btnModalConfOk', botao);
+  const b = document.getElementById('btnModalConfOk'); if (b) b.className = classeBtn;
+}
+
+// Confirmação para ações que NÃO são exclusão (ex.: aplicar acerto, validar)
+function confirmarAcao(msg, botao, callback) {
+  _textosModalConf('❓', 'Confirmar', botao || 'Confirmar', 'btn-primary');
+  _confirmarBase(msg, callback);
+}
+
 function confirmarExclusao(msg, callback) {
+  _textosModalConf('🗑️', 'Confirmar exclusão', 'Sim, excluir', 'btn-danger');
+  _confirmarBase(msg, callback);
+}
+
+function _confirmarBase(msg, callback) {
   _excluirCallback = callback;
   document.getElementById('modalConfMsg').innerText = msg;
   document.getElementById('modalConfOverlay').style.display = 'block';

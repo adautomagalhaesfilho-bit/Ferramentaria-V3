@@ -263,12 +263,15 @@ function desenharGeral(ini, fim) {
 
   // Banco de horas: saldo líquido do período selecionado (créditos - débitos)
   const bancoHoras = _dadosDash.bancoHoras || [];
-  const bancoPeriodo = bancoHoras.filter(b => b.data >= ini && b.data <= fim);
+  // Só entra o que foi validado; acerto de saldo não é movimento do período
+  const bancoPeriodo = bancoHoras.filter(b => b.data >= ini && b.data <= fim && (b.status||'Validado') === 'Validado' && b.origem !== 'Acerto de Saldo');
   const saldoPeriodoMin = bancoPeriodo.reduce((a,b) => a + (b.tipo==='Credito' ? (b.minutos||0) : -(b.minutos||0)), 0);
 
   // Saldo acumulado (todo o histórico) por funcionário — pra achar quem está no negativo
   const saldoPorFunc = {};
-  bancoHoras.forEach(b => {
+  const _saldosBH = (typeof calcularSaldosBH === 'function') ? calcularSaldosBH(bancoHoras) : null;
+  if (_saldosBH) Object.keys(_saldosBH).forEach(f => { saldoPorFunc[f] = _saldosBH[f].saldo; });
+  else bancoHoras.forEach(b => {
     const f = b.funcionario; if (!f) return;
     saldoPorFunc[f] = (saldoPorFunc[f]||0) + (b.tipo==='Credito' ? (b.minutos||0) : -(b.minutos||0));
   });
