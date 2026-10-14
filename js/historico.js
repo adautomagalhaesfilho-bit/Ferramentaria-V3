@@ -15,6 +15,13 @@ function inicializarHistorico() {
   else setTimeout(atualizarFiltrosHistorico, 500);
 }
 
+const _GRUPOS_TIPO_HIST = '<option value="Todos">Todos os Tipos</option>' +
+  '<optgroup label="Agrupados (pega todos os nomes parecidos)">' +
+  '<option value="~Prevent">⭐ Todas as Preventivas</option>' +
+  '<option value="~Corret">⭐ Todas as Corretivas</option>' +
+  '<option value="~Inspe">⭐ Todas as Inspeções</option>' +
+  '</optgroup><optgroup label="Tipo específico">';
+
 async function atualizarFiltrosHistorico() {
   const setor   = document.getElementById('histSetor').value;
   _setorHistorico = setor;
@@ -42,8 +49,8 @@ async function atualizarFiltrosHistorico() {
 
     } else if (setor === 'Bancada') {
       const tiposBancada = _listas.tiposBancada || [];
-      selTipo.innerHTML = '<option value="Todos">Todos os Tipos</option>' +
-        tiposBancada.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+      selTipo.innerHTML = _GRUPOS_TIPO_HIST +
+        tiposBancada.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('') + '</optgroup>';
 
     } else if (setor === 'Projeto') {
       const areasProj = _listas.areasProj     || [];
@@ -55,8 +62,10 @@ async function atualizarFiltrosHistorico() {
     } else if (setor === 'Producao') {
       // Tipos de produção vêm de prod_categorias setor=Producao
       const tiposProd = _listas.tiposProd || [];
-      selTipo.innerHTML = '<option value="Todos">Todos os Tipos</option>' +
-        tiposProd.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+      // Mostra os tipos que existem no cadastro e também os que já foram gravados com
+      // outro nome (ex.: "Preventiva" antigo x "Manutenção Preventiva")
+      selTipo.innerHTML = _GRUPOS_TIPO_HIST +
+        tiposProd.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('') + '</optgroup>';
     }
   } catch(e) {
     console.error('Erro ao carregar tipos:', e);
@@ -168,7 +177,7 @@ function renderizarHistorico(res, setor) {
     if (setor === 'Usinagem') {
       col3 = `<span style="font-size:12px"><b>${esc(l.maquina||'—')}</b>${l.tipo?`<br><span style="color:#64748b;font-size:11px">${esc(l.tipo)}</span>`:''}</span>`;
     } else if (setor === 'Bancada') {
-      col3 = esc(l.tipo || '—');
+      col3 = esc(l.tipo || '—') + (l.temOS ? `<br><span style="font-size:11px;color:#1d4ed8;font-weight:700">📋 OS: ${esc(l.numeroOS||'?')}</span>` : '');
     } else {
       col3 = `<span style="font-size:12px">${l.area?`<b>${esc(l.area)}</b><br>`:''}<span style="color:#64748b;font-size:11px">${esc(l.tipo||'—')}</span></span>`;
       const cor = corStatus(l.status);
@@ -301,15 +310,15 @@ function exportarCSV() {
   let cab, linhas;
 
   if (setor === 'Producao') {
-    cab = ['Data','Técnico(s)','Injetora','Tipo','Atividade','Molde','Prod.','Descrição'];
+    cab = ['Data','Técnico(s)','Injetora','Tipo','Atividade','Molde','Prod.','Nº OS','Descrição'];
     linhas = [cab.join(';')];
     _dadosHistorico.forEach(l => {
       const tecs = Array.isArray(l.tecnicos) ? l.tecnicos.join(' / ') : (l.tecnicos||'');
       linhas.push([l.data, tecs, l.injetora||'', l.tipo||'', l.atividade||'', l.molde||'',
-        l.minutos ? fmtMin(l.minutos) : '', (l.descricao||'').replace(/;/g,',')].join(';'));
+        l.minutos ? fmtMin(l.minutos) : '', l.tem_os ? (l.numero_os||'') : '', (l.descricao||'').replace(/;/g,',')].join(';'));
     });
   } else {
-    cab = ['Data','Técnico','Atividade/Tipo','Job','Início','Fim','Prod.','Descrição'];
+    cab = ['Data','Técnico','Atividade/Tipo','Job','Início','Fim','Prod.','Nº OS','Descrição'];
     linhas = [cab.join(';')];
     _dadosHistorico.forEach(l => {
       const desc = (l.descricao||'').replace(/;/g,',');
@@ -318,7 +327,7 @@ function exportarCSV() {
       else if (setor==='Bancada') ativ = l.tipo||'';
       else ativ = (l.area||'') + (l.tipo?' / '+l.tipo:'');
       linhas.push([l.data, l.funcionario, ativ, l.job||'',
-        l.horaInicio||'', l.horaFim||'', l.hrProd||'', desc].join(';'));
+        l.horaInicio||'', l.horaFim||'', l.hrProd||'', l.temOS ? (l.numeroOS||'') : '', desc].join(';'));
     });
   }
 
@@ -329,4 +338,60 @@ function exportarCSV() {
   });
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   toast('CSV exportado!','sucesso');
+}
+
+
+// ==========================================
+// EXPORTAR EXCEL (.xlsx) — respeita período, setor e tipo escolhidos
+// Gera 2 abas: "Lançamentos" (linha a linha) e "Resumo por tipo" (quantidade e horas)
+// ==========================================
+function exportarExcel() {
+  if (!_dadosHistorico.length) return toast('Nenhum dado para exportar. Faça a busca primeiro.','erro');
+  if (typeof XLSX === 'undefined') return toast('Biblioteca do Excel não carregou. Atualize a página (Ctrl+Shift+R).','erro');
+  const setor = document.getElementById('histSetor').value;
+  const ini   = document.getElementById('histIni').value;
+  const fim   = document.getElementById('histFim').value;
+  const selTipo = document.getElementById('histTipo');
+  const tipoTxt = selTipo.options[selTipo.selectedIndex]?.text || 'Todos os Tipos';
+  const br = d => d ? String(d).split('-').reverse().join('/') : '';
+  const hhmm = m => { m = Math.round(m||0); return Math.floor(m/60) + ':' + String(m%60).padStart(2,'0'); };
+
+  let cab, linhas, tipoDe, minDe;
+  if (setor === 'Producao') {
+    cab = ['Data','Técnico(s)','Injetora','Tipo','Atividade','Molde','Início','Fim','Duração (h:min)','Minutos','Máq. parada','Nº OS','Status','Descrição'];
+    linhas = _dadosHistorico.map(l => [
+      br(l.data), Array.isArray(l.tecnicos) ? l.tecnicos.join(' / ') : (l.tecnicos||''), l.injetora||'', l.tipo||'', l.atividade||'', l.molde||'',
+      (l.hora_inicio||'').substring(0,5), (l.hora_fim||'').substring(0,5), hhmm(l.minutos), l.minutos||0,
+      l.maquina_parada ? 'Sim' : 'Não', l.tem_os ? (l.numero_os||'') : '', l.status||'', l.descricao||'']);
+  } else {
+    cab = ['Data','Técnico','Setor','Tipo / Atividade','Máquina','Área','Job','Início','Fim','Duração (h:min)','Minutos','Nº OS','Status','Descrição'];
+    linhas = _dadosHistorico.map(l => [
+      br(l.data), l.funcionario||'', setor, l.tipo||'', l.maquina||'', l.area||'', l.job||'',
+      l.horaInicio||'', l.horaFim||'', hhmm(l.minutos), l.minutos||0,
+      l.temOS ? (l.numeroOS||'') : '', l.status||'', l.descricao||'']);
+  }
+  const iTipo = cab.indexOf(setor === 'Producao' ? 'Tipo' : 'Tipo / Atividade');
+  const iMin  = cab.indexOf('Minutos');
+
+  // Resumo por tipo
+  const resumo = {};
+  linhas.forEach(r => { const t = r[iTipo] || '—'; (resumo[t] = resumo[t] || { q:0, m:0 }); resumo[t].q++; resumo[t].m += r[iMin]||0; });
+  const totQ = linhas.length, totM = linhas.reduce((a,r)=>a+(r[iMin]||0),0);
+  const abaResumo = [
+    ['Relatório — ' + setor], ['Período', br(ini) + ' a ' + br(fim)], ['Filtro de tipo', tipoTxt], [],
+    ['Tipo','Quantidade','Horas (h:min)','Minutos'],
+    ...Object.entries(resumo).sort((a,b)=>b[1].m-a[1].m).map(([t,v]) => [t, v.q, hhmm(v.m), v.m]),
+    ['TOTAL', totQ, hhmm(totM), totM]
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([cab, ...linhas]);
+  ws1['!cols'] = cab.map((c,i) => ({ wch: c === 'Descrição' ? 60 : Math.max(10, Math.min(28, c.length + 6)) }));
+  ws1['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:linhas.length,c:cab.length-1} }) };
+  const ws2 = XLSX.utils.aoa_to_sheet(abaResumo);
+  ws2['!cols'] = [{wch:34},{wch:12},{wch:14},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Lançamentos');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumo por tipo');
+  XLSX.writeFile(wb, `Historico_${setor}_${ini}_${fim}.xlsx`);
+  toast('Excel exportado!','sucesso');
 }
