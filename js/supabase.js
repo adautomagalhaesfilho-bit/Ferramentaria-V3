@@ -230,10 +230,18 @@ const db = {
     return (res || []).map(db._formatarLancamento);
   },
 
+  // Filtro de tipo: "~Prevent" = contém o texto (pega "Preventiva", "Manutenção Preventiva",
+  // "Bico Valvulado / Preventiva"...); qualquer outro valor = igual ao nome exato
+  _filtroTipo: function(tipo) {
+    if (!tipo || tipo === 'Todos') return '';
+    if (tipo.charAt(0) === '~') return '&tipo=ilike.' + encodeURIComponent('*' + tipo.slice(1) + '*');
+    return '&tipo=eq.' + encodeURIComponent(tipo);
+  },
+
   buscarLancamentosPeriodo: async function(setor, dataIni, dataFim, funcionario, job, tipo) {
     let filtro = 'setor=eq.' + setor + '&data=gte.' + dataIni + '&data=lte.' + dataFim;
     if (funcionario && funcionario !== 'Todos') filtro += '&funcionario=eq.' + encodeURIComponent(funcionario);
-    if (tipo && tipo !== 'Todos') filtro += '&tipo=eq.' + encodeURIComponent(tipo);
+    filtro += db._filtroTipo(tipo);
     const res = await db._get('lancamentos', filtro + '&order=data.asc,hora_inicio.asc', '*');
     let dados = res || [];
     if (job) dados = dados.filter(l => l.job && l.job.toUpperCase().includes(job.toUpperCase()));
@@ -318,7 +326,9 @@ const db = {
       observacao:      dados.observacao    || null,
       ram_id:          dados.ramId    || null,
       ram_numero:      dados.ramNumero || null,
-      copo_id:         dados.copoId || null
+      copo_id:         dados.copoId || null,
+      tem_os:          !!dados.temOS,
+      numero_os:       dados.temOS ? (dados.numeroOS || null) : null
     };
     const res = await db._post('lancamentos', reg);
     if (dados.job && dados.status) await db.salvarStatusJob(dados.job, dados.status, dados.descricao || '');
@@ -344,7 +354,9 @@ const db = {
       observacao:      dados.observacao    || null,
       ram_id:          dados.ramId    || null,
       ram_numero:      dados.ramNumero || null,
-      copo_id:         dados.copoId || null
+      copo_id:         dados.copoId || null,
+      tem_os:          !!dados.temOS,
+      numero_os:       dados.temOS ? (dados.numeroOS || null) : null
     });
   },
 
@@ -626,14 +638,14 @@ const db = {
   buscarProdLancamentos: async function(data, injetora, tipo) {
     let filtro = 'data=eq.' + data + '&order=hora_inicio.asc';
     if (injetora && injetora !== 'Todas') filtro += '&injetora=eq.' + encodeURIComponent(injetora);
-    if (tipo && tipo !== 'Todos') filtro += '&tipo=eq.' + encodeURIComponent(tipo);
+    filtro += db._filtroTipo(tipo);
     return await db._get('prod_lancamentos', filtro, '*');
   },
 
   buscarProdPeriodo: async function(dataIni, dataFim, injetora, tipo) {
     let filtro = 'data=gte.' + dataIni + '&data=lte.' + dataFim + '&order=data.desc,hora_inicio.asc';
     if (injetora && injetora !== 'Todas') filtro += '&injetora=eq.' + encodeURIComponent(injetora);
-    if (tipo && tipo !== 'Todos') filtro += '&tipo=eq.' + encodeURIComponent(tipo);
+    filtro += db._filtroTipo(tipo);
     return await db._get('prod_lancamentos', filtro, '*');
   },
 
@@ -736,6 +748,8 @@ const db = {
       descricaoCopo:  l.descricao_copo || null,
       temObservacao:  l.tem_observacao || false,
       observacao:     l.observacao     || null,
+      temOS:          l.tem_os         || false,
+      numeroOS:       l.numero_os      || null,
       ramId:          l.ram_id     || null,
       ramNumero:      l.ram_numero || null,
       copoId:         l.copo_id    || null

@@ -238,9 +238,12 @@ function renderizarApontamentos() {
 
     let badgeObs = '';
     if (_setorAtivo==='Bancada') {
-      badgeObs = (item.temObservacao===true||item.temObservacao==='true') && item.observacao
-        ? `<span style="font-size:12px;color:#1e40af">📝 ${esc(item.observacao)}</span>`
-        : '<span style="color:#94a3b8;font-size:11px">—</span>';
+      const temOS = (item.temOS===true||item.temOS==='true');
+      const obsTxt = (item.temObservacao===true||item.temObservacao==='true') && item.observacao
+        ? `<div style="font-size:12px;color:#1e40af">📝 ${esc(item.observacao)}</div>` : '';
+      const osTxt = temOS
+        ? `<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📋 OS: ${esc(item.numeroOS||'?')}</span>` : '';
+      badgeObs = (obsTxt || osTxt) ? obsTxt + osTxt : '<span style="color:#94a3b8;font-size:11px">—</span>';
     }
 
     const tecnico = _setorAtivo==='Bancada' && item._tecnicos
@@ -348,6 +351,10 @@ async function editarApontamento(idx) {
     if (grpObs) grpObs.style.display = chkObs?.checked ? '' : 'none';
     const elObs = document.getElementById('formObservacao');
     if (elObs) elObs.value = item.observacao || '';
+    const chkOS = document.getElementById('formTemOS'), grpOS = document.getElementById('grupoOSBancada');
+    if (chkOS) chkOS.checked = !!(item.temOS === true || item.temOS === 'true');
+    if (grpOS) grpOS.style.display = chkOS?.checked ? '' : 'none';
+    const elNumOS = document.getElementById('formNumOS'); if (elNumOS) elNumOS.value = item.numeroOS || '';
     _renderizarTecnicosSelecionados();
   } else {
     setSelect('formArea', item.area);
@@ -414,6 +421,13 @@ async function _atualizarSeletorCopo(job) {
     sel.innerHTML = html;
     grupo.style.display = '';
   } catch(e) { grupo.style.display = 'none'; }
+}
+
+function toggleOSBancada() {
+  const chk = document.getElementById('formTemOS');
+  const grp = document.getElementById('grupoOSBancada');
+  if (grp) grp.style.display = chk?.checked ? '' : 'none';
+  if (!chk?.checked) { const el = document.getElementById('formNumOS'); if (el) el.value = ''; }
 }
 
 function toggleObservacao() {
@@ -693,8 +707,11 @@ function coletarDadosForm(setor) {
       tipo, horaInicio:hrIni, horaFim:hrFim,
       descontaAlmoco: document.getElementById('formAlmoco')?.checked,
       trocaCopo, tipoCopo, descricaoCopo: descCopo, copoId: copoId ? parseInt(copoId) : null,
-      temObservacao, observacao
+      temObservacao, observacao,
+      temOS: document.getElementById('formTemOS')?.checked || false,
+      numeroOS: document.getElementById('formTemOS')?.checked ? (document.getElementById('formNumOS')?.value?.trim() || null) : null
     });
+    if (dados.temOS && !dados.numeroOS) { toast('Informe o número da OS.','erro'); return null; }
   } else {
     const area      = document.getElementById('formArea')?.value;
     const categoria = document.getElementById('formCategoria')?.value;
@@ -877,7 +894,7 @@ function resetarForm() {
   if (avisoMap) avisoMap.style.display = 'none';
   ['formData','formFunc','formMaq','formTipoUsina','formMotivo',
    'formTipoBancada','formArea','formCategoria','formJob','formDesc','formHrIni','formHrFim',
-   'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada','formObservacao']
+   'formTempoAuto','formTipoCopo','formDescCopo','formFuncBancada','formObservacao','formNumOS']
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
   const alm = document.getElementById('formAlmoco');   if(alm) alm.checked=false;
   const cop = document.getElementById('formTrocaCopo'); if(cop) cop.checked=false;
@@ -886,6 +903,8 @@ function resetarForm() {
   const r2  = document.getElementById('formTipoCopoEmb');  if(r2) r2.checked=false;
   const grpQualCopo = document.getElementById('grupoQualCopo'); if(grpQualCopo) grpQualCopo.style.display='none';
   const selCopo = document.getElementById('formCopoSelect'); if(selCopo) selCopo.innerHTML='<option value="">Selecione...</option>';
+  const os = document.getElementById('formTemOS'); if(os) os.checked=false;
+  const grpOS2 = document.getElementById('grupoOSBancada'); if(grpOS2) grpOS2.style.display='none';
   const obs = document.getElementById('formTemObservacao'); if(obs) obs.checked=false;
   const grpObs = document.getElementById('grupoTextoObservacao'); if(grpObs) grpObs.style.display='none';
   _tecnicosSelecionados = [];
@@ -980,6 +999,7 @@ async function enviarWhatsapp() {
           t+=`📝 ATIVIDADES: ${i.descricao||''}\n`;
           if (i.trocaCopo===true||i.trocaCopo==='true') t+=`🔄 *Troca de Copo:* ${i.tipoCopo||'—'}${i.descricaoCopo?' — '+i.descricaoCopo:''}\n`;
           if ((i.temObservacao===true||i.temObservacao==='true') && i.observacao) t+=`📝 *Observação:* ${i.observacao}\n`;
+          if ((i.temOS===true||i.temOS==='true')) t+=`📋 *OS:* ${i.numeroOS||'?'}\n`;
           t+='\n';
         });
       });

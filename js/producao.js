@@ -68,7 +68,8 @@ function renderizarProducao() {
   const coresTipo = { Setup:'#0056b3', Preventiva:'#10b981', Corretiva:'#ef4444', 'Inspeção':'#f59e0b' };
   tbody.innerHTML = _dadosProducao.map(l => {
     const hr = esc(l.hora_inicio?l.hora_inicio.substring(0,5):'—') + ' às ' + (l.hora_fim?esc(l.hora_fim.substring(0,5)):'<span style="color:#f59e0b">⏳</span>');
-    const corT = coresTipo[l.tipo]||'#64748b';
+    const tl = String(l.tipo||'').toLowerCase();
+    const corT = coresTipo[l.tipo] || (tl.includes('prevent') ? coresTipo.Preventiva : tl.includes('corret') ? coresTipo.Corretiva : tl.includes('inspe') ? coresTipo['Inspeção'] : '#64748b');
     const flags = [
       l.maquina_parada?'<span style="background:#fee2e2;color:#b91c1c;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🔴 Máq. Parada</span>':'',
       l.tem_os?`<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📋 OS: ${esc(l.numero_os||'?')}</span>`:''
