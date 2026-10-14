@@ -24,6 +24,17 @@ const _SETORES_FERIAS = ['Todos','Usinagem','Bancada','Projeto','Produção'];
 const _CORES_SETOR_FERIAS = { Todos:'#1e3a5f', Usinagem:'#0056b3', Bancada:'#0891b2', Projeto:'#8b5cf6', 'Produção':'#10b981' };
 var _setorAtivoFerias = 'Todos';
 
+// Rodízio 2x2: Turma A e Turma B se alternam (2 dias trabalhando, 2 de folga)
+var _turmaFiltroFerias = 'Todas';           // Todas | Turma A | Turma B
+var _mostrarTurmasFerias = true;            // pinta os dias do calendário com a turma em serviço
+const _TURMAS_FERIAS = {
+  'Turma A': { bg:'#dbeafe', cor:'#1d4ed8', barra:'#3b82f6' },
+  'Turma B': { bg:'#fef3c7', cor:'#b45309', barra:'#f59e0b' }
+};
+function _turmaDoDiaFerias(dataStr) {
+  return (typeof turmaEmDia === 'function') ? turmaEmDia(dataStr) : null;
+}
+
 // ==========================================
 // 🚀 INICIALIZAÇÃO
 // ==========================================
@@ -46,6 +57,7 @@ async function inicializarProgramacaoFerias() {
       background:${s===_setorAtivoFerias?_CORES_SETOR_FERIAS[s]:'#fff'};color:${s===_setorAtivoFerias?'#fff':_CORES_SETOR_FERIAS[s]};
       font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s">${s}</button>`).join('')}
   </div>
+  <div id="barraTurmasFerias" style="margin-bottom:14px"></div>
   <div class="cards-row" id="resumoFeriasCards"></div>
   <div id="alertaFeriasWrap"></div>
   <div id="loaderFerias" class="loader-inline"><div class="spinner-sm"></div><span>Carregando calendário...</span></div>
@@ -149,18 +161,72 @@ async function carregarFeriasAno() {
       ? registrosDoAno
       : registrosDoAno.filter(r => setorMapeado.includes(r._setor));
 
-    _atribuirCoresFerias(registrosFiltrados);
-    _montarItensPorDia(registrosFiltrados);
+    // Filtro por turma (rodízio 2x2) — só mostra as férias de quem é da turma escolhida
+    const registrosVisiveis = _turmaFiltroFerias === 'Todas'
+      ? registrosFiltrados
+      : registrosFiltrados.filter(r => _turmaDoFuncionarioFerias(r.funcionario) === _turmaFiltroFerias);
 
-    renderizarResumoFerias(registrosFiltrados);
+    _atribuirCoresFerias(registrosVisiveis);
+    _montarItensPorDia(registrosVisiveis);
+
+    renderizarBarraTurmasFerias();
+    renderizarResumoFerias(registrosVisiveis);
     renderizarCalendarioFerias();
-    await renderizarListaFeriasAno(registrosFiltrados);
+    await renderizarListaFeriasAno(registrosVisiveis);
     await renderizarAlertasFerias();
   } catch(e) {
     toast('Erro ao carregar programação de férias.','erro');
     console.error(e);
   }
   if (loader) loader.style.display = 'none';
+}
+
+function _turmaDoFuncionarioFerias(nome) {
+  const t = (_funcionariosFerias.find(f => f.nome === nome) || {}).turno;
+  return (t === 'Turma A' || t === 'Turma B') ? t : null;
+}
+
+function mudarTurmaFiltroFerias(t) { _turmaFiltroFerias = t; carregarFeriasAno(); }
+function alternarMostrarTurmasFerias(v) { _mostrarTurmasFerias = !!v; renderizarBarraTurmasFerias(); renderizarCalendarioFerias(); }
+
+// Filtro de turma + legenda (o que cada turma representa e quem é de cada uma)
+function renderizarBarraTurmasFerias() {
+  const el = document.getElementById('barraTurmasFerias');
+  if (!el) return;
+  const setorMapeado = _setorAtivoFerias === 'Produção' ? ['Producao','Produção'] : [_setorAtivoFerias];
+  const doSetor = _setorAtivoFerias === 'Todos' ? _funcionariosFerias : _funcionariosFerias.filter(f => setorMapeado.includes(f.setor));
+  const membros = t => doSetor.filter(f => f.turno === t).map(f => f.nome.split(' ')[0]);
+
+  const chip = (valor, rotulo, cor) => {
+    const ativo = _turmaFiltroFerias === valor;
+    return `<button onclick="mudarTurmaFiltroFerias('${valor}')" style="padding:5px 14px;border-radius:16px;border:2px solid ${ativo?cor:'#e2e8f0'};background:${ativo?cor:'#fff'};color:${ativo?'#fff':cor};font-weight:700;font-size:12px;cursor:pointer">${rotulo}</button>`;
+  };
+  const itemLegenda = t => {
+    const c = _TURMAS_FERIAS[t], m = membros(t);
+    return `<div style="display:flex;align-items:flex-start;gap:8px;min-width:230px;flex:1">
+      <span style="width:14px;height:14px;border-radius:3px;background:${c.bg};border-bottom:3px solid ${c.barra};display:inline-block;margin-top:2px;flex-shrink:0"></span>
+      <div style="font-size:12px;color:#475569;line-height:1.4">
+        <b style="color:${c.cor}">${t}</b> — dias em que a ${t} está de serviço (07:30 às 19:30)
+        <div style="font-size:11px;color:#94a3b8">${m.length ? m.join(', ') : 'ninguém neste setor'}</div>
+      </div>
+    </div>`;
+  };
+
+  el.innerHTML = `<div class="card" style="padding:12px 16px;margin-bottom:0">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:700;color:#1e3a5f">👥 Turmas (rodízio 2x2)</span>
+      ${chip('Todas','Todas','#1e3a5f')}
+      ${chip('Turma A','Turma A',_TURMAS_FERIAS['Turma A'].barra)}
+      ${chip('Turma B','Turma B',_TURMAS_FERIAS['Turma B'].barra)}
+      <label style="margin-left:auto;font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" ${_mostrarTurmasFerias?'checked':''} onchange="alternarMostrarTurmasFerias(this.checked)"> Colorir dias pela turma em serviço
+      </label>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      ${itemLegenda('Turma A')}${itemLegenda('Turma B')}
+    </div>
+    <div style="font-size:11px;color:#94a3b8;margin-top:8px">A turma trabalha 2 dias e folga 2, alternando com a outra. Ao programar, evite deixar a mesma turma sem ninguém nos dias em que ela está de serviço.</div>
+  </div>`;
 }
 
 function _atribuirCoresFerias(registros) {
@@ -268,8 +334,13 @@ function _renderMesCalendarioFerias(mesIndex) {
         const visiveis = itens.slice(0,5);
         const pontos = visiveis.map(x=>`<span style="width:5px;height:5px;border-radius:50%;background:${x.cor.cor};display:inline-block"></span>`).join('');
         const extra = itens.length>5 ? `<span style="font-size:7px;color:#94a3b8;margin-left:1px">+${itens.length-5}</span>` : '';
-        const tituloDia = itens.length ? itens.map(x=>x.nome).join(', ') : '';
-        dias.push(`<div title="${tituloDia}" style="padding:3px 2px;border:1px solid ${temConflito?'#ef4444':'#f1f5f9'};border-radius:4px;min-height:24px;font-size:10px;cursor:pointer">
+        const turmaDia = _mostrarTurmasFerias ? _turmaDoDiaFerias(dataStr) : null;
+        const ct = turmaDia ? _TURMAS_FERIAS[turmaDia] : null;
+        const tituloDia = (turmaDia ? turmaDia + ' em serviço' : '') +
+          (itens.length ? (turmaDia ? ' · ' : '') + 'de férias: ' + itens.map(x => {
+            const t = _turmaDoFuncionarioFerias(x.nome); return x.nome + (t ? ' ('+t+')' : '');
+          }).join(', ') : '');
+        dias.push(`<div title="${tituloDia}" style="padding:3px 2px;border:1px solid ${temConflito?'#ef4444':'#f1f5f9'};${ct?`background:${ct.bg};border-bottom:3px solid ${ct.barra};`:''}border-radius:4px;min-height:24px;font-size:10px;cursor:pointer">
           <div style="color:${itens.length?'#1e3a5f':'#94a3b8'};font-weight:${itens.length?'600':'400'}">${diaAtual}</div>
           <div style="display:flex;align-items:center;gap:1px;margin-top:2px">${pontos}${extra}</div>
         </div>`);
@@ -524,7 +595,7 @@ async function renderizarListaFeriasAno(registros) {
         <span style="width:10px;height:10px;border-radius:50%;background:${cor.cor};display:inline-block"></span>
         <div>
           <div style="font-size:13px;font-weight:600;color:#1e3a5f">${r.funcionario}</div>
-          <div style="font-size:11px;color:#94a3b8">${f?.setor||'—'} · ${r.inicio.split('-').reverse().join('/')} a ${r.fim.split('-').reverse().join('/')} · ${dias} dias ${saldoTxt?'· '+saldoTxt:''}</div>
+          <div style="font-size:11px;color:#94a3b8">${f?.setor||'—'}${(f?.turno==='Turma A'||f?.turno==='Turma B')?` · <b style="color:${_TURMAS_FERIAS[f.turno].cor}">${f.turno}</b>`:''} · ${r.inicio.split('-').reverse().join('/')} a ${r.fim.split('-').reverse().join('/')} · ${dias} dias ${saldoTxt?'· '+saldoTxt:''}</div>
           ${diasFaltando}
         </div>
       </div>
