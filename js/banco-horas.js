@@ -353,7 +353,7 @@ async function inicializarBancoHoras() {
     </div>
     <div style="font-size:12px;color:#64748b;margin-bottom:10px">Hora extra e atrasos calculados automaticamente só entram no saldo depois de validados. Recusado não conta.</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Data</th><th>Técnico</th><th>Origem</th><th>Horas</th><th>Descrição</th><th>Ação</th></tr></thead>
+      <thead><tr><th>Data</th><th>Técnico</th><th>Origem</th><th>Horas</th><th>Descrição / horários</th><th>Ação</th></tr></thead>
       <tbody id="tbodyPendentesBH"><tr><td colspan="6" class="empty-msg">Carregando...</td></tr></tbody>
     </table></div>
   </div>` : ''}
@@ -641,7 +641,7 @@ function _renderizarPendentesBH() {
       <td>${esc(r.funcionario)}</td>
       <td style="font-size:11px;color:#64748b">${esc(r.origem)}</td>
       <td style="font-weight:700;color:${cor}">${esc(fmtMinSaldo(_sinalBH(r)))}</td>
-      <td style="font-size:12px;color:#64748b">${esc(r.descricao||'—')}</td>
+      <td style="font-size:12px;color:#64748b">${esc(r.descricao||'—')}<div id="bhDet-${r.id}" style="margin-top:4px;color:#0f172a">${_detalheBHCache[r.id] || '<span style="color:#94a3b8">Carregando horários...</span>'}</div></td>
       <td style="white-space:nowrap">
         <button class="btn-success" style="padding:4px 8px;font-size:11px" onclick="validarLancamentoBH(${r.id},'Validado')">✅ Validar</button>
         <button class="btn-warning" style="padding:4px 8px;font-size:11px" onclick="abrirAjusteValidacaoBH(${r.id})">✏️ Ajustar</button>
@@ -649,6 +649,75 @@ function _renderizarPendentesBH() {
       </td>
     </tr>`;
   }).join('');
+  _carregarDetalhesPendentesBH(lista);
+}
+
+// Detalhe de HORÁRIOS de cada pendente (para o supervisor saber o motivo antes de validar).
+// Calculado na hora a partir dos apontamentos (hora extra) ou do registro de atraso/saída (parcial).
+const _detalheBHCache = {};
+const _fmtHM = m => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); };
+const _fmtDur = m => Math.floor(m/60) + 'h' + (m%60 ? String(m%60).padStart(2,'0') : '');
+
+async function _carregarDetalhesPendentesBH(lista) {
+  try {
+    const faltam = lista.filter(r => !_detalheBHCache[r.id]);
+    if (!faltam.length) return;
+    const he = faltam.filter(r => (r.referencia_id||'').startsWith('HE-'));
+    const par = faltam.filter(r => (r.referencia_id||'').startsWith('PARC-'));
+    let lancs = [], turnos = [], funcs = [], parciais = [];
+    if (he.length) {
+      const datas = he.map(r => r.data).sort();
+      [lancs, turnos, funcs] = await Promise.all([
+        db._get('lancamentos', 'data=gte.'+datas[0]+'&data=lte.'+datas[datas.length-1], 'funcionario,data,hora_inicio,hora_fim,tipo,maquina,job,descricao'),
+        db._get('turnos', 'ativo=eq.true', 'nome,hora_entrada,hora_saida'),
+        db._get('funcionarios', 'ativo=eq.true', 'nome,turno')
+      ]);
+    }
+    if (par.length) {
+      const ids = par.map(r => r.referencia_id.slice(5)).filter(x => /^\d+$/.test(x));
+      if (ids.length) parciais = await db._get('rh_parciais', 'id=in.('+ids.join(',')+')', 'id,data,funcionario,inicio,fim,motivo,obs');
+    }
+    faltam.forEach(r => {
+      let html = '';
+      if ((r.referencia_id||'').startsWith('HE-')) {
+        const dia = (lancs||[]).filter(l => l.funcionario === r.funcionario && l.data === r.data && l.hora_inicio && l.hora_fim)
+          .sort((a,b) => String(a.hora_inicio).localeCompare(String(b.hora_inicio)));
+        const intervalos = dia.map(l => { const i=_paraMinutosDoDia(l.hora_inicio); let f=_paraMinutosDoDia(l.hora_fim); if (f<i) f+=1440; return [i,f]; });
+        const blocos = _mesclarIntervalosArray(intervalos);
+        const foraEscala = (r.descricao||'').startsWith('Trabalho em dia fora');
+        const f = (funcs||[]).find(x => x.nome === r.funcionario);
+        const t = (turnos||[]).find(x => x.nome === (f?.turno || '5x2'));
+        const linhas = [];
+        if (foraEscala) {
+          linhas.push('📅 <b>Dia de folga / fim de semana / feriado</b> — tudo que foi trabalhado conta como extra.');
+          linhas.push('⏱️ Trabalhou: ' + blocos.map(([i,fm]) => _fmtHM(i)+'–'+_fmtHM(fm)).join(' · '));
+        } else if (t) {
+          const e = _paraMinutosDoDia(t.hora_entrada); let sd = _paraMinutosDoDia(t.hora_saida); if (sd <= e) sd += 1440;
+          const extras = [];
+          blocos.forEach(([i,fm]) => {
+            if (i < e) extras.push('antes do turno ' + _fmtHM(i) + '–' + _fmtHM(Math.min(fm,e)) + ' (' + _fmtDur(Math.min(fm,e)-i) + ')');
+            if (fm > sd) extras.push('depois do turno ' + _fmtHM(Math.max(i,sd)) + '–' + _fmtHM(fm) + ' (' + _fmtDur(fm-Math.max(i,sd)) + ')');
+          });
+          linhas.push('🕐 Turno ' + esc(t.nome) + ': ' + _fmtHM(e) + '–' + _fmtHM(sd));
+          linhas.push('⏱️ Trabalhou: ' + blocos.map(([i,fm]) => _fmtHM(i)+'–'+_fmtHM(fm)).join(' · '));
+          if (extras.length) linhas.push('➕ Extra: <b>' + extras.join(' + ') + '</b>');
+        }
+        const oque = dia.slice(0,6).map(l => _fmtHM(_paraMinutosDoDia(l.hora_inicio))+'–'+_fmtHM(_paraMinutosDoDia(l.hora_fim))+' '+esc(l.tipo||'')+(l.maquina?' ('+esc(l.maquina)+')':'')+(l.job?' · '+esc(l.job):'')).join('<br>');
+        if (oque) linhas.push('<span style="color:#64748b">Apontamentos:<br>' + oque + (dia.length>6?'<br>… +'+(dia.length-6):'') + '</span>');
+        html = linhas.join('<br>') || '<span style="color:#94a3b8">Sem apontamentos com horário neste dia.</span>';
+      } else if ((r.referencia_id||'').startsWith('PARC-')) {
+        const p = (parciais||[]).find(x => String(x.id) === r.referencia_id.slice(5));
+        if (p) {
+          html = '🚪 ' + esc(p.motivo||'') + ': saiu <b>' + esc(String(p.inicio).slice(0,5)) + '</b>' +
+                 (p.fim ? ', voltou <b>' + esc(String(p.fim).slice(0,5)) + '</b>' : ' e não voltou') +
+                 (p.obs ? '<br><span style="color:#64748b">Obs: ' + esc(p.obs) + '</span>' : '');
+        }
+      }
+      _detalheBHCache[r.id] = html || '<span style="color:#94a3b8">Sem detalhes de horário.</span>';
+      const el = document.getElementById('bhDet-' + r.id);
+      if (el) el.innerHTML = _detalheBHCache[r.id];
+    });
+  } catch(e) { console.error(e); }
 }
 
 async function validarLancamentoBH(id, status, minutos) {
