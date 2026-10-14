@@ -30,17 +30,17 @@ function abrirSetor(tela) {
                 : _setorAtivo==='Bancada'  ? _listas.funcBancada
                 : _listas.funcProjeto;
     selFunc.innerHTML = '<option value="Todos">Todos</option>' +
-      (funcs||[]).map(f=>`<option value="${f}">${f}</option>`).join('');
+      (funcs||[]).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
   }
 
   const selMaq = document.getElementById('apontMaq');
   if (selMaq && _listas) {
     selMaq.innerHTML = '<option value="Todas">Todas</option>' +
-      (_listas.maquinas||[]).filter(m=>m!=='Sem Máquina').map(m=>`<option value="${m}">${m}</option>`).join('');
+      (_listas.maquinas||[]).filter(m=>m!=='Sem Máquina').map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   }
 
   const elData = document.getElementById('apontData');
-  if (elData && !elData.value) elData.value = new Date().toISOString().split('T')[0];
+  if (elData && !elData.value) elData.value = hojeLocal();
 
   buscarApontamentos();
 }
@@ -133,16 +133,16 @@ function renderizarApontamentosPorMaquina() {
   const linhaItem = item => {
     const cor = corStatus(item.status);
     const ico = icoStatus(item.status);
-    const stTxt = `<span style="color:${cor};font-weight:600;font-size:12px">${ico} ${item.status||'Em andamento'}</span>`;
-    const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '<span style="color:#f59e0b">⏳</span>');
-    const job = item.job ? `<b>${item.job}</b>` : '<span style="color:#aaa">—</span>';
-    const tecnico = typeof nomeTecnicoClicavel==='function' ? nomeTecnicoClicavel(item.funcionario) : (item.funcionario||'<span style="color:#94a3b8">— sem operador</span>');
+    const stTxt = `<span style="color:${esc(cor)};font-weight:600;font-size:12px">${esc(ico)} ${esc(item.status||'Em andamento')}</span>`;
+    const hr  = esc(item.horaInicio||'—') + ' às ' + (item.horaFim ? esc(item.horaFim) : '<span style="color:#f59e0b">⏳</span>');
+    const job = item.job ? `<b>${esc(item.job)}</b>` : '<span style="color:#aaa">—</span>';
+    const tecnico = typeof nomeTecnicoClicavel==='function' ? nomeTecnicoClicavel(item.funcionario) : esc(item.funcionario||'<span style="color:#94a3b8">— sem operador</span>');
     const tipoTxt = item.tipo==='Parada de Máquina' ? `🔴 Parada — ${item.motivo||'—'}` : (item.tipo||'—');
     const acoes = podeEditar()
       ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarApontamentoPorId(${item.id})">✏️</button>
          <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${item.id})">🗑️</button>`
       : '';
-    return `<tr><td>${job}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td>${tipoTxt}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
+    return `<tr><td>${job}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td>${esc(tipoTxt)}</td><td style="font-size:12px;color:#64748b">${esc(item.descricao||'')}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
   };
 
   const linhaCabecalhoMaquina = maq => {
@@ -159,7 +159,7 @@ function renderizarApontamentosPorMaquina() {
 
     return `<tr style="background:${bg}"><td colspan="7" style="padding:10px 12px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-        <div style="font-weight:700;color:#1e3a5f;font-size:13px">⚙️ ${maq}${badgeTipo}</div>
+        <div style="font-weight:700;color:#1e3a5f;font-size:13px">⚙️ ${esc(maq)}${badgeTipo}</div>
         <div style="font-size:12px">${statusTxt}</div>
       </div>
     </td></tr>`;
@@ -211,7 +211,7 @@ function renderizarApontamentos() {
   tbody.innerHTML = linhas.map(item => {
     const cor = corStatus(item.status);
     const ico = icoStatus(item.status);
-    const stTxt = `<span style="color:${cor};font-weight:600;font-size:12px">${ico} ${item.status||'Em andamento'}</span>`;
+    const stTxt = `<span style="color:${esc(cor)};font-weight:600;font-size:12px">${esc(ico)} ${esc(item.status||'Em andamento')}</span>`;
     // Usa sempre o ID real do lançamento para localizar o item a editar — nunca uma posição de
     // array, que fica incorreta assim que um filtro é aplicado (ex: filtro por funcionário)
     const idEditar = _setorAtivo==='Bancada' ? item._ids[0] : item.id;
@@ -220,8 +220,8 @@ function renderizarApontamentos() {
          <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirApontamentoConfirm(${_setorAtivo==='Bancada'?JSON.stringify(item._ids||[item.id]).replace(/"/g,"'"):item.id})">🗑️</button>`
       : '';
 
-    const job = item.job ? `<b>${item.job}</b>` : '<span style="color:#aaa">—</span>';
-    const hr  = (item.horaInicio||'—') + ' às ' + (item.horaFim ? item.horaFim : '<span style="color:#f59e0b">⏳</span>');
+    const job = item.job ? `<b>${esc(item.job)}</b>` : '<span style="color:#aaa">—</span>';
+    const hr  = esc(item.horaInicio||'—') + ' às ' + (item.horaFim ? esc(item.horaFim) : '<span style="color:#f59e0b">⏳</span>');
 
     let badgeCopo = '';
     if (_setorAtivo==='Bancada') {
@@ -229,8 +229,8 @@ function renderizarApontamentos() {
         const tipoCopo = item.tipoCopo || '—';
         const corC = tipoCopo==='Novo' ? '#059669' : '#0891b2';
         const bg   = tipoCopo==='Novo' ? '#d1fae5' : '#e0f2fe';
-        badgeCopo  = `<span style="background:${bg};color:${corC};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700">🔄 ${tipoCopo}</span>`;
-        if (item.descricaoCopo) badgeCopo += `<div style="font-size:11px;color:#64748b;margin-top:2px">${item.descricaoCopo}</div>`;
+        badgeCopo  = `<span style="background:${bg};color:${esc(corC)};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700">🔄 ${esc(tipoCopo)}</span>`;
+        if (item.descricaoCopo) badgeCopo += `<div style="font-size:11px;color:#64748b;margin-top:2px">${esc(item.descricaoCopo)}</div>`;
       } else {
         badgeCopo = '<span style="color:#94a3b8;font-size:11px">—</span>';
       }
@@ -239,19 +239,19 @@ function renderizarApontamentos() {
     let badgeObs = '';
     if (_setorAtivo==='Bancada') {
       badgeObs = (item.temObservacao===true||item.temObservacao==='true') && item.observacao
-        ? `<span style="font-size:12px;color:#1e40af">📝 ${item.observacao}</span>`
+        ? `<span style="font-size:12px;color:#1e40af">📝 ${esc(item.observacao)}</span>`
         : '<span style="color:#94a3b8;font-size:11px">—</span>';
     }
 
     const tecnico = _setorAtivo==='Bancada' && item._tecnicos
-      ? item._tecnicos.map(t=>`<span style="display:inline-block;background:#f1f5f9;padding:1px 7px;border-radius:8px;font-size:11px;margin:1px">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t}</span>`).join('')
-      : (typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—'));
+      ? item._tecnicos.map(t=>`<span style="display:inline-block;background:#f1f5f9;padding:1px 7px;border-radius:8px;font-size:11px;margin:1px">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):esc(t)}</span>`).join('')
+      : (typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):esc(item.funcionario||'—'));
 
     if (_setorAtivo==='Usinagem')
-      return `<tr><td>${job}</td><td>${item.maquina||'—'}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—')}</td><td style="font-size:12px">${hr}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
+      return `<tr><td>${job}</td><td>${esc(item.maquina||'—')}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):esc(item.funcionario||'—')}</td><td style="font-size:12px">${hr}</td><td>${esc(item.tipo||'—')}</td><td style="font-size:12px;color:#64748b">${esc(item.descricao||'')}</td><td>${stTxt}</td><td>${acoes}</td></tr>`;
     if (_setorAtivo==='Bancada')
-      return `<tr><td>${job}</td><td>${item.tipo||'—'}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td style="color:#10b981;font-weight:bold">${item.hrProd||'—'}</td><td>${badgeCopo}</td><td>${badgeObs}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${acoes}</td></tr>`;
-    return `<tr><td>${job}</td><td>${item.area||'—'}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):(item.funcionario||'—')}</td><td>${item.tipo||'—'}</td><td style="font-size:12px;color:#64748b">${item.descricao||''}</td><td>${stTxt}</td><td></td><td>${acoes}</td></tr>`;
+      return `<tr><td>${job}</td><td>${esc(item.tipo||'—')}</td><td>${tecnico}</td><td style="font-size:12px">${hr}</td><td style="color:#10b981;font-weight:bold">${esc(item.hrProd||'—')}</td><td>${badgeCopo}</td><td>${badgeObs}</td><td style="font-size:12px;color:#64748b">${esc(item.descricao||'')}</td><td>${acoes}</td></tr>`;
+    return `<tr><td>${job}</td><td>${esc(item.area||'—')}</td><td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(item.funcionario):esc(item.funcionario||'—')}</td><td>${esc(item.tipo||'—')}</td><td style="font-size:12px;color:#64748b">${esc(item.descricao||'')}</td><td>${stTxt}</td><td></td><td>${acoes}</td></tr>`;
   }).join('');
 
   document.getElementById('wppArea').style.display = 'block';
@@ -269,7 +269,7 @@ function abrirNovoApontamento() {
   resetarForm();
   configurarCamposForm(_setorAtivo);
   carregarFuncionariosForm(_setorAtivo);
-  document.getElementById('formData').value = document.getElementById('apontData')?.value || new Date().toISOString().split('T')[0];
+  document.getElementById('formData').value = document.getElementById('apontData')?.value || hojeLocal();
   document.getElementById('tituloForm').innerText = 'Novo Lançamento — ' + _setorAtivo;
   document.getElementById('btnSalvarForm').innerText = '💾 Salvar Lançamento';
   abrirModalForm();
@@ -404,11 +404,11 @@ async function _atualizarSeletorCopo(job) {
     }
     let html = '<option value="">Selecione...</option>';
     if (proprios && proprios.length) {
-      html += proprios.map(c => `<option value="${c.id}">${c.codigo} — Novo: ${c.estoque_novo||0} · Emb: ${c.estoque_embuchado||0}</option>`).join('');
+      html += proprios.map(c => `<option value="${esc(c.id)}">${esc(c.codigo)} — Novo: ${esc(c.estoque_novo||0)} · Emb: ${esc(c.estoque_embuchado||0)}</option>`).join('');
     }
     if (compativeis.length) {
       html += `<optgroup label="⚠️ Alternativas de Emergência">` +
-        compativeis.map(c => `<option value="${c.id}">${c.codigo} (${c.job}) — Novo: ${c.estoque_novo||0} · Emb: ${c.estoque_embuchado||0}</option>`).join('') +
+        compativeis.map(c => `<option value="${esc(c.id)}">${esc(c.codigo)} (${esc(c.job)}) — Novo: ${esc(c.estoque_novo||0)} · Emb: ${esc(c.estoque_embuchado||0)}</option>`).join('') +
         `</optgroup>`;
     }
     sel.innerHTML = html;
@@ -438,7 +438,7 @@ function _renderizarTecnicosSelecionados() {
   }
   el.innerHTML = _tecnicosSelecionados.map((t,i) => `
     <span style="display:inline-flex;align-items:center;gap:6px;background:#dbeafe;color:#0056b3;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:2px">
-      👤 ${t}
+      👤 ${esc(t)}
       <button onclick="_removerTecnico(${i})" style="background:none;border:none;color:#0056b3;cursor:pointer;font-size:14px;line-height:1;padding:0">×</button>
     </span>`).join('');
 }
@@ -459,7 +459,7 @@ function _adicionarTecnico() {
   if (hrIniEl && !hrIniEl.value && data) {
     db.buscarUltimoApontamento(val, data, 'Bancada').then(res => {
       if (res.horaFim && !hrIniEl.value) hrIniEl.value = res.horaFim;
-    }).catch(()=>{});
+    }).catch(e => avisarErro('buscar o último apontamento do técnico', e));
   }
 }
 
@@ -749,7 +749,7 @@ function configurarCamposForm(setor) {
     const sel = document.getElementById('formFuncBancada');
     if (sel) {
       sel.innerHTML = '<option value="">+ Adicionar técnico...</option>' +
-        (_listas.funcBancada||[]).map(f=>`<option value="${f}">${f}</option>`).join('');
+        (_listas.funcBancada||[]).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
     }
   } else if (setor==='Projeto') {
     montarSelect('formArea', _listas.areasProj||[]);
@@ -774,7 +774,7 @@ async function carregarFuncionariosForm(setor) {
     // senão funcionários com setor extra (ex: Bancada que também lança na Usinagem)
     // ficam de fora do formulário mesmo aparecendo no filtro da tela.
     const lista = (setor==='Usinagem' ? _listas?.funcionarios : _listas?.funcProjeto) || [];
-    sel.innerHTML = '<option value="">Selecione...</option>' + lista.map(f=>`<option value="${f}">${f}</option>`).join('');
+    sel.innerHTML = '<option value="">Selecione...</option>' + lista.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
 
     if (setor==='Usinagem') {
       // Auto-preenchimento: ao selecionar técnico → preenche máquina e hora início
@@ -790,7 +790,7 @@ async function carregarFuncionariosForm(setor) {
           if (res.maquina && !document.getElementById('formMaq')?.value) setSelect('formMaq', res.maquina);
           if (res.horaFim && !document.getElementById('formHrIni')?.value)
             document.getElementById('formHrIni').value = res.horaFim;
-        } catch(e) {}
+        } catch(e) { avisarErro('buscar o último apontamento do técnico', e); }
         if (aviso) aviso.style.display='none';
       };
     } else {
@@ -834,7 +834,7 @@ async function aoSelecionarJob(job) {
       const elDesc = document.getElementById('formDesc');
       if (elDesc && !elDesc.value) elDesc.value = desc;
     }
-  } catch(e) {}
+  } catch(e) { avisarErro('buscar a descrição do job', e); }
 }
 
 // Verifica se o job selecionado tem RAM aberta e monta o seletor
@@ -847,7 +847,7 @@ async function _atualizarSeletorRAM(job) {
     const abertas = await buscarRAMsAbertasPorJob(job);
     if (!abertas.length) { grupo.style.display = 'none'; sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>'; return; }
     sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>' +
-      abertas.map(r => `<option value="${r.id}" data-numero="${r.numero.replace(/"/g,'&quot;')}">RAM ${r.numero} — ${(r.descricao||'').slice(0,60)}</option>`).join('');
+      abertas.map(r => `<option value="${esc(r.id)}" data-numero="${esc(r.numero)}">RAM ${esc(r.numero)} — ${esc((r.descricao||'').slice(0,60))}</option>`).join('');
     grupo.style.display = '';
   } catch(e) { grupo.style.display = 'none'; }
 }
@@ -940,7 +940,7 @@ async function enviarWhatsapp() {
 
     // Capacidade real de cada máquina (histórico com vigência), não mais um 528 fixo
     let capHistoricoRel = [];
-    try { capHistoricoRel = await db._get('maquina_capacidade_historico', 'order=vigente_desde.desc', '*'); } catch(e) {}
+    try { capHistoricoRel = await db._get('maquina_capacidade_historico', 'order=vigente_desde.desc', '*'); } catch(e) { avisarErro('carregar o histórico de capacidade das máquinas', e); }
 
     Object.keys(maqMap).forEach(maq => {
       if (maq==='Sem Máquina'||!maqMap[maq].itens.length) return;
@@ -1025,7 +1025,7 @@ async function enviarWhatsapp() {
 // ==========================================
 function montarSelect(id, arr, padrao) {
   const sel=document.getElementById(id); if(!sel) return;
-  sel.innerHTML=`<option value="">${padrao||'Selecione...'}</option>`+arr.map(i=>`<option value="${i}">${i}</option>`).join('');
+  sel.innerHTML=`<option value="">${esc(padrao||'Selecione...')}</option>`+arr.map(i=>`<option value="${esc(i)}">${esc(i)}</option>`).join('');
 }
 
 function setSelect(id, val) {

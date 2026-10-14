@@ -9,7 +9,7 @@ var _excluirCallback = null;
 // 🔄 AUTO-ATUALIZAÇÃO — evita lançamento em data errada quando a aba fica
 // aberta por dias sem F5 (ex: abre segunda de manhã e só fecha sexta)
 // ==========================================
-var _dataAoCarregarPagina = new Date().toISOString().split('T')[0];
+var _dataAoCarregarPagina = hojeLocal();
 
 function _existeModalAberto() {
   if (document.querySelector('.modal-form-overlay.aberto')) return true;
@@ -18,7 +18,7 @@ function _existeModalAberto() {
 }
 
 function _checarDataEAtualizarPagina() {
-  const dataAtual = new Date().toISOString().split('T')[0];
+  const dataAtual = hojeLocal();
   if (dataAtual !== _dataAoCarregarPagina && !_existeModalAberto()) {
     location.reload();
   }
@@ -57,8 +57,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   aplicarPermissoes();
 
-  const fDate = d => d.toISOString().split('T')[0];
-  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const fDate = d => dataLocal(d);
+  const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 12);
   const dashIni = document.getElementById('dashIni');
   const dashFim = document.getElementById('dashFim');
   const dashMes = document.getElementById('dashMes');
@@ -403,7 +403,7 @@ function setSemanaDash(n) {
   const dias = new Date(ano,mes+1,0).getDate();
   const ranges = { 1:[1,7], 2:[8,14], 3:[15,21], 4:[22,dias] };
   const [d1,d2] = ranges[n];
-  const fDate = d => new Date(ano,mes,d).toISOString().split('T')[0];
+  const fDate = d => dataLocal(new Date(ano,mes,d,12));
   document.getElementById('dashIni').value = fDate(d1);
   document.getElementById('dashFim').value = fDate(d2);
   carregarDashboard();
@@ -412,9 +412,9 @@ function selecionarMesDash() {
   const val = document.getElementById('dashMes').value;
   if (!val) return;
   const [ano,mes] = val.split('-').map(Number);
-  const fDate = d => d.toISOString().split('T')[0];
-  document.getElementById('dashIni').value = fDate(new Date(ano,mes-1,1));
-  document.getElementById('dashFim').value = fDate(new Date(ano,mes,0));
+  const fDate = d => dataLocal(d);
+  document.getElementById('dashIni').value = fDate(new Date(ano,mes-1,1,12));
+  document.getElementById('dashFim').value = fDate(new Date(ano,mes,0,12));
   carregarDashboard();
 }
 function mudarTabDash(aba, elBtn) {
@@ -477,8 +477,8 @@ async function _carregarJobs() {
     });
     el.innerHTML = filtrado.map(j => `<div class="lista-item">
       <div class="lista-item-info">
-        <div class="lista-item-nome">${j.nome}</div>
-        <div class="lista-item-sub">${j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/')?'Serviço':'Molde'}${j.num_cavidades?' · '+j.num_cavidades+' cavidade'+(j.num_cavidades>1?'s':''):''}</div>
+        <div class="lista-item-nome">${esc(j.nome)}</div>
+        <div class="lista-item-sub">${esc(j.nome.toUpperCase().startsWith('SV')||j.nome.toUpperCase().startsWith('S/')?'Serviço':'Molde')}${esc(j.num_cavidades?' · '+j.num_cavidades+' cavidade'+(j.num_cavidades>1?'s':''):'')}</div>
       </div>
       <div class="lista-item-acoes">
         <span class="${j.ativo?'badge-ativo':'badge-inativo'}">${j.ativo?'ATIVO':'INATIVO'}</span>
@@ -514,11 +514,11 @@ function abrirEdicaoJob(id) {
     <div class="modal-body">
       <div class="form-group">
         <label>Nome *</label>
-        <input type="text" id="editJobNome" value="${job.nome.replace(/"/g,'&quot;')}">
+        <input type="text" id="editJobNome" value="${esc(job.nome)}">
       </div>
       <div class="form-group">
         <label>Número de Cavidades</label>
-        <input type="number" id="editJobCavidades" min="1" value="${job.num_cavidades||''}" placeholder="Ex: 4">
+        <input type="number" id="editJobCavidades" min="1" value="${esc(job.num_cavidades||'')}" placeholder="Ex: 4">
         <div style="font-size:11px;color:#94a3b8;margin-top:4px">Usado no controle de peso e balanceamento (uma medição por cavidade)</div>
       </div>
       <div class="form-group">
@@ -579,8 +579,8 @@ async function _carregarMaquinasLista() {
     if (!el) return;
     el.innerHTML = _todasMaquinasAdmin.map(m=>`<div class="lista-item">
       <div class="lista-item-info">
-        <div class="lista-item-nome">${m.nome} ${(m.tipo==='Secundaria') ? '<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:4px">SECUNDÁRIA</span>' : ''}</div>
-        <div class="lista-item-sub">Turno: ${m.turno||'ADM'} | Cap: ${m.cap_liquida||508} min/dia</div>
+        <div class="lista-item-nome">${esc(m.nome)} ${(m.tipo==='Secundaria') ? '<span style="font-size:10px;background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:4px">SECUNDÁRIA</span>' : ''}</div>
+        <div class="lista-item-sub">Turno: ${esc(m.turno||'ADM')} | Cap: ${esc(m.cap_liquida||508)} min/dia</div>
       </div>
       <div class="lista-item-acoes">
         <span class="${m.ativo?'badge-ativo':'badge-inativo'}">${m.ativo?'ATIVO':'INATIVO'}</span>
@@ -605,7 +605,7 @@ async function abrirEdicaoMaquina(id) {
   const m = _todasMaquinasAdmin.find(x => x.id === id);
   if (!m) return;
   try {
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = hojeLocal();
     const vigente = await db._get('maquina_capacidade_historico',
       'maquina=eq.'+encodeURIComponent(m.nome)+'&vigente_desde=lte.'+hoje+'&order=vigente_desde.desc&limit=1', 'hora_inicio,hora_fim');
     if (vigente && vigente[0]) {
@@ -621,15 +621,15 @@ async function abrirEdicaoMaquina(id) {
   <div class="modal" style="display:block;max-width:440px">
     <div class="modal-header"><h3>✏️ Editar Máquina</h3><button onclick="fecharEdicaoMaquina()">✕</button></div>
     <div class="modal-body">
-      <div class="form-group"><label>Nome *</label><input type="text" id="editMaqNome" value="${m.nome.replace(/"/g,'&quot;')}"></div>
+      <div class="form-group"><label>Nome *</label><input type="text" id="editMaqNome" value="${esc(m.nome)}"></div>
       <div class="form-group"><label>Turno</label>
         <select id="editMaqTurno">
-          ${['5x2','Turma A','Turma B','6x1','Estágio','ADM'].map(t=>`<option value="${t}" ${m.turno===t?'selected':''}>${t}</option>`).join('')}
+          ${['5x2','Turma A','Turma B','6x1','Estágio','ADM'].map(t=>`<option value="${esc(t)}" ${m.turno===t?'selected':''}>${esc(t)}</option>`).join('')}
         </select>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Início de Operação</label><input type="time" id="editMaqHoraInicio" value="${m._horaInicioAtual||'07:30'}"></div>
-        <div class="form-group"><label>Fim de Operação</label><input type="time" id="editMaqHoraFim" value="${m._horaFimAtual||'17:28'}"></div>
+        <div class="form-group"><label>Início de Operação</label><input type="time" id="editMaqHoraInicio" value="${esc(m._horaInicioAtual||'07:30')}"></div>
+        <div class="form-group"><label>Fim de Operação</label><input type="time" id="editMaqHoraFim" value="${esc(m._horaFimAtual||'17:28')}"></div>
       </div>
       <div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Capacidade calculada automaticamente (não desconta almoço — a máquina fica disponível, só não é usada nesse horário). Alterar aqui só muda a partir de hoje, sem recalcular dias anteriores.</div>
       <div class="form-group"><label>Tipo</label>
@@ -677,7 +677,7 @@ async function salvarEdicaoMaquina(id) {
     // Se o horário mudou, cria um NOVO registro de vigência (a partir de hoje) —
     // nunca sobrescreve o antigo, pra não recalcular a ocupação de dias passados
     if (m._horaInicioAtual !== horaInicio || m._horaFimAtual !== horaFim) {
-      const hoje = new Date().toISOString().split('T')[0];
+      const hoje = hojeLocal();
       await db._post('maquina_capacidade_historico', {
         maquina: novoNome, hora_inicio: horaInicio, hora_fim: horaFim,
         capacidade_min: novaCap, vigente_desde: hoje, criado_por: _sessao?.nome || null
@@ -715,8 +715,8 @@ async function _carregarInjetorasLista() {
     if (!el) return;
     el.innerHTML = _todasInjetorasAdmin.map(i=>`<div class="lista-item">
       <div class="lista-item-info">
-        <div class="lista-item-nome" style="cursor:pointer" onclick="abrirFichaInjetora('${i.nome.replace(/'/g,"\\'")}')">${i.nome}</div>
-        <div class="lista-item-sub">${i.tonelagem?i.tonelagem+' ton':'—'} | ${i.fabricante||'—'}</div>
+        <div class="lista-item-nome" style="cursor:pointer" onclick="abrirFichaInjetora('${escJs(i.nome)}')">${esc(i.nome)}</div>
+        <div class="lista-item-sub">${esc(i.tonelagem?i.tonelagem+' ton':'—')} | ${esc(i.fabricante||'—')}</div>
       </div>
       <div class="lista-item-acoes">
         <span class="badge-ativo">ATIVO</span>
@@ -749,9 +749,9 @@ function abrirEdicaoInjetora(id) {
   <div class="modal" style="display:block;max-width:440px">
     <div class="modal-header"><h3>✏️ Editar Injetora</h3><button onclick="fecharEdicaoInjetora()">✕</button></div>
     <div class="modal-body">
-      <div class="form-group"><label>Nome *</label><input type="text" id="editInjNome" value="${i.nome.replace(/"/g,'&quot;')}"></div>
-      <div class="form-group"><label>Tonelagem</label><input type="number" id="editInjTon" value="${i.tonelagem||''}"></div>
-      <div class="form-group"><label>Fabricante</label><input type="text" id="editInjFab" value="${i.fabricante||''}"></div>
+      <div class="form-group"><label>Nome *</label><input type="text" id="editInjNome" value="${esc(i.nome)}"></div>
+      <div class="form-group"><label>Tonelagem</label><input type="number" id="editInjTon" value="${esc(i.tonelagem||'')}"></div>
+      <div class="form-group"><label>Fabricante</label><input type="text" id="editInjFab" value="${esc(i.fabricante||'')}"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="salvarEdicaoInjetora(${id})">💾 Salvar</button>
@@ -822,21 +822,21 @@ async function _carregarCategoriasLista() {
         const t = Object.values(porSetor[s]||{}).flat().length;
         const ativo = s === _abaSetorAtiva;
         const c = _CORES_CAT[s];
-        return `<button onclick="_mudarAbaCategoria('${s}')"
-          style="padding:8px 18px;border-radius:20px;border:2px solid ${ativo?c:'#e2e8f0'};
-          background:${ativo?c:'#fff'};color:${ativo?'#fff':c};font-weight:700;font-size:13px;
+        return `<button onclick="_mudarAbaCategoria('${escJs(s)}')"
+          style="padding:8px 18px;border-radius:20px;border:2px solid ${esc(ativo?c:'#e2e8f0')};
+          background:${esc(ativo?c:'#fff')};color:${esc(ativo?'#fff':c)};font-weight:700;font-size:13px;
           cursor:pointer;transition:all 0.2s">
-          ${_ICOS_CAT[s]} ${s}
-          <span style="background:${ativo?'rgba(255,255,255,0.3)':'#f1f5f9'};padding:2px 7px;border-radius:10px;font-size:11px">${t}</span>
+          ${esc(_ICOS_CAT[s])} ${esc(s)}
+          <span style="background:${ativo?'rgba(255,255,255,0.3)':'#f1f5f9'};padding:2px 7px;border-radius:10px;font-size:11px">${esc(t)}</span>
         </button>`;
       }).join('')}
     </div>`;
 
-    html += `<div class="card" style="border-left:4px solid ${cor};margin-bottom:16px">
+    html += `<div class="card" style="border-left:4px solid ${esc(cor)};margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
-          <div style="font-size:18px;font-weight:700;color:#1e3a5f">${_ICOS_CAT[_abaSetorAtiva]} ${_abaSetorAtiva}</div>
-          <div style="font-size:12px;color:#64748b;margin-top:2px">${total} tipo(s) cadastrado(s)</div>
+          <div style="font-size:18px;font-weight:700;color:#1e3a5f">${esc(_ICOS_CAT[_abaSetorAtiva])} ${esc(_abaSetorAtiva)}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">${esc(total)} tipo(s) cadastrado(s)</div>
         </div>
         <button class="btn-primary" onclick="abrirModalCategoria()">+ Nova Categoria</button>
       </div>
@@ -844,28 +844,27 @@ async function _carregarCategoriasLista() {
 
     if (!Object.keys(grupos).length) {
       html += `<div class="empty-state">
-        <div style="font-size:40px">${_ICOS_CAT[_abaSetorAtiva]}</div>
-        <div>Nenhuma categoria para ${_abaSetorAtiva}.</div>
+        <div style="font-size:40px">${esc(_ICOS_CAT[_abaSetorAtiva])}</div>
+        <div>Nenhuma categoria para ${esc(_abaSetorAtiva)}.</div>
         <div style="margin-top:12px"><button class="btn-primary" onclick="abrirModalCategoria()">+ Adicionar primeira categoria</button></div>
       </div>`;
     } else {
       html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">`;
       Object.entries(grupos).forEach(([tipo, cats]) => {
-        const tipoEsc = tipo.replace(/'/g,"\\'");
-        html += `<div class="card" style="border-top:3px solid ${cor}">
+        html += `<div class="card" style="border-top:3px solid ${esc(cor)}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--borda)">
-            <span style="background:${cor}15;color:${cor};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${tipo} (${cats.length})</span>
+            <span style="background:${esc(cor)}15;color:${esc(cor)};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">${esc(tipo)} (${cats.length})</span>
             <div style="display:flex;gap:4px;align-items:center">
-              <button class="btn-icon" title="Renomear grupo" onclick="editarGrupoCategoria('${tipoEsc}')">✏️</button>
-              <button class="btn-icon danger" title="Excluir grupo inteiro" onclick="excluirGrupoCategoria('${tipoEsc}',${cats.length})">🗑️</button>
-              <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="abrirModalCategoria('${tipoEsc}')">+ Atividade</button>
+              <button class="btn-icon" title="Renomear grupo" onclick="editarGrupoCategoria('${escJs(tipo)}')">✏️</button>
+              <button class="btn-icon danger" title="Excluir grupo inteiro" onclick="excluirGrupoCategoria('${escJs(tipo)}',${cats.length})">🗑️</button>
+              <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="abrirModalCategoria('${escJs(tipo)}')">+ Atividade</button>
             </div>
           </div>
           ${cats.map(c => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed #f1f5f9">
-              <span style="font-size:13px;color:#334155">• ${c.atividade}</span>
+              <span style="font-size:13px;color:#334155">• ${esc(c.atividade)}</span>
               <div style="display:flex;gap:4px">
-                <button class="btn-icon" onclick="editarCategoria(${c.id},'${c.atividade.replace(/'/g,"\\'")}')">✏️</button>
+                <button class="btn-icon" onclick="editarCategoria(${c.id},'${escJs(c.atividade)}')">✏️</button>
                 <button class="btn-icon danger" onclick="excluirCategoria(${c.id})">🗑️</button>
               </div>
             </div>`).join('')}
@@ -892,7 +891,7 @@ function abrirModalCategoria(tipoPre) {
   <div class="modal-overlay" onclick="fecharModalCategoria()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px">
     <div class="modal-header">
-      <h3>+ Nova Categoria — ${_ICOS_CAT[_abaSetorAtiva]} ${_abaSetorAtiva}</h3>
+      <h3>+ Nova Categoria — ${esc(_ICOS_CAT[_abaSetorAtiva])} ${esc(_abaSetorAtiva)}</h3>
       <button onclick="fecharModalCategoria()">✕</button>
     </div>
     <div class="modal-body">
@@ -904,11 +903,11 @@ function abrirModalCategoria(tipoPre) {
           if(v!=='__novo') document.getElementById('catTipoInput').value=v;
         ">
           <option value="">— Selecione grupo existente —</option>
-          ${tiposExistentes.map(t=>`<option value="${t}" ${t===tipoPre?'selected':''}>${t}</option>`).join('')}
+          ${tiposExistentes.map(t=>`<option value="${esc(t)}" ${t===tipoPre?'selected':''}>${esc(t)}</option>`).join('')}
           <option value="__novo">+ Criar novo grupo...</option>
         </select>
         <div id="catTipoNovoWrap" style="display:${tipoPre&&!tiposExistentes.includes(tipoPre)?'block':'none'};margin-top:8px">
-          <input type="text" id="catTipoInput" placeholder="Nome do novo grupo..." value="${tipoPre||''}">
+          <input type="text" id="catTipoInput" placeholder="Nome do novo grupo..." value="${esc(tipoPre||'')}">
         </div>
       </div>
       <div class="form-group">

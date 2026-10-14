@@ -28,16 +28,16 @@ async function inicializarProducao() {
       const tipoAtual = selTipo.value;
       const tiposOrdenados = Object.keys(_categoriasProd).sort();
       selTipo.innerHTML = '<option value="">Selecione...</option>' +
-        tiposOrdenados.map(t => `<option value="${t}">${t}</option>`).join('');
+        tiposOrdenados.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
       if (tipoAtual && tiposOrdenados.includes(tipoAtual)) selTipo.value = tipoAtual;
     }
 
     const selInj = document.getElementById('prodFiltroInjetora');
-    if (selInj) selInj.innerHTML = '<option value="Todas">Todas</option>' + _injetoras.map(i=>`<option value="${i.nome}">${i.nome}</option>`).join('');
-  } catch(e) { console.error(e); }
+    if (selInj) selInj.innerHTML = '<option value="Todas">Todas</option>' + _injetoras.map(i=>`<option value="${esc(i.nome)}">${esc(i.nome)}</option>`).join('');
+  } catch(e) { avisarErro('carregar os filtros da Produção', e); }
 
   const elData = document.getElementById('prodData');
-  if (elData && !elData.value) elData.value = new Date().toISOString().split('T')[0];
+  if (elData && !elData.value) elData.value = hojeLocal();
   buscarLancamentosProducao();
 }
 
@@ -67,14 +67,14 @@ function renderizarProducao() {
   }
   const coresTipo = { Setup:'#0056b3', Preventiva:'#10b981', Corretiva:'#ef4444', 'Inspeção':'#f59e0b' };
   tbody.innerHTML = _dadosProducao.map(l => {
-    const hr = (l.hora_inicio?l.hora_inicio.substring(0,5):'—') + ' às ' + (l.hora_fim?l.hora_fim.substring(0,5):'<span style="color:#f59e0b">⏳</span>');
+    const hr = esc(l.hora_inicio?l.hora_inicio.substring(0,5):'—') + ' às ' + (l.hora_fim?esc(l.hora_fim.substring(0,5)):'<span style="color:#f59e0b">⏳</span>');
     const corT = coresTipo[l.tipo]||'#64748b';
     const flags = [
       l.maquina_parada?'<span style="background:#fee2e2;color:#b91c1c;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🔴 Máq. Parada</span>':'',
-      l.tem_os?`<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📋 OS: ${l.numero_os||'?'}</span>`:''
+      l.tem_os?`<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📋 OS: ${esc(l.numero_os||'?')}</span>`:''
     ].filter(Boolean).join(' ');
     const status = l.status || 'Em andamento';
-    const stTxt = `<span style="color:${corStatus(status)};font-weight:600;font-size:12px">${icoStatus(status)} ${status}</span>`;
+    const stTxt = `<span style="color:${esc(corStatus(status))};font-weight:600;font-size:12px">${esc(icoStatus(status))} ${esc(status)}</span>`;
     const dataFmt = l.data ? l.data.split('-').reverse().join('/') : '—';
     const acoes = podeEditar()
       ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarProd(${l.id})">✏️</button>
@@ -82,16 +82,16 @@ function renderizarProducao() {
       : '';
     return `<tr>
       <td style="font-size:12px"><b>${dataFmt}</b></td>
-      <td><b>${l.injetora}</b></td>
-      <td>${l.molde?`<b>${l.molde}</b>`:'—'}</td>
+      <td><b>${esc(l.injetora)}</b></td>
+      <td>${l.molde?`<b>${esc(l.molde)}</b>`:'—'}</td>
       <td>
-        <span style="background:${corT}20;color:${corT};padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">${l.tipo}</span>
-        <div style="font-size:12px;margin-top:3px">${l.atividade||'—'}</div>
+        <span style="background:${esc(corT)}20;color:${esc(corT)};padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">${esc(l.tipo)}</span>
+        <div style="font-size:12px;margin-top:3px">${esc(l.atividade||'—')}</div>
         ${flags?`<div style="margin-top:3px">${flags}</div>`:''}
       </td>
-      <td style="font-size:12px;color:#64748b;max-width:220px">${l.descricao||''}</td>
+      <td style="font-size:12px;color:#64748b;max-width:220px">${esc(l.descricao||'')}</td>
       <td style="font-size:12px">${hr}</td>
-      <td>${(l.tecnicos||'').split(',').map(t=>`<span style="background:#e8f0fe;color:#0056b3;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-right:4px;white-space:nowrap">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t.trim()):t.trim()}</span>`).join('')}</td>
+      <td>${(l.tecnicos||'').split(',').map(t=>`<span style="background:#e8f0fe;color:#0056b3;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-right:4px;white-space:nowrap">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t.trim()):esc(t.trim())}</span>`).join('')}</td>
       <td>${stTxt}</td>
       <td>${acoes}</td>
     </tr>`;
@@ -240,7 +240,7 @@ function preencherFormProducao() {
   if (_listas) setupAC('prodFormMolde', 'prodFormMoldeList', _listas.jobs || []);
 
   const dataEl = document.getElementById('prodFormData');
-  if (dataEl) dataEl.value = document.getElementById('prodData')?.value || new Date().toISOString().split('T')[0];
+  if (dataEl) dataEl.value = document.getElementById('prodData')?.value || hojeLocal();
   renderizarTecnicos();
 }
 
@@ -259,7 +259,7 @@ function renderizarTecnicos() {
   const wrap = document.getElementById('prodTecnicosWrap');
   if (!wrap) return;
   wrap.innerHTML = _tecnicosSelecionadosProd.map(t =>
-    `<div class="tecnico-tag">${t}<button onclick="removerTecnico('${t.replace(/'/g,"\\'")}')">×</button></div>`
+    `<div class="tecnico-tag">${esc(t)}<button onclick="removerTecnico('${escJs(t)}')">×</button></div>`
   ).join('');
 }
 
@@ -268,7 +268,7 @@ function atualizarAtividades() {
   const sel  = document.getElementById('prodFormAtividade');
   if (!sel) return;
   const ativs = _categoriasProd[tipo] || [];
-  sel.innerHTML = '<option value="">Selecione a atividade...</option>' + ativs.map(a=>`<option value="${a}">${a}</option>`).join('');
+  sel.innerHTML = '<option value="">Selecione a atividade...</option>' + ativs.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
   atualizarCamposSetup();
 }
 
@@ -363,7 +363,7 @@ async function processarMovimentacaoSetupPCM(dados) {
   if (dados.tipo !== 'Setup') return;
   const injetora = dados.injetora;
   const usuario  = _sessao?.nome || null;
-  const agora    = (dados.data || new Date().toISOString().split('T')[0]) + 'T00:00:00';
+  const agora    = (dados.data || hojeLocal()) + 'T00:00:00';
 
   async function mover(job, localizacao, maquina, obs) {
     if (!job) return;
@@ -446,7 +446,7 @@ async function aoSelecionarMoldeProd(job) {
     const abertas = await buscarRAMsAbertasPorJob(job);
     if (!abertas.length) { grupo.style.display = 'none'; sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>'; return; }
     sel.innerHTML = '<option value="">Nenhuma — apontamento comum</option>' +
-      abertas.map(r => `<option value="${r.id}" data-numero="${r.numero.replace(/"/g,'&quot;')}">RAM ${r.numero} — ${(r.descricao||'').slice(0,60)}</option>`).join('');
+      abertas.map(r => `<option value="${esc(r.id)}" data-numero="${esc(r.numero)}">RAM ${esc(r.numero)} — ${esc((r.descricao||'').slice(0,60))}</option>`).join('');
     grupo.style.display = '';
   } catch(e) { grupo.style.display = 'none'; }
 }

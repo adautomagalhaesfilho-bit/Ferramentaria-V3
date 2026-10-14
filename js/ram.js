@@ -29,8 +29,8 @@ async function buscarTodasRAMs() {
 // Todos os apontamentos (de qualquer setor) que foram vinculados a esta RAM
 async function buscarApontamentosDaRAM(ramId) {
   const [lancs, prodLancs] = await Promise.all([
-    db._get('lancamentos', 'ram_id=eq.' + ramId + '&order=data.desc,hora_inicio.desc', '*').catch(() => []),
-    db._get('prod_lancamentos', 'ram_id=eq.' + ramId + '&order=data.desc,hora_inicio.desc', '*').catch(() => [])
+    db._get('lancamentos', 'ram_id=eq.' + ramId + '&order=data.desc,hora_inicio.desc', '*').catch(e => (avisarErro('carregar os apontamentos da RAM', e), [])),
+    db._get('prod_lancamentos', 'ram_id=eq.' + ramId + '&order=data.desc,hora_inicio.desc', '*').catch(e => (avisarErro('carregar os lançamentos de produção da RAM', e), []))
   ]);
   const doLancs = (lancs||[]).map(l => ({
     setor: l.setor, funcionario: l.funcionario, data: l.data,
@@ -67,7 +67,7 @@ async function inicializarPainelRAM() {
       <div class="filtro-item"><label>BUSCAR</label><input type="text" id="ramFiltroTexto" placeholder="Número, molde ou descrição..." oninput="filtrarPainelRAM()"></div>
       <div class="filtro-item"><label>SETOR</label><select id="ramFiltroSetor" onchange="filtrarPainelRAM()">
         <option value="Todos">Todos</option>
-        ${_RAM_SETORES.map(s=>`<option value="${s}">${s}</option>`).join('')}
+        ${_RAM_SETORES.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}
       </select></div>
       <div class="filtro-item"><label>STATUS</label><select id="ramFiltroStatus" onchange="filtrarPainelRAM()">
         <option value="abertas">Abertas</option>
@@ -128,19 +128,19 @@ function renderizarPainelRAM(rams) {
       return `<div class="card" style="margin:0">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
           <div>
-            <div style="font-weight:700;color:#1e3a5f;font-size:14px">RAM ${r.numero}</div>
-            <div style="font-size:12px;color:#0056b3;font-weight:600;cursor:pointer" onclick="abrirFichaMolde('${r.job.replace(/'/g,"\\'")}')">${r.job}</div>
+            <div style="font-weight:700;color:#1e3a5f;font-size:14px">RAM ${esc(r.numero)}</div>
+            <div style="font-size:12px;color:#0056b3;font-weight:600;cursor:pointer" onclick="abrirFichaMolde('${escJs(r.job)}')">${esc(r.job)}</div>
           </div>
-          ${r.prazo_final ? `<span style="background:${atrasada?'#fee2e2':'#fef3c7'};color:${atrasada?'#b91c1c':'#92400e'};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${atrasada?'⚠️ atrasada':'prazo'} ${new Date(r.prazo_final+'T12:00:00').toLocaleDateString('pt-BR')}</span>` : ''}
+          ${r.prazo_final ? `<span style="background:${atrasada?'#fee2e2':'#fef3c7'};color:${atrasada?'#b91c1c':'#92400e'};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${atrasada?'⚠️ atrasada':'prazo'} ${esc(new Date(r.prazo_final+'T12:00:00').toLocaleDateString('pt-BR'))}</span>` : ''}
         </div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:10px">${r.descricao||''}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px">${esc(r.descricao||'')}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
-          ${r.setores.map(s => `<span style="background:${s.concluido?'#d1fae5':'#fee2e2'};color:${s.concluido?'#059669':'#b91c1c'};font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${s.concluido?'✓':'○'} ${s.setor}</span>`).join('')}
+          ${r.setores.map(s => `<span style="background:${s.concluido?'#d1fae5':'#fee2e2'};color:${s.concluido?'#059669':'#b91c1c'};font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${s.concluido?'✓':'○'} ${esc(s.setor)}</span>`).join('')}
         </div>
         ${r.setores.filter(s=>s.concluido).length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:10px">
-          ${r.setores.filter(s=>s.concluido).map(s => `<div style="font-size:11px;color:#059669">✓ <b>${s.setor}</b> — ${s.data_conclusao?new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'} por ${s.concluido_por||'—'}${s.descricao_conclusao?': '+s.descricao_conclusao:''}</div>`).join('')}
+          ${r.setores.filter(s=>s.concluido).map(s => `<div style="font-size:11px;color:#059669">✓ <b>${esc(s.setor)}</b> — ${esc(s.data_conclusao?new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—')} por ${esc(s.concluido_por||'—')}${esc(s.descricao_conclusao?': '+s.descricao_conclusao:'')}</div>`).join('')}
         </div>` : ''}
-        <button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirDetalheRAM(${r.id},'${r.job.replace(/'/g,"\\'")}')">Gerenciar RAM</button>
+        <button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirDetalheRAM(${r.id},'${escJs(r.job)}')">Gerenciar RAM</button>
       </div>`;
     }).join('')}
   </div>`;
@@ -155,7 +155,7 @@ function abrirModalNovaRAM(job) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalRAM()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:460px;max-height:85vh;overflow-y:auto">
-    <div class="modal-header"><h3>📋 Nova RAM${job ? ' — ' + job : ''}</h3><button onclick="fecharModalRAM()">✕</button></div>
+    <div class="modal-header"><h3>📋 Nova RAM${esc(job ? ' — ' + job : '')}</h3><button onclick="fecharModalRAM()">✕</button></div>
     <div class="modal-body">
       ${!job ? `<div class="form-group"><label>Molde *</label>
         <div class="autocomplete-wrap">
@@ -175,13 +175,13 @@ function abrirModalNovaRAM(job) {
         <label>Setores Envolvidos *</label>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
           ${_RAM_SETORES.map(s => `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
-            <input type="checkbox" class="ram-setor-chk" value="${s}"> ${s}
+            <input type="checkbox" class="ram-setor-chk" value="${esc(s)}"> ${esc(s)}
           </label>`).join('')}
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarNovaRAM('${job ? job.replace(/'/g,"\\'") : ''}')">💾 Criar RAM</button>
+      <button class="btn-primary" onclick="salvarNovaRAM('${escJs(job || '')}')">💾 Criar RAM</button>
       <button class="btn-secondary" onclick="fecharModalRAM()">Cancelar</button>
     </div>
   </div>`;
@@ -235,22 +235,22 @@ async function abrirDetalheRAM(ramId, job) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharDetalheRAM()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:520px;max-height:85vh;overflow-y:auto">
-    <div class="modal-header"><h3>📋 RAM ${ram.numero}</h3><button onclick="fecharDetalheRAM()">✕</button></div>
+    <div class="modal-header"><h3>📋 RAM ${esc(ram.numero)}</h3><button onclick="fecharDetalheRAM()">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label>Molde</label>
         <div class="autocomplete-wrap">
-          <input type="text" id="ramEditJob" value="${ram.job.replace(/"/g,'&quot;')}" placeholder="Busque o molde...">
+          <input type="text" id="ramEditJob" value="${esc(ram.job)}" placeholder="Busque o molde...">
           <div class="autocomplete-list" id="ramEditJobList"></div>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Número da RAM</label><input type="text" id="ramEditNumero" value="${ram.numero.replace(/"/g,'&quot;')}"></div>
-        <div class="form-group"><label>Prazo Final</label><input type="date" id="ramEditPrazo" value="${ram.prazo_final||''}"></div>
+        <div class="form-group"><label>Número da RAM</label><input type="text" id="ramEditNumero" value="${esc(ram.numero)}"></div>
+        <div class="form-group"><label>Prazo Final</label><input type="date" id="ramEditPrazo" value="${esc(ram.prazo_final||'')}"></div>
       </div>
       <div class="form-group">
         <label>Descrição</label>
-        <textarea id="ramEditDescricao" rows="3">${(ram.descricao||'').replace(/</g,'&lt;')}</textarea>
+        <textarea id="ramEditDescricao" rows="3">${esc(ram.descricao||'')}</textarea>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px">
         <button class="btn-secondary" style="font-size:12px;flex:1" onclick="salvarEdicaoRAM(${ram.id})">💾 Salvar Alterações</button>
@@ -263,12 +263,12 @@ async function abrirDetalheRAM(ramId, job) {
           <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <div>
-                <div style="font-size:13px;font-weight:600;color:#1e3a5f">${s.concluido?'✅':'⭕'} ${s.setor}</div>
-                ${s.concluido ? `<div style="font-size:11px;color:#64748b;margin-top:2px">Concluído em ${new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR')} por ${s.concluido_por||'—'}${s.descricao_conclusao?' — '+s.descricao_conclusao:''}</div>` : ''}
+                <div style="font-size:13px;font-weight:600;color:#1e3a5f">${s.concluido?'✅':'⭕'} ${esc(s.setor)}</div>
+                ${s.concluido ? `<div style="font-size:11px;color:#64748b;margin-top:2px">Concluído em ${esc(new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'))} por ${esc(s.concluido_por||'—')}${esc(s.descricao_conclusao?' — '+s.descricao_conclusao:'')}</div>` : ''}
               </div>
               ${s.concluido
-                ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="reabrirSetorRAM(${s.id},'${job.replace(/'/g,"\\'")}')">Reabrir</button>`
-                : `<button class="btn-primary" style="font-size:11px;padding:4px 10px" onclick="abrirConclusaoSetorRAM(${s.id},'${ram.numero.replace(/'/g,"\\'")}','${s.setor}','${job.replace(/'/g,"\\'")}')">✅ Concluir</button>`}
+                ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="reabrirSetorRAM(${s.id},'${escJs(job)}')">Reabrir</button>`
+                : `<button class="btn-primary" style="font-size:11px;padding:4px 10px" onclick="abrirConclusaoSetorRAM(${s.id},'${escJs(ram.numero)}','${escJs(s.setor)}','${escJs(job)}')">✅ Concluir</button>`}
             </div>
           </div>`).join('')}
       </div>
@@ -276,11 +276,11 @@ async function abrirDetalheRAM(ramId, job) {
       <div style="font-weight:700;color:#1e3a5f;font-size:13px;margin-bottom:8px;border-top:1px solid #e2e8f0;padding-top:12px">Apontamentos Vinculados a Esta RAM</div>
       ${apontamentos.length ? Object.keys(porSetor).sort().map(setor => `
         <div style="margin-bottom:10px">
-          <div style="font-size:12px;font-weight:700;color:#0056b3;margin-bottom:4px">${setor} (${porSetor[setor].length})</div>
+          <div style="font-size:12px;font-weight:700;color:#0056b3;margin-bottom:4px">${esc(setor)} (${porSetor[setor].length})</div>
           ${porSetor[setor].map(a => `
             <div style="font-size:12px;color:#475569;padding:5px 0;border-bottom:1px dashed #f1f5f9">
-              <b>${a.data?a.data.split('-').reverse().join('/'):'—'}</b> · ${a.funcionario||'—'} · ${a.horaInicio||'—'}–${a.horaFim||'—'}
-              ${a.descricao?`<div style="color:#94a3b8">${a.descricao}</div>`:''}
+              <b>${a.data?a.data.split('-').reverse().join('/'):'—'}</b> · ${esc(a.funcionario||'—')} · ${esc(a.horaInicio||'—')}–${esc(a.horaFim||'—')}
+              ${a.descricao?`<div style="color:#94a3b8">${esc(a.descricao)}</div>`:''}
             </div>`).join('')}
         </div>`).join('') : '<div style="color:#94a3b8;font-size:12px">Nenhum apontamento vinculado ainda.</div>'}
     </div>
@@ -332,7 +332,7 @@ function abrirConclusaoSetorRAM(ramSetorId, numeroRam, setor, job) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharConclusaoSetorRAM()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:420px">
-    <div class="modal-header"><h3>✅ Concluir ${setor} — RAM ${numeroRam}</h3><button onclick="fecharConclusaoSetorRAM()">✕</button></div>
+    <div class="modal-header"><h3>✅ Concluir ${esc(setor)} — RAM ${esc(numeroRam)}</h3><button onclick="fecharConclusaoSetorRAM()">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label>Descrição do que foi feito *</label>
@@ -345,7 +345,7 @@ function abrirConclusaoSetorRAM(ramSetorId, numeroRam, setor, job) {
       <div id="ramConclusaoStatus" style="font-size:12px;color:#64748b"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarConclusaoSetorRAM(${ramSetorId},'${numeroRam.replace(/'/g,"\\'")}','${job.replace(/'/g,"\\'")}')">💾 Concluir</button>
+      <button class="btn-primary" onclick="salvarConclusaoSetorRAM(${ramSetorId},'${escJs(numeroRam)}','${escJs(job)}')">💾 Concluir</button>
       <button class="btn-secondary" onclick="fecharConclusaoSetorRAM()">Cancelar</button>
     </div>
   </div>`;
@@ -366,7 +366,7 @@ async function salvarConclusaoSetorRAM(ramSetorId, numeroRam, job) {
       await salvarAnexoMolde(job, tipo, url, `RAM ${numeroRam} — ${descricao}`, 'RAM', null);
     }
     await db._patch('ram_setores', 'id=eq.'+ramSetorId, {
-      concluido: true, data_conclusao: new Date().toISOString().split('T')[0],
+      concluido: true, data_conclusao: hojeLocal(),
       descricao_conclusao: descricao, concluido_por: _sessao?.nome || null
     });
     toast('Setor concluído!', 'sucesso');
@@ -406,18 +406,18 @@ function renderizarCardRAM(job, rams) {
     return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
         <div>
-          <div style="font-weight:700;color:#1e3a5f;font-size:14px">RAM ${r.numero}</div>
-          <div style="font-size:12px;color:#64748b">${r.descricao||''}</div>
+          <div style="font-weight:700;color:#1e3a5f;font-size:14px">RAM ${esc(r.numero)}</div>
+          <div style="font-size:12px;color:#64748b">${esc(r.descricao||'')}</div>
         </div>
-        ${r.prazo_final ? `<span style="background:${atrasada?'#fee2e2':'#fef3c7'};color:${atrasada?'#b91c1c':'#92400e'};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${atrasada?'⚠️ atrasada':'prazo'} ${new Date(r.prazo_final+'T12:00:00').toLocaleDateString('pt-BR')}</span>` : ''}
+        ${r.prazo_final ? `<span style="background:${atrasada?'#fee2e2':'#fef3c7'};color:${atrasada?'#b91c1c':'#92400e'};font-size:11px;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${atrasada?'⚠️ atrasada':'prazo'} ${esc(new Date(r.prazo_final+'T12:00:00').toLocaleDateString('pt-BR'))}</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
-        ${r.setores.map(s => `<span style="background:${s.concluido?'#d1fae5':'#fee2e2'};color:${s.concluido?'#059669':'#b91c1c'};font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${s.concluido?'✓':'○'} ${s.setor}${!s.concluido?' pendente':''}</span>`).join('')}
+        ${r.setores.map(s => `<span style="background:${s.concluido?'#d1fae5':'#fee2e2'};color:${s.concluido?'#059669':'#b91c1c'};font-size:11px;padding:2px 9px;border-radius:8px;font-weight:600">${s.concluido?'✓':'○'} ${esc(s.setor)}${!s.concluido?' pendente':''}</span>`).join('')}
       </div>
       ${r.setores.filter(s=>s.concluido).length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:10px">
-        ${r.setores.filter(s=>s.concluido).map(s => `<div style="font-size:11px;color:#059669">✓ <b>${s.setor}</b> — ${s.data_conclusao?new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—'} por ${s.concluido_por||'—'}${s.descricao_conclusao?': '+s.descricao_conclusao:''}</div>`).join('')}
+        ${r.setores.filter(s=>s.concluido).map(s => `<div style="font-size:11px;color:#059669">✓ <b>${esc(s.setor)}</b> — ${esc(s.data_conclusao?new Date(s.data_conclusao+'T12:00:00').toLocaleDateString('pt-BR'):'—')} por ${esc(s.concluido_por||'—')}${esc(s.descricao_conclusao?': '+s.descricao_conclusao:'')}</div>`).join('')}
       </div>` : ''}
-      <button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirDetalheRAM(${r.id},'${job.replace(/'/g,"\\'")}')">Gerenciar RAM</button>
+      <button class="btn-secondary" style="font-size:12px;width:100%" onclick="abrirDetalheRAM(${r.id},'${escJs(job)}')">Gerenciar RAM</button>
     </div>`;
   }).join('');
 }

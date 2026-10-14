@@ -46,14 +46,14 @@ async function carregarUsuarios() {
   try {
     const res = await db.listarUsuarios();
     tbody.innerHTML = res.length ? res.map(u => `<tr>
-      <td><b>${u.nome}</b>
-        <div style="font-size:11px;color:${u.auth_user_id?'#64748b':'#b91c1c'}">${u.auth_user_id ? '🔑 ' + (u.email_login || emailDoLogin(u.nome)) : '⚠️ Sem conta de acesso (criar no Supabase Auth: ' + emailDoLogin(u.nome) + ')'}</div></td>
-      <td><span style="background:${_corPerfil(u.perfil)}20;color:${_corPerfil(u.perfil)};padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600">${_labelPerfil(u.perfil)}</span></td>
-      <td>${u.setor||'—'}</td>
+      <td><b>${esc(u.nome)}</b>
+        <div style="font-size:11px;color:${u.auth_user_id?'#64748b':'#b91c1c'}">${esc(u.auth_user_id ? '🔑 ' + (u.email_login || emailDoLogin(u.nome)) : '⚠️ Sem conta de acesso (criar no Supabase Auth: ' + emailDoLogin(u.nome) + ')')}</div></td>
+      <td><span style="background:${esc(_corPerfil(u.perfil))}20;color:${esc(_corPerfil(u.perfil))};padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600">${esc(_labelPerfil(u.perfil))}</span></td>
+      <td>${esc(u.setor||'—')}</td>
       <td><span style="background:${u.ativo?'#d1fae5':'#fee2e2'};color:${u.ativo?'#059669':'#b91c1c'};padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600">${u.ativo?'Ativo':'Inativo'}</span></td>
       <td>
         <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="editarUsuario(_obj(${_guardarObj(u)}))">✏️</button>
-        <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="confirmarExclusao('Excluir usuário ${u.nome}?',()=>excluirUsuario(${u.id}))">🗑️</button>
+        <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="confirmarExclusao('Excluir usuário ${escJs(u.nome)}?',()=>excluirUsuario(${u.id}))">🗑️</button>
       </td>
     </tr>`).join('') : '<tr><td colspan="5" class="empty-msg">Nenhum usuário.</td></tr>';
   } catch(e) { tbody.innerHTML='<tr><td colspan="5" class="empty-msg">Erro ao carregar.</td></tr>'; }
@@ -91,13 +91,13 @@ function abrirFormUsuario(user) {
     <div class="form-row">
       <div class="form-group">
         <label>Nome de Usuário *</label>
-        <input type="text" id="uNome" value="${user?.nome||''}" placeholder="Ex: Joao.Silva">
+        <input type="text" id="uNome" value="${esc(user?.nome||'')}" placeholder="Ex: Joao.Silva">
       </div>
       <div class="form-group">
         <label>Login / Senha</label>
         <div style="font-size:12px;color:#64748b;padding:8px 0;line-height:1.5">
           A senha é gerenciada no Supabase Auth (painel → Authentication → Users).<br>
-          E-mail da conta: <b id="uEmailLogin">${user?.email_login || emailDoLogin(user?.nome || '')}</b>
+          E-mail da conta: <b id="uEmailLogin">${esc(user?.email_login || emailDoLogin(user?.nome || ''))}</b>
           ${user && !user.auth_user_id ? '<br><span style="color:#b91c1c">⚠️ Conta de acesso ainda não criada.</span>' : ''}
         </div>
       </div>
@@ -107,14 +107,14 @@ function abrirFormUsuario(user) {
       <div class="form-group">
         <label>Perfil *</label>
         <select id="uPerfil" onchange="aplicarPermissoesPadrao()">
-          ${_PERFIS.map(p=>`<option value="${p}" ${user?.perfil===p?'selected':''}>${_labelPerfil(p)}</option>`).join('')}
+          ${_PERFIS.map(p=>`<option value="${esc(p)}" ${user?.perfil===p?'selected':''}>${esc(_labelPerfil(p))}</option>`).join('')}
         </select>
-        <div style="font-size:11px;color:#64748b;margin-top:4px" id="descPerfil">${_descPerfil(user?.perfil||'operador')}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px" id="descPerfil">${esc(_descPerfil(user?.perfil||'operador'))}</div>
       </div>
       <div class="form-group">
         <label>Setor Principal</label>
         <select id="uSetor">
-          ${_SETORES.map(s=>`<option value="${s}" ${user?.setor===s?'selected':''}>${s||'Nenhum (todos)'}</option>`).join('')}
+          ${_SETORES.map(s=>`<option value="${esc(s)}" ${user?.setor===s?'selected':''}>${esc(s||'Nenhum (todos)')}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -133,8 +133,8 @@ function abrirFormUsuario(user) {
             ? perms[item.key]
             : _PERMISSOES_PADRAO[item.key]?.includes(perfilAtual);
           return `<label class="checkbox-label" style="background:#f8fafc;border:1px solid var(--borda);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:500">
-            <input type="checkbox" id="perm_${item.key}" ${temAcesso?'checked':''}>
-            ${item.label}
+            <input type="checkbox" id="perm_${esc(item.key)}" ${temAcesso?'checked':''}>
+            ${esc(item.label)}
           </label>`;
         }).join('')}
       </div>

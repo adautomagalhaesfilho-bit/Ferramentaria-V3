@@ -64,11 +64,31 @@ const db = {
     return txt ? JSON.parse(txt) : null;
   },
 
+  // O Supabase devolve no máximo 1000 linhas por consulta. Para nada sair cortado,
+  // busca em blocos de 1000 (limit/offset) até vir um bloco incompleto.
+  // Consultas com "limit=" explícito são feitas numa chamada só, como antes.
+  // O "id" entra como desempate na ordenação para os blocos não pularem nem repetirem linhas.
+  _TAM_PAGINA: 1000,
+
   _get: async function(tabela, filtros = '', select = '*') {
-    const temOrder = filtros && filtros.includes('order=');
-    const order = temOrder ? '' : '&order=id.asc';
-    const q = '?select=' + select + (filtros ? '&' + filtros : '') + order;
-    return await db._fetch(tabela + q);
+    const partes = filtros ? filtros.split('&').filter(Boolean) : [];
+    const iOrder = partes.findIndex(p => p.startsWith('order='));
+    if (iOrder === -1) {
+      partes.push('order=id.asc');
+    } else if (!/(^|[=,])id\./.test(partes[iOrder])) {
+      partes[iOrder] += ',id.asc';
+    }
+    const base = tabela + '?select=' + select + '&' + partes.join('&');
+    if (partes.some(p => p.startsWith('limit='))) return await db._fetch(base);
+
+    const tam = db._TAM_PAGINA;
+    let todos = [];
+    for (let offset = 0; ; offset += tam) {
+      const bloco = await db._fetch(base + '&limit=' + tam + '&offset=' + offset) || [];
+      todos = todos.concat(bloco);
+      if (bloco.length < tam) break;
+    }
+    return todos;
   },
 
   _post: async function(tabela, dados) {
@@ -225,8 +245,8 @@ const db = {
     const diasPeriodo = Math.round((new Date(dataFim+'T12:00:00') - new Date(dataIni+'T12:00:00')) / 86400000) + 1;
     const iniAntD = new Date(dataIni+'T12:00:00'); iniAntD.setDate(iniAntD.getDate() - diasPeriodo);
     const fimAntD = new Date(dataIni+'T12:00:00'); fimAntD.setDate(fimAntD.getDate() - 1);
-    const iniAnt = iniAntD.toISOString().split('T')[0];
-    const fimAnt = fimAntD.toISOString().split('T')[0];
+    const iniAnt = dataLocal(iniAntD);
+    const fimAnt = dataLocal(fimAntD);
 
     const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas, prodLanc,
            lancamentosAnt, prodLancAnt, bancoHoras, moldeLocalizacao, moldeHistorico, capHistorico,
@@ -244,10 +264,10 @@ const db = {
       db._get('molde_localizacao', '', '*'),
       db._get('molde_localizacao_historico', 'movido_em=gte.' + dataIni + '&movido_em=lte.' + dataFim + 'T23:59:59', '*'),
       db._get('maquina_capacidade_historico', 'order=vigente_desde.desc', '*'),
-      db._get('ram', '', '*').catch(() => []),
-      db._get('ram_setores', '', '*').catch(() => []),
-      db._get('copos', 'ativo=eq.true', '*').catch(() => []),
-      db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades').catch(() => [])
+      db._get('ram', '', '*').catch(e => (avisarErro('carregar as RAMs', e), [])),
+      db._get('ram_setores', '', '*').catch(e => (avisarErro('carregar os setores das RAMs', e), [])),
+      db._get('copos', 'ativo=eq.true', '*').catch(e => (avisarErro('carregar os copos', e), [])),
+      db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades').catch(e => (avisarErro('carregar os jobs', e), []))
     ]);
     const capMaquinas = {};
     (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno, tipo: m.tipo || 'Principal' }; });
@@ -383,7 +403,7 @@ const db = {
 
   salvarStatusJob: async function(job, status, descricao, dataFim) {
     const hist = await db._get('status_jobs', 'job=eq.' + encodeURIComponent(job) + '&order=intervencao.desc&limit=1', '*');
-    const hoje = new Date().toISOString().split('T')[0];
+    const hoje = hojeLocal();
     if (hist && hist.length > 0) {
       const ultimo = hist[0];
       if (ultimo.status === 'Finalizado' && status !== 'Finalizado') {
@@ -401,11 +421,11 @@ const db = {
       db._get('lancamentos', 'job=eq.' + encodeURIComponent(job) + '&order=data.asc', '*'),
       db.historicoStatusJob(job),
       db.buscarLocalizacao(job),
-      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(() => []),
-      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(() => []),
-      db._get('jobs', 'nome=eq.' + encodeURIComponent(job), 'id,nome,ativo,num_cavidades,peso_nominal').catch(() => []),
-      db._get('molde_anexos', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*').catch(() => []),
-      db._get('molde_peso_verificacoes', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*').catch(() => [])
+      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(e => (avisarErro('carregar as pendências do molde', e), [])),
+      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(e => (avisarErro('carregar o histórico de localização do molde', e), [])),
+      db._get('jobs', 'nome=eq.' + encodeURIComponent(job), 'id,nome,ativo,num_cavidades,peso_nominal').catch(e => (avisarErro('carregar os dados do job', e), [])),
+      db._get('molde_anexos', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*').catch(e => (avisarErro('carregar os anexos do molde', e), [])),
+      db._get('molde_peso_verificacoes', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*').catch(e => (avisarErro('carregar as verificações de peso', e), []))
     ]);
     return {
       lancamentos:   (lancamentos || []).map(db._formatarLancamento),
@@ -495,7 +515,7 @@ const db = {
     const payload = { ...dados };
     delete payload.senha;
     if (payload.permissoes && typeof payload.permissoes === 'string') {
-      try { payload.permissoes = JSON.parse(payload.permissoes); } catch(e) {}
+      try { payload.permissoes = JSON.parse(payload.permissoes); } catch(e) { /* já é objeto ou texto livre: envia como está */ }
     }
     if (payload.id) return await db._patch('usuarios', 'id=eq.' + payload.id, payload);
     return await db._post('usuarios', payload);

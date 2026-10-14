@@ -103,18 +103,18 @@ function renderizarLogAuditoria(logs) {
     const dt = l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : '—';
     let alteracao = '—';
     if (l.acao === 'editar' && l.campo) {
-      alteracao = `<b>${l.campo}</b>: "${l.valor_antigo||'—'}" → "${l.valor_novo||'—'}"`;
+      alteracao = `<b>${esc(l.campo)}</b>: "${esc(l.valor_antigo||'—')}" → "${esc(l.valor_novo||'—')}"`;
     } else if (l.acao === 'criar') {
-      alteracao = l.valor_novo || 'Item criado';
+      alteracao = esc(l.valor_novo || 'Item criado');
     } else if (l.acao === 'excluir') {
-      alteracao = l.valor_antigo || 'Item removido';
+      alteracao = esc(l.valor_antigo || 'Item removido');
     }
     return `<tr>
-      <td style="font-size:12px;white-space:nowrap">${dt}</td>
-      <td><b>${l.usuario}</b></td>
-      <td><span style="background:${corAcao[l.acao]}20;color:${corAcao[l.acao]};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${icoAcao[l.acao]} ${l.acao}</span></td>
-      <td style="font-size:12px">${labelTabela[l.tabela]||l.tabela}</td>
-      <td style="font-size:12px"><b>${l.registro_id}</b></td>
+      <td style="font-size:12px;white-space:nowrap">${esc(dt)}</td>
+      <td><b>${esc(l.usuario)}</b></td>
+      <td><span style="background:${esc(corAcao[l.acao])}20;color:${esc(corAcao[l.acao])};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${esc(icoAcao[l.acao])} ${esc(l.acao)}</span></td>
+      <td style="font-size:12px">${esc(labelTabela[l.tabela]||l.tabela)}</td>
+      <td style="font-size:12px"><b>${esc(l.registro_id)}</b></td>
       <td style="font-size:12px;color:#64748b">${alteracao}</td>
     </tr>`;
   }).join('');
@@ -128,7 +128,7 @@ async function buscarHistoricoItem(tabela, registroId) {
   try {
     return await db._get('log_alteracoes',
       'tabela=eq.' + tabela + '&registro_id=eq.' + encodeURIComponent(registroId) + '&order=criado_em.desc', '*') || [];
-  } catch(e) { return []; }
+  } catch(e) { avisarErro('carregar o histórico de alterações', e); return []; }
 }
 
 function renderizarHistoricoItemHTML(logs) {
@@ -137,11 +137,11 @@ function renderizarHistoricoItemHTML(logs) {
   const icoAcao = { criar:'+', editar:'✏️', excluir:'🗑️' };
   return logs.map(l => {
     const dt = l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : '—';
-    let alteracao = l.acao==='editar' && l.campo ? `${l.campo}: "${l.valor_antigo||'—'}" → "${l.valor_novo||'—'}"` : (l.valor_novo||l.valor_antigo||'');
+    let alteracao = esc(l.acao==='editar' && l.campo ? `${l.campo}: "${l.valor_antigo||'—'}" → "${l.valor_novo||'—'}"` : (l.valor_novo||l.valor_antigo||''));
     return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px dashed #f1f5f9;font-size:11px">
-      <span style="background:${corAcao[l.acao]}20;color:${corAcao[l.acao]};padding:1px 6px;border-radius:6px;font-weight:700;white-space:nowrap">${icoAcao[l.acao]}</span>
+      <span style="background:${esc(corAcao[l.acao])}20;color:${esc(corAcao[l.acao])};padding:1px 6px;border-radius:6px;font-weight:700;white-space:nowrap">${esc(icoAcao[l.acao])}</span>
       <span style="color:#64748b">${alteracao}</span>
-      <span style="margin-left:auto;color:#94a3b8;white-space:nowrap">${l.usuario} · ${dt}</span>
+      <span style="margin-left:auto;color:#94a3b8;white-space:nowrap">${esc(l.usuario)} · ${esc(dt)}</span>
     </div>`;
   }).join('');
 }

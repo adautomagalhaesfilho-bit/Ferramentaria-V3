@@ -26,16 +26,16 @@ function abrirEdicaoPesoNominal(job, jobId, pesoAtual) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharEdicaoPesoNominal()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:380px">
-    <div class="modal-header"><h3>⚖️ Peso Nominal — ${job}</h3><button onclick="fecharEdicaoPesoNominal()">✕</button></div>
+    <div class="modal-header"><h3>⚖️ Peso Nominal — ${esc(job)}</h3><button onclick="fecharEdicaoPesoNominal()">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label>Peso ideal da peça (g) *</label>
-        <input type="number" step="0.01" id="pesoNominalInput" value="${pesoAtual||''}" placeholder="Ex: 45.20">
+        <input type="number" step="0.01" id="pesoNominalInput" value="${esc(pesoAtual||'')}" placeholder="Ex: 45.20">
       </div>
-      <div style="font-size:11px;color:#94a3b8">Tolerância aplicada: ±${_PESO_TOLERANCIA_PCT}% pra todas as cavidades.</div>
+      <div style="font-size:11px;color:#94a3b8">Tolerância aplicada: ±${esc(_PESO_TOLERANCIA_PCT)}% pra todas as cavidades.</div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarPesoNominal('${job.replace(/'/g,"\\'")}',${jobId},${pesoAtual||'null'})">💾 Salvar</button>
+      <button class="btn-primary" onclick="salvarPesoNominal('${escJs(job)}',${jobId},${pesoAtual||'null'})">💾 Salvar</button>
       <button class="btn-secondary" onclick="fecharEdicaoPesoNominal()">Cancelar</button>
     </div>
   </div>`;
@@ -76,16 +76,16 @@ function abrirModalNovaVerificacaoPeso(job, numCavidades) {
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharModalVerifPeso()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:420px;max-height:80vh;overflow-y:auto">
-    <div class="modal-header"><h3>⚖️ Nova Verificação — ${job}</h3><button onclick="fecharModalVerifPeso()">✕</button></div>
+    <div class="modal-header"><h3>⚖️ Nova Verificação — ${esc(job)}</h3><button onclick="fecharModalVerifPeso()">✕</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label>Data da verificação *</label>
-        <input type="date" id="verifPesoData" value="${new Date().toISOString().split('T')[0]}">
+        <input type="date" id="verifPesoData" value="${esc(hojeLocal())}">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${camposCavidades}</div>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarNovaVerificacaoPeso('${job.replace(/'/g,"\\'")}',${numCavidades})">💾 Salvar</button>
+      <button class="btn-primary" onclick="salvarNovaVerificacaoPeso('${escJs(job)}',${numCavidades})">💾 Salvar</button>
       <button class="btn-secondary" onclick="fecharModalVerifPeso()">Cancelar</button>
     </div>
   </div>`;
@@ -123,18 +123,18 @@ function renderizarControlePeso(job, jobId, numCavidades, pesoNominal, verificac
     <div style="background:#f8fafc;border-radius:8px;padding:12px">
       <div style="font-size:12px;color:#64748b;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
         Peso nominal
-        ${podeGerenciar ? `<button style="background:none;border:none;cursor:pointer;font-size:12px" onclick="abrirEdicaoPesoNominal('${job.replace(/'/g,"\\'")}',${jobId},${pesoNominal||'null'})">✏️</button>` : ''}
+        ${podeGerenciar ? `<button style="background:none;border:none;cursor:pointer;font-size:12px" onclick="abrirEdicaoPesoNominal('${escJs(job)}',${jobId},${pesoNominal||'null'})">✏️</button>` : ''}
       </div>
-      <div style="font-size:18px;font-weight:700;color:#1e3a5f">${pesoNominal ? pesoNominal+' g' : '— não cadastrado'}</div>
+      <div style="font-size:18px;font-weight:700;color:#1e3a5f">${esc(pesoNominal ? pesoNominal+' g' : '— não cadastrado')}</div>
     </div>
     <div style="background:#f8fafc;border-radius:8px;padding:12px">
-      <div style="font-size:12px;color:#64748b;margin-bottom:4px">Tolerância (${_PESO_TOLERANCIA_PCT}%)</div>
-      <div style="font-size:18px;font-weight:700;color:#1e3a5f">${pesoNominal ? (pesoNominal*(1-_PESO_TOLERANCIA_PCT/100)).toFixed(2)+' – '+(pesoNominal*(1+_PESO_TOLERANCIA_PCT/100)).toFixed(2)+' g' : '—'}</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:4px">Tolerância (${esc(_PESO_TOLERANCIA_PCT)}%)</div>
+      <div style="font-size:18px;font-weight:700;color:#1e3a5f">${esc(pesoNominal ? (pesoNominal*(1-_PESO_TOLERANCIA_PCT/100)).toFixed(2)+' – '+(pesoNominal*(1+_PESO_TOLERANCIA_PCT/100)).toFixed(2)+' g' : '—')}</div>
     </div>
     <div style="background:#f8fafc;border-radius:8px;padding:12px">
       <div style="font-size:12px;color:#64748b;margin-bottom:4px">Última verificação</div>
-      <div style="font-size:15px;font-weight:700;color:#1e3a5f">${ultima ? new Date(ultima.data+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
-      ${ultima ? `<div style="font-size:11px;color:#94a3b8">por ${ultima.criado_por||'—'}</div>` : ''}
+      <div style="font-size:15px;font-weight:700;color:#1e3a5f">${esc(ultima ? new Date(ultima.data+'T12:00:00').toLocaleDateString('pt-BR') : '—')}</div>
+      ${ultima ? `<div style="font-size:11px;color:#94a3b8">por ${esc(ultima.criado_por||'—')}</div>` : ''}
     </div>
   </div>`;
 
@@ -154,9 +154,9 @@ function renderizarControlePeso(job, jobId, numCavidades, pesoNominal, verificac
             : st.ok ? '<span style="background:#d1fae5;color:#059669;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:700">OK</span>'
                     : '<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:700">NOK</span>';
           return `<tr style="border-bottom:1px solid #f1f5f9">
-            <td style="padding:8px 4px">${p.cavidade}</td>
+            <td style="padding:8px 4px">${esc(p.cavidade)}</td>
             <td style="text-align:right;padding:8px 4px">${p.peso.toFixed(2)} g</td>
-            <td style="text-align:right;padding:8px 4px;color:${st.desvioPct!=null&&Math.abs(st.desvioPct)>_PESO_TOLERANCIA_PCT?'#b91c1c':'#64748b'}">${st.desvioPct!=null?(st.desvioPct>0?'+':'')+st.desvioPct.toFixed(1)+'%':'—'}</td>
+            <td style="text-align:right;padding:8px 4px;color:${st.desvioPct!=null&&Math.abs(st.desvioPct)>_PESO_TOLERANCIA_PCT?'#b91c1c':'#64748b'}">${esc(st.desvioPct!=null?(st.desvioPct>0?'+':'')+st.desvioPct.toFixed(1)+'%':'—')}</td>
             <td style="text-align:center;padding:8px 4px">${badge}</td>
           </tr>`;
         }).join('')}
@@ -165,8 +165,8 @@ function renderizarControlePeso(job, jobId, numCavidades, pesoNominal, verificac
   }
 
   const historicoVerificacoes = (verificacoes||[]).map(v => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #f1f5f9;font-size:12px">
-    <span style="color:#64748b">${new Date(v.data+'T12:00:00').toLocaleDateString('pt-BR')} — ${v.pesos.length} cavidade(s)</span>
-    <span style="color:#94a3b8">${v.criado_por||'—'} · ${v.criado_em?new Date(v.criado_em).toLocaleString('pt-BR'):''}</span>
+    <span style="color:#64748b">${esc(new Date(v.data+'T12:00:00').toLocaleDateString('pt-BR'))} — ${v.pesos.length} cavidade(s)</span>
+    <span style="color:#94a3b8">${esc(v.criado_por||'—')} · ${esc(v.criado_em?new Date(v.criado_em).toLocaleString('pt-BR'):'')}</span>
   </div>`).join('') || '<div style="color:#94a3b8;font-size:12px">Nenhuma verificação registrada.</div>';
 
   const historicoPesoNominal = typeof renderizarHistoricoItemHTML === 'function'

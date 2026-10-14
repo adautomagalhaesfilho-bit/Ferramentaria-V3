@@ -8,7 +8,7 @@ var _setorHistorico = 'Usinagem';
 function inicializarHistorico() {
   const hoje = new Date();
   const ini  = new Date(hoje); ini.setDate(hoje.getDate() - hoje.getDay() + 1);
-  const fDate = d => d.toISOString().split('T')[0];
+  const fDate = d => dataLocal(d);
   document.getElementById('histIni').value = fDate(ini);
   document.getElementById('histFim').value = fDate(hoje);
   if (_listas) atualizarFiltrosHistorico();
@@ -30,7 +30,7 @@ async function atualizarFiltrosHistorico() {
   else if (setor === 'Producao')  funcs = _listas.funcProducao  || [];
 
   selFunc.innerHTML = '<option value="Todos">Todos os Funcionários</option>' +
-    funcs.map(f=>`<option value="${f}">${f}</option>`).join('');
+    funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
 
   // Tipos por setor
   selTipo.innerHTML = '<option value="Todos">Todos os Tipos</option>';
@@ -38,25 +38,25 @@ async function atualizarFiltrosHistorico() {
     if (setor === 'Usinagem') {
       const tipos = _listas.tipos || [];
       selTipo.innerHTML = '<option value="Todos">Todos os Tipos</option>' +
-        tipos.map(t=>`<option value="${t}">${t}</option>`).join('');
+        tipos.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
 
     } else if (setor === 'Bancada') {
       const tiposBancada = _listas.tiposBancada || [];
       selTipo.innerHTML = '<option value="Todos">Todos os Tipos</option>' +
-        tiposBancada.map(t=>`<option value="${t}">${t}</option>`).join('');
+        tiposBancada.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
 
     } else if (setor === 'Projeto') {
       const areasProj = _listas.areasProj     || [];
       const catsProj  = _listas.categoriasProj || [];
       const opcoes = [...areasProj, ...catsProj].filter((v,i,a)=>a.indexOf(v)===i).sort();
       selTipo.innerHTML = '<option value="Todos">Todos</option>' +
-        opcoes.map(t=>`<option value="${t}">${t}</option>`).join('');
+        opcoes.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
 
     } else if (setor === 'Producao') {
       // Tipos de produção vêm de prod_categorias setor=Producao
       const tiposProd = _listas.tiposProd || [];
       selTipo.innerHTML = '<option value="Todos">Todos os Tipos</option>' +
-        tiposProd.map(t=>`<option value="${t}">${t}</option>`).join('');
+        tiposProd.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
     }
   } catch(e) {
     console.error('Erro ao carregar tipos:', e);
@@ -145,7 +145,7 @@ function renderizarHistorico(res, setor) {
   const cabPadrao = `<tr>
     <th>Data</th>
     <th>Técnico</th>
-    <th>${setor==='Usinagem'?'Máquina / Tipo':setor==='Bancada'?'Atividade':'Área / Categoria'}</th>
+    <th>${esc(setor==='Usinagem'?'Máquina / Tipo':setor==='Bancada'?'Atividade':'Área / Categoria')}</th>
     <th>Job</th>
     <th>Início</th>
     <th>Fim</th>
@@ -161,27 +161,27 @@ function renderizarHistorico(res, setor) {
     const hr1  = l.horaInicio || '—';
     const hr2  = l.horaFim    || '—';
     const prod = l.hrProd
-      ? `<span style="color:#10b981;font-weight:700">${l.hrProd}</span>`
+      ? `<span style="color:#10b981;font-weight:700">${esc(l.hrProd)}</span>`
       : '—';
-    let col3 = '', desc = l.descricao || '—', status = '';
+    let col3 = '', desc = esc(l.descricao || '—'), status = '';
 
     if (setor === 'Usinagem') {
-      col3 = `<span style="font-size:12px"><b>${l.maquina||'—'}</b>${l.tipo?`<br><span style="color:#64748b;font-size:11px">${l.tipo}</span>`:''}</span>`;
+      col3 = `<span style="font-size:12px"><b>${esc(l.maquina||'—')}</b>${l.tipo?`<br><span style="color:#64748b;font-size:11px">${esc(l.tipo)}</span>`:''}</span>`;
     } else if (setor === 'Bancada') {
-      col3 = l.tipo || '—';
+      col3 = esc(l.tipo || '—');
     } else {
-      col3 = `<span style="font-size:12px">${l.area?`<b>${l.area}</b><br>`:''}<span style="color:#64748b;font-size:11px">${l.tipo||'—'}</span></span>`;
+      col3 = `<span style="font-size:12px">${l.area?`<b>${esc(l.area)}</b><br>`:''}<span style="color:#64748b;font-size:11px">${esc(l.tipo||'—')}</span></span>`;
       const cor = corStatus(l.status);
-      status = `<span style="color:${cor};font-weight:600;font-size:12px">${icoStatus(l.status)} ${l.status||'—'}</span>`;
+      status = `<span style="color:${esc(cor)};font-weight:600;font-size:12px">${esc(icoStatus(l.status))} ${esc(l.status||'—')}</span>`;
     }
 
     return `<tr>
       <td><b>${dt}</b></td>
-      <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(l.funcionario):(l.funcionario||'—')}</td>
+      <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(l.funcionario):esc(l.funcionario||'—')}</td>
       <td>${col3}</td>
-      <td><b>${l.job||'—'}</b></td>
-      <td style="font-size:12px">${hr1}</td>
-      <td style="font-size:12px">${hr2}</td>
+      <td><b>${esc(l.job||'—')}</b></td>
+      <td style="font-size:12px">${esc(hr1)}</td>
+      <td style="font-size:12px">${esc(hr2)}</td>
       <td>${prod}</td>
       <td style="font-size:12px;color:#64748b">${status||desc}</td>
     </tr>`;
@@ -198,18 +198,18 @@ function renderizarHistorico(res, setor) {
     });
     tbody.innerHTML += `<tr><td colspan="8" style="background:#e0f2fe;padding:8px 12px;font-size:12px;font-weight:700;color:#0369a1;border-top:2px solid #bae6fd">👤 TOTAIS POR FUNCIONÁRIO</td></tr>`;
     Object.entries(porFunc).sort((a,b)=>b[1]-a[1]).forEach(([f,m]) => {
-      tbody.innerHTML += `<tr style="background:#f0f9ff"><td colspan="6" style="font-size:12px;color:#0369a1;padding:5px 12px"><b>${f}</b></td><td style="font-size:12px;font-weight:700;color:#0369a1">${fmtMin(m)}</td><td></td></tr>`;
+      tbody.innerHTML += `<tr style="background:#f0f9ff"><td colspan="6" style="font-size:12px;color:#0369a1;padding:5px 12px"><b>${esc(f)}</b></td><td style="font-size:12px;font-weight:700;color:#0369a1">${esc(fmtMin(m))}</td><td></td></tr>`;
     });
     tbody.innerHTML += `<tr><td colspan="8" style="background:#f0fdf4;padding:8px 12px;font-size:12px;font-weight:700;color:#059669;border-top:2px solid #bbf7d0">📦 TOTAIS POR JOB</td></tr>`;
     Object.entries(porJob).sort((a,b)=>b[1]-a[1]).forEach(([j,m]) => {
-      tbody.innerHTML += `<tr style="background:#f0fdf4"><td colspan="6" style="font-size:12px;color:#059669;padding:5px 12px"><b>${j}</b></td><td style="font-size:12px;font-weight:700;color:#059669">${fmtMin(m)}</td><td></td></tr>`;
+      tbody.innerHTML += `<tr style="background:#f0fdf4"><td colspan="6" style="font-size:12px;color:#059669;padding:5px 12px"><b>${esc(j)}</b></td><td style="font-size:12px;font-weight:700;color:#059669">${esc(fmtMin(m))}</td><td></td></tr>`;
     });
   }
 
   resumo.innerHTML = `
     <span style="font-size:13px;font-weight:600;color:#1e3a5f">📊 Resumo:</span>
     <span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #c7d2fe;font-size:13px;color:#4338ca">📋 <b>${res.length} lançamentos</b></span>
-    ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">⏱️ <b>${fmtMin(totalMins)}</b></span>`:''}`;
+    ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">⏱️ <b>${esc(fmtMin(totalMins))}</b></span>`:''}`;
   resumo.style.display = 'flex';
 }
 
@@ -243,23 +243,23 @@ function renderizarHistoricoProducao(res, ini, fim) {
   tbody.innerHTML = res.map(l => {
     const dt   = l.data ? l.data.split('-').reverse().join('/') : '—';
     const tecsArr = Array.isArray(l.tecnicos) ? l.tecnicos : (l.tecnicos ? l.tecnicos.split(',').map(t=>t.trim()) : []);
-    const tecs = tecsArr.length ? tecsArr.map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t).join(', ') : '—';
+    const tecs = tecsArr.length ? tecsArr.map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):esc(t)).join(', ') : '—';
     const mins = l.minutos || 0;
     const hrProd = mins > 0 ? fmtMin(mins) : '—';
     const flags = [
       l.maquina_parada ? '🔴 Maq. Parada' : '',
-      l.tem_os ? `📋 OS: ${l.numero_os||''}` : ''
+      l.tem_os ? `📋 OS: ${esc(l.numero_os||'')}` : ''
     ].filter(Boolean).join(' ');
 
     return `<tr>
       <td><b>${dt}</b></td>
       <td style="font-size:12px">${tecs}</td>
-      <td><b>${l.injetora||'—'}</b></td>
-      <td><span style="background:#d1fae5;color:#059669;font-size:11px;padding:2px 8px;border-radius:8px;font-weight:600">${l.tipo||'—'}</span></td>
-      <td style="font-size:12px">${l.atividade||'—'}</td>
-      <td><b>${l.molde||'—'}</b></td>
-      <td><span style="color:#10b981;font-weight:700">${hrProd}</span></td>
-      <td style="font-size:12px;color:#64748b">${l.descricao||''} ${flags}</td>
+      <td><b>${esc(l.injetora||'—')}</b></td>
+      <td><span style="background:#d1fae5;color:#059669;font-size:11px;padding:2px 8px;border-radius:8px;font-weight:600">${esc(l.tipo||'—')}</span></td>
+      <td style="font-size:12px">${esc(l.atividade||'—')}</td>
+      <td><b>${esc(l.molde||'—')}</b></td>
+      <td><span style="color:#10b981;font-weight:700">${esc(hrProd)}</span></td>
+      <td style="font-size:12px;color:#64748b">${esc(l.descricao||'')} ${flags}</td>
     </tr>`;
   }).join('');
 
@@ -274,18 +274,18 @@ function renderizarHistoricoProducao(res, ini, fim) {
 
   tbody.innerHTML += `<tr><td colspan="8" style="background:#e0f2fe;padding:8px 12px;font-size:12px;font-weight:700;color:#0369a1;border-top:2px solid #bae6fd">🏭 TOTAIS POR INJETORA</td></tr>`;
   Object.entries(porInjetora).sort((a,b)=>b[1]-a[1]).forEach(([inj,m]) => {
-    tbody.innerHTML += `<tr style="background:#f0f9ff"><td colspan="6" style="font-size:12px;color:#0369a1;padding:5px 12px"><b>${inj}</b></td><td style="font-size:12px;font-weight:700;color:#0369a1">${fmtMin(m)}</td><td></td></tr>`;
+    tbody.innerHTML += `<tr style="background:#f0f9ff"><td colspan="6" style="font-size:12px;color:#0369a1;padding:5px 12px"><b>${esc(inj)}</b></td><td style="font-size:12px;font-weight:700;color:#0369a1">${esc(fmtMin(m))}</td><td></td></tr>`;
   });
 
   tbody.innerHTML += `<tr><td colspan="8" style="background:#f0fdf4;padding:8px 12px;font-size:12px;font-weight:700;color:#059669;border-top:2px solid #bbf7d0">🔧 TOTAIS POR TIPO</td></tr>`;
   Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).forEach(([t,m]) => {
-    tbody.innerHTML += `<tr style="background:#f0fdf4"><td colspan="6" style="font-size:12px;color:#059669;padding:5px 12px"><b>${t}</b></td><td style="font-size:12px;font-weight:700;color:#059669">${fmtMin(m)}</td><td></td></tr>`;
+    tbody.innerHTML += `<tr style="background:#f0fdf4"><td colspan="6" style="font-size:12px;color:#059669;padding:5px 12px"><b>${esc(t)}</b></td><td style="font-size:12px;font-weight:700;color:#059669">${esc(fmtMin(m))}</td><td></td></tr>`;
   });
 
   resumo.innerHTML = `
     <span style="font-size:13px;font-weight:600;color:#1e3a5f">📊 Resumo Produção:</span>
     <span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #c7d2fe;font-size:13px;color:#4338ca">📋 <b>${res.length} lançamentos</b></span>
-    ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">⏱️ <b>${fmtMin(totalMins)}</b></span>`:''}`;
+    ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">⏱️ <b>${esc(fmtMin(totalMins))}</b></span>`:''}`;
   resumo.style.display = 'flex';
 }
 

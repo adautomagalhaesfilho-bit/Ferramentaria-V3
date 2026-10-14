@@ -27,10 +27,10 @@ async function buscarFicha() {
     const [res, localizacao, pendencias, histLoc, prodLancs, intervencoes] = await Promise.all([
       db.buscarFicha(job),
       db.buscarLocalizacao(job),
-      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(()=>[]),
-      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(()=>[]),
-      db._get('prod_lancamentos', 'molde=eq.' + encodeURIComponent(job) + '&order=data.asc', '*').catch(()=>[]),
-      db.listarIntervencoesPorJob(job).catch(()=>[])
+      db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(e => (avisarErro('carregar as pendências do molde', e), [])),
+      db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(e => (avisarErro('carregar o histórico de localização do molde', e), [])),
+      db._get('prod_lancamentos', 'molde=eq.' + encodeURIComponent(job) + '&order=data.asc', '*').catch(e => (avisarErro('carregar os lançamentos de produção do molde', e), [])),
+      db.listarIntervencoesPorJob(job).catch(e => (avisarErro('carregar as intervenções do molde', e), []))
     ]);
     res.localizacao  = localizacao;
     res.pendencias   = pendencias  || [];
@@ -41,19 +41,19 @@ async function buscarFicha() {
     // Histórico de alteração do peso nominal (usado só dentro do Controle de Peso)
     res.logsPesoNominal = [];
     if (res.jobId && typeof buscarHistoricoItem === 'function') {
-      try { res.logsPesoNominal = await buscarHistoricoItem('jobs', res.jobId); } catch(e) {}
+      try { res.logsPesoNominal = await buscarHistoricoItem('jobs', res.jobId); } catch(e) { avisarErro('carregar o histórico do peso nominal', e); }
     }
 
     // RAM (Registro de Alteração/Modificação) — substitui as antigas Pendências
     res.rams = [];
     if (typeof buscarRAMsPorJob === 'function') {
-      try { res.rams = await buscarRAMsPorJob(job); } catch(e) {}
+      try { res.rams = await buscarRAMsPorJob(job); } catch(e) { avisarErro('carregar as RAMs do molde', e); }
     }
 
     // Mapeamento de Calços
     res.mapeamentosCalcos = [];
     if (typeof buscarMapeamentosCalcos === 'function') {
-      try { res.mapeamentosCalcos = await buscarMapeamentosCalcos(job); } catch(e) {}
+      try { res.mapeamentosCalcos = await buscarMapeamentosCalcos(job); } catch(e) { avisarErro('carregar o mapeamento de calços', e); }
     }
 
     _dadosFicha     = res;
@@ -128,15 +128,15 @@ function renderizarFicha(job, res) {
   const totalLancs   = lancs.length + prodLancs.length;
 
   let html = `
-  <div class="card" style="border-left:4px solid ${corS}">
+  <div class="card" style="border-left:4px solid ${esc(corS)}">
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px">
       <div>
         <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:1px;margin-bottom:6px">FICHA DO MOLDE</div>
-        <div style="font-size:24px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${job}${res.numCavidades?` <span style="font-size:13px;font-weight:600;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:12px;vertical-align:middle">${res.numCavidades} cavidade${res.numCavidades>1?'s':''}</span>`:''}</div>
+        <div style="font-size:24px;font-weight:700;color:#1e3a5f;margin-bottom:8px">${esc(job)}${res.numCavidades?` <span style="font-size:13px;font-weight:600;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:12px;vertical-align:middle">${esc(res.numCavidades)} cavidade${res.numCavidades>1?'s':''}</span>`:''}</div>
         ${locInfo
-          ? `<span style="display:inline-flex;align-items:center;gap:6px;background:${bgS};color:${corS};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid ${corS}">
-              ${locInfo.ico} ${locAtual.localizacao}
-              ${locAtual.maquina?'<span style="font-size:11px;opacity:0.8">· '+locAtual.maquina+'</span>':''}
+          ? `<span style="display:inline-flex;align-items:center;gap:6px;background:${esc(bgS)};color:${esc(corS)};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid ${esc(corS)}">
+              ${esc(locInfo.ico)} ${esc(locAtual.localizacao)}
+              ${locAtual.maquina?'<span style="font-size:11px;opacity:0.8">· '+esc(locAtual.maquina)+'</span>':''}
              </span>`
           : '<span style="background:#f1f5f9;color:#64748b;padding:4px 12px;border-radius:20px;font-size:12px">📍 Localização não registrada</span>'
         }
@@ -144,7 +144,7 @@ function renderizarFicha(job, res) {
       <div style="text-align:right;font-size:12px;color:#64748b">
         <div>📅 Primeiro: <b>${dataPrimeiro?dataPrimeiro.split('-').reverse().join('/'):'—'}</b></div>
         <div>🕐 Último: <b>${dataUltimo?dataUltimo.split('-').reverse().join('/'):'—'}</b></div>
-        <div>🔄 Intervenções: <b>${hist.length||1}</b></div>
+        <div>🔄 Intervenções: <b>${esc(hist.length||1)}</b></div>
       </div>
     </div>
   </div>
@@ -152,22 +152,22 @@ function renderizarFicha(job, res) {
   <div class="cards-row">
     <div class="metric-card" style="border-left-color:#10b981">
       <div class="metric-icon">⏱️</div>
-      <div class="metric-valor" style="color:#10b981">${fmtMin(totalMins+totalMinsProd)}</div>
+      <div class="metric-valor" style="color:#10b981">${esc(fmtMin(totalMins+totalMinsProd))}</div>
       <div class="metric-label">Total de Horas</div>
     </div>
     ${Object.entries(porSetor).map(([s,m])=>`
-    <div class="metric-card" style="border-left-color:${cors[s]||'#64748b'};cursor:pointer;transition:box-shadow 0.2s,transform 0.15s"
-      onclick="filtrarFichaSetor('${s}')"
+    <div class="metric-card" style="border-left-color:${esc(cors[s]||'#64748b')};cursor:pointer;transition:box-shadow 0.2s,transform 0.15s"
+      onclick="filtrarFichaSetor('${escJs(s)}')"
       onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)';this.style.transform='translateY(-2px)'"
       onmouseout="this.style.boxShadow='';this.style.transform=''">
-      <div class="metric-icon">${icos[s]||'🏭'}</div>
-      <div class="metric-valor" style="color:${cors[s]||'#64748b'}">${fmtMin(m)}</div>
-      <div class="metric-label">${s}</div>
+      <div class="metric-icon">${esc(icos[s]||'🏭')}</div>
+      <div class="metric-valor" style="color:${esc(cors[s]||'#64748b')}">${esc(fmtMin(m))}</div>
+      <div class="metric-label">${esc(s)}</div>
       <div style="font-size:10px;color:#94a3b8;margin-top:4px">🔍 Clique para filtrar</div>
     </div>`).join('')}
     <div class="metric-card" style="border-left-color:#f59e0b">
       <div class="metric-icon">📋</div>
-      <div class="metric-valor" style="color:#f59e0b">${totalLancs}</div>
+      <div class="metric-valor" style="color:#f59e0b">${esc(totalLancs)}</div>
       <div class="metric-label">Lançamentos</div>
     </div>
   </div>
@@ -191,7 +191,7 @@ function renderizarFicha(job, res) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">📐 Mapeamento de Calços</div>
       ${typeof podeGerenciarMapeamento==='function' && podeGerenciarMapeamento()
-        ? `<button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovoMapeamento('${job.replace(/'/g,"\\'")}')">+ Registrar Mapeamento</button>`
+        ? `<button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovoMapeamento('${escJs(job)}')">+ Registrar Mapeamento</button>`
         : ''}
     </div>
     ${typeof renderizarCardMapeamento === 'function' ? renderizarCardMapeamento(job, res.mapeamentosCalcos||[]) : ''}
@@ -200,7 +200,7 @@ function renderizarFicha(job, res) {
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">📋 RAM</div>
-      <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovaRAM('${job.replace(/'/g,"\\'")}')">+ Nova RAM</button>
+      <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovaRAM('${escJs(job)}')">+ Nova RAM</button>
     </div>
     ${typeof renderizarCardRAM === 'function' ? renderizarCardRAM(job, res.rams||[]) : ''}
   </div>
@@ -209,7 +209,7 @@ function renderizarFicha(job, res) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">⚖️ Controle de Peso</div>
       ${typeof podeGerenciarPesoMolde==='function' && podeGerenciarPesoMolde()
-        ? `<button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovaVerificacaoPeso('${job.replace(/'/g,"\\'")}',${res.numCavidades||'null'})">+ Nova Verificação</button>`
+        ? `<button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalNovaVerificacaoPeso('${escJs(job)}',${res.numCavidades||'null'})">+ Nova Verificação</button>`
         : ''}
     </div>
     ${typeof renderizarControlePeso === 'function'
@@ -220,7 +220,7 @@ function renderizarFicha(job, res) {
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">📷 Fotos e Vídeos</div>
-      <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalAnexoMolde('${job.replace(/'/g,"\\'")}')">+ Anexar</button>
+      <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="abrirModalAnexoMolde('${escJs(job)}')">+ Anexar</button>
     </div>
     ${typeof renderizarGaleriaAnexosMolde === 'function' ? renderizarGaleriaAnexosMolde(res.anexos||[]) : ''}
   </div>
@@ -229,7 +229,7 @@ function renderizarFicha(job, res) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">🛠️ Histórico de Intervenções</div>
       ${typeof podeRegistrarIntervencao === 'function' && podeRegistrarIntervencao()
-        ? `<button class="btn-success" style="font-size:12px;padding:6px 14px" onclick="abrirModalIntervencao('${job.replace(/'/g,"\\'")}')">+ Registrar Intervenção</button>`
+        ? `<button class="btn-success" style="font-size:12px;padding:6px 14px" onclick="abrirModalIntervencao('${escJs(job)}')">+ Registrar Intervenção</button>`
         : ''}
     </div>
     <div id="fichaIntervencoes">${typeof renderizarIntervencoesHTML==='function' ? renderizarIntervencoesHTML(res.intervencoes||[], job) : ''}</div>
@@ -361,8 +361,8 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
         ${copos.map(l=>`
           <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed #bae6fd;font-size:12px;flex-wrap:wrap;align-items:center">
             <span style="color:#0369a1;font-weight:600">${l.data?l.data.split('-').reverse().join('/'):'—'}</span>
-            <span style="background:${l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe'};color:${l.tipoCopo==='Novo'?'#059669':'#0369a1'};padding:1px 8px;border-radius:8px;font-weight:700">${l.tipoCopo||'—'}</span>
-            ${l.descricaoCopo?`<span style="color:#64748b">📝 ${l.descricaoCopo}</span>`:''}
+            <span style="background:${esc(l.tipoCopo==='Novo'?'#d1fae5':'#e0f2fe')};color:${esc(l.tipoCopo==='Novo'?'#059669':'#0369a1')};padding:1px 8px;border-radius:8px;font-weight:700">${esc(l.tipoCopo||'—')}</span>
+            ${l.descricaoCopo?`<span style="color:#64748b">📝 ${esc(l.descricaoCopo)}</span>`:''}
           </div>`).join('')}
       </div>
     </div>`;
@@ -384,9 +384,9 @@ function renderizarTimeline(hist, lancs, pendencias, localizacao, histLoc) {
           const li = locMapH[h.localizacao] || { ico:'📍', cor:'#64748b', bg:'#f1f5f9' };
           const dt = h.movido_em ? new Date(h.movido_em).toLocaleDateString('pt-BR') : '—';
           return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed #e2e8f0">
-            <span style="background:${li.bg};color:${li.cor};font-size:11px;padding:2px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${li.ico} ${h.localizacao}</span>
-            ${h.maquina?`<span style="font-size:11px;color:#64748b">🏭 ${h.maquina}</span>`:''}
-            <span style="font-size:11px;color:#94a3b8;margin-left:auto;white-space:nowrap">📅 ${dt} · 👤 ${h.movido_por||'—'}</span>
+            <span style="background:${esc(li.bg)};color:${esc(li.cor)};font-size:11px;padding:2px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${esc(li.ico)} ${esc(h.localizacao)}</span>
+            ${h.maquina?`<span style="font-size:11px;color:#64748b">🏭 ${esc(h.maquina)}</span>`:''}
+            <span style="font-size:11px;color:#94a3b8;margin-left:auto;white-space:nowrap">📅 ${esc(dt)} · 👤 ${esc(h.movido_por||'—')}</span>
           </div>`;
         }).join('')}
       </div>
@@ -432,13 +432,13 @@ function renderizarTabelaFicha(lancs, prodLancs) {
 
   tbody.innerHTML = todos.map(l => `<tr>
     <td><b>${l.data?l.data.split('-').reverse().join('/'):'—'}</b></td>
-    <td><span style="color:${cors[l.setor]||'#64748b'};font-weight:600;font-size:12px">${icos[l.setor]||'🏭'} ${l.setor}</span></td>
-    <td style="font-size:12px">${(l.funcionario||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):t).join(', ') || '—'}${l._isProd&&l.injetora?`<br><span style="color:#94a3b8;font-size:11px">🏭 ${l.injetora}</span>`:''}</td>
-    <td>${l.tipo||'—'}</td>
-    <td style="font-size:12px">${l.horaInicio||'—'}</td>
-    <td style="font-size:12px">${l.horaFim||'—'}</td>
-    <td style="color:#10b981;font-weight:700">${l.hrProd||'—'}</td>
-    <td style="font-size:12px;color:#64748b">${l.descricao||'—'}</td>
+    <td><span style="color:${esc(cors[l.setor]||'#64748b')};font-weight:600;font-size:12px">${esc(icos[l.setor]||'🏭')} ${esc(l.setor)}</span></td>
+    <td style="font-size:12px">${(l.funcionario||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(t):esc(t)).join(', ') || '—'}${l._isProd&&l.injetora?`<br><span style="color:#94a3b8;font-size:11px">🏭 ${esc(l.injetora)}</span>`:''}</td>
+    <td>${esc(l.tipo||'—')}</td>
+    <td style="font-size:12px">${esc(l.horaInicio||'—')}</td>
+    <td style="font-size:12px">${esc(l.horaFim||'—')}</td>
+    <td style="color:#10b981;font-weight:700">${esc(l.hrProd||'—')}</td>
+    <td style="font-size:12px;color:#64748b">${esc(l.descricao||'—')}</td>
   </tr>`).join('');
 }
 
@@ -461,25 +461,25 @@ function filtrarFicha() {
     const sel = document.getElementById('fichaFiltroMaq');
     if (sel) {
       const mqs = [...new Set(_lancsFicha.filter(l=>l.setor==='Usinagem'&&l.maquina).map(l=>l.maquina))];
-      sel.innerHTML = '<option value="Todas">Todas as Máquinas</option>' + mqs.map(m=>`<option value="${m}">${m}</option>`).join('');
+      sel.innerHTML = '<option value="Todas">Todas as Máquinas</option>' + mqs.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
     }
   } else if (setor === 'Bancada') {
     const sel = document.getElementById('fichaFiltroTipo');
     if (sel) {
       const ts = [...new Set(_lancsFicha.filter(l=>l.setor==='Bancada'&&l.tipo).map(l=>l.tipo))];
-      sel.innerHTML = '<option value="Todos">Todos os Serviços</option>' + ts.map(t=>`<option value="${t}">${t}</option>`).join('');
+      sel.innerHTML = '<option value="Todos">Todos os Serviços</option>' + ts.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
     }
   } else if (setor === 'Projeto') {
     const sel = document.getElementById('fichaFiltroArea');
     if (sel) {
       const as = [...new Set(_lancsFicha.filter(l=>l.setor==='Projeto'&&l.area).map(l=>l.area))];
-      sel.innerHTML = '<option value="Todas">Todas as Áreas</option>' + as.map(a=>`<option value="${a}">${a}</option>`).join('');
+      sel.innerHTML = '<option value="Todas">Todas as Áreas</option>' + as.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
     }
   } else if (setor === 'Produção') {
     const sel = document.getElementById('fichaFiltroInjet');
     if (sel) {
       const injs = [...new Set(_lancsProdFicha.filter(l=>l.injetora).map(l=>l.injetora))];
-      sel.innerHTML = '<option value="Todas">Todas as Injetoras</option>' + injs.map(i=>`<option value="${i}">${i}</option>`).join('');
+      sel.innerHTML = '<option value="Todas">Todas as Injetoras</option>' + injs.map(i=>`<option value="${esc(i)}">${esc(i)}</option>`).join('');
     }
   }
 
@@ -523,9 +523,9 @@ function aplicarFiltrosFicha() {
   if (elRes) {
     const temFiltro = setor !== 'Todos';
     elRes.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:13px;font-weight:600;color:#1e3a5f">${temFiltro?'🔍 Filtro: <b>'+setor+'</b>':'📊 Resultado:'}</span>
-      <span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">📋 <b>${totalLancs} lançamentos</b></span>
-      ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bae6fd;font-size:13px;color:#0369a1">⏱️ <b>${fmtMin(totalMins)}</b></span>`:''}
+      <span style="font-size:13px;font-weight:600;color:#1e3a5f">${temFiltro?'🔍 Filtro: <b>'+esc(setor)+'</b>':'📊 Resultado:'}</span>
+      <span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bbf7d0;font-size:13px;color:#059669">📋 <b>${esc(totalLancs)} lançamentos</b></span>
+      ${totalMins>0?`<span style="background:#fff;padding:6px 12px;border-radius:8px;border:1px solid #bae6fd;font-size:13px;color:#0369a1">⏱️ <b>${esc(fmtMin(totalMins))}</b></span>`:''}
     </div>`;
     elRes.style.display = 'block';
   }

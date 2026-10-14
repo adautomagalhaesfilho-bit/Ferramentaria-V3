@@ -57,7 +57,7 @@ function calcularMeta(ini, fim, nome, dados) {
   const capMin   = capMinutosPorTurno(turno);
   let mins = 0;
   for (let d = new Date(ini + 'T12:00:00'); d <= new Date(fim + 'T12:00:00'); d.setDate(d.getDate() + 1)) {
-    const ds = d.toISOString().split('T')[0];
+    const ds = dataLocal(d);
     if (ds < adm || ds > dem) continue;
     const deFerias = ferias.some(f => ds >= f.inicio && ds <= f.fim && f.motivo === 'Férias');
     if (deFerias) continue;
@@ -79,7 +79,7 @@ function calcularCapBancada(ini, fim, dados) {
   const funcsBancada = (dados.funcionarios || []).filter(f => f.setor === 'Bancada' && f.ativo !== false);
   let totalCap = 0;
   for (let d = new Date(ini + 'T12:00:00'); d <= new Date(fim + 'T12:00:00'); d.setDate(d.getDate() + 1)) {
-    const ds = d.toISOString().split('T')[0];
+    const ds = dataLocal(d);
     funcsBancada.forEach(f => {
       const adm = f.admissao || '1900-01-01';
       const dem = f.demissao || '2099-12-31';
@@ -133,7 +133,7 @@ function _deltaHtml(atual, anterior, invertido) {
   const bom = invertido ? !subiu : subiu;
   const cor = bom ? '#059669' : '#b91c1c';
   const seta = subiu ? '▲' : '▼';
-  return `<span style="font-size:11px;color:${cor};font-weight:600">${seta} ${pct}% vs período anterior</span>`;
+  return `<span style="font-size:11px;color:${esc(cor)};font-weight:600">${esc(seta)} ${esc(pct)}% vs período anterior</span>`;
 }
 
 // Moldes parados na Ferramentaria há 5+ dias (usado na Geral e na aba PCM)
@@ -177,14 +177,14 @@ function desenharPCM(ini, fim) {
     ${metricCard('🔁','Setups no Período',prod.length,_deltaHtml(prod.length, prodAnt.length),'#0056b3')}
     ${metricCard('⏱️','Tempo Médio por Setup',tempoMedio+'min','todos os tipos','#8b5cf6')}
     ${metricCard('⚠️','Parados na Ferramentaria',moldesParados.length,'há 5+ dias','#ef4444')}
-    ${metricCard('🔀','Molde que Mais Andou',moldeMaisAndou?`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${moldeMaisAndou[0].replace(/'/g,"\\'")}')">${moldeMaisAndou[0]}</span>`:'—',moldeMaisAndou?moldeMaisAndou[1]+' movimentações':'sem movimentação no período','#10b981')}
+    ${metricCard('🔀','Molde que Mais Andou',moldeMaisAndou?`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(moldeMaisAndou[0])}')">${esc(moldeMaisAndou[0])}</span>`:'—',moldeMaisAndou?moldeMaisAndou[1]+' movimentações':'sem movimentação no período','#10b981')}
   </div>`;
 
   if (moldesParados.length) {
     html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px 20px;margin-bottom:16px">
       <div style="font-weight:700;color:#b91c1c;font-size:14px;margin-bottom:10px">⚠️ Moldes Parados na Ferramentaria</div>
       ${moldesParados.map(m=>`<div style="display:flex;justify-content:space-between;font-size:13px;color:#b91c1c;padding:4px 0;border-bottom:1px dashed #fecaca">
-        <span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${m.job.replace(/'/g,"\\'")}')">${m.job}</span><span style="font-weight:600">${m.dias} dias</span>
+        <span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(m.job)}')">${esc(m.job)}</span><span style="font-weight:600">${esc(m.dias)} dias</span>
       </div>`).join('')}
     </div>`;
   }
@@ -275,7 +275,7 @@ function desenharGeral(ini, fim) {
   const funcsNegativos = Object.entries(saldoPorFunc).filter(([,m]) => m <= -600); // -10h ou mais negativo
 
   // Ausentes hoje (data real de hoje, não o período do filtro)
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeLocal();
   const ausentesHoje = (_dadosDash.ferias||[]).filter(f => hoje >= f.inicio && hoje <= f.fim);
 
   // Moldes parados na Ferramentaria há 5+ dias
@@ -288,7 +288,7 @@ function desenharGeral(ini, fim) {
   const maquinasSemApontamento = nomesMaquinasPrincipais.filter(m => !maquinasComApontamento.has(m));
 
   // RAM atrasada — prazo já vencido e ainda tem pelo menos 1 setor pendente
-  const hojeStr = new Date().toISOString().split('T')[0];
+  const hojeStr = hojeLocal();
   const ramTodas = _dadosDash.ramTodas || [];
   const ramSetoresTodas = _dadosDash.ramSetoresTodas || [];
   const ramsAtrasadas = ramTodas.filter(r => {
@@ -318,9 +318,9 @@ function desenharGeral(ini, fim) {
     ${metricCard('🔩','Jobs Trabalhados',totalJobs,'moldes únicos','#8b5cf6')}
     ${metricCard('🔧','Manutenções (Produção)',manutProd,_deltaHtml(manutProd, manutProdAnt),'#f59e0b')}
   </div><div class="cards-row">
-    ${metricCard('🔴','Horas Paradas',fmtMin(totalMinsParada),totalMinsParada>0?(_deltaHtml(totalMinsParada, totalMinsParadaAnt, true)+(motivoParadaPredominante?` · ${motivoParadaPredominante}`:'')):'nenhuma no período','#ef4444')}
+    ${metricCard('🔴','Horas Paradas',fmtMin(totalMinsParada),totalMinsParada>0?(_deltaHtml(totalMinsParada, totalMinsParadaAnt, true)+(motivoParadaPredominante?` · ${esc(motivoParadaPredominante)}`:'')):'nenhuma no período','#ef4444')}
     ${metricCard('🏦','Banco de Horas',(saldoPeriodoMin>=0?'+':'')+fmtMin(Math.abs(saldoPeriodoMin)),'saldo líquido do período',saldoPeriodoMin>=0?'#10b981':'#ef4444')}
-    ${metricCard('📅','Ausentes Hoje',ausentesHoje.length,ausentesHoje.length?ausentesHoje.map(a=>a.motivo).join(', '):'ninguém de férias/licença','#0891b2')}
+    ${metricCard('📅','Ausentes Hoje',ausentesHoje.length,ausentesHoje.length?esc(ausentesHoje.map(a=>a.motivo).join(', ')):'ninguém de férias/licença','#0891b2')}
     ${metricCard('📦','Setups (Produção)',setupsProd,_deltaHtml(setupsProd, setupsProdAnt),'#6366f1')}
     ${metricCard('🔩','Copos Abaixo do Mínimo',coposAbaixoMinimo.length,coposAbaixoMinimo.length?'precisam atenção':'estoque OK',coposAbaixoMinimo.length?'#ef4444':'#10b981')}
   </div>`;
@@ -333,9 +333,9 @@ function desenharGeral(ini, fim) {
       <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#92400e">
         ${maquinasSemApontamento.length ? `<div>• ${maquinasSemApontamento.length} máquina${maquinasSemApontamento.length>1?'s':''} Principal${maquinasSemApontamento.length>1?'is':''} sem apontamento no período: <b>${maquinasSemApontamento.join(', ')}</b></div>` : ''}
         ${funcsNegativos.length ? `<div>• ${funcsNegativos.length} funcionário${funcsNegativos.length>1?'s':''} com banco de horas negativo (10h+): <b>${funcsNegativos.map(([n,m])=>n+' ('+fmtMin(Math.abs(m))+')').join(', ')}</b></div>` : ''}
-        ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${m.job.replace(/'/g,"\\'")}')">${m.job}</span> (${m.dias}d)`).join(', ')}</b></div>` : ''}
-        ${ramsAtrasadas.length ? `<div>• ${ramsAtrasadas.length} RAM${ramsAtrasadas.length>1?'s':''} com prazo vencido: <b>${ramsAtrasadas.map(r=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${r.job.replace(/'/g,"\\'")}')">RAM ${r.numero}</span>`).join(', ')}</b></div>` : ''}
-        ${coposAbaixoMinimo.length ? `<div>• ${coposAbaixoMinimo.length} copo${coposAbaixoMinimo.length>1?'s':''} abaixo do estoque mínimo: <b>${coposAbaixoMinimo.map(c=>`<span style="cursor:pointer;text-decoration:underline" onclick="irPara('copos', document.getElementById('menuCopos'))">${c.codigo}</span>`).join(', ')}</b></div>` : ''}
+        ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(m.job)}')">${esc(m.job)}</span> (${esc(m.dias)}d)`).join(', ')}</b></div>` : ''}
+        ${ramsAtrasadas.length ? `<div>• ${ramsAtrasadas.length} RAM${ramsAtrasadas.length>1?'s':''} com prazo vencido: <b>${ramsAtrasadas.map(r=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(r.job)}')">RAM ${esc(r.numero)}</span>`).join(', ')}</b></div>` : ''}
+        ${coposAbaixoMinimo.length ? `<div>• ${coposAbaixoMinimo.length} copo${coposAbaixoMinimo.length>1?'s':''} abaixo do estoque mínimo: <b>${coposAbaixoMinimo.map(c=>`<span style="cursor:pointer;text-decoration:underline" onclick="irPara('copos', document.getElementById('menuCopos'))">${esc(c.codigo)}</span>`).join(', ')}</b></div>` : ''}
       </div>
     </div>`;
   }
@@ -345,14 +345,14 @@ function desenharGeral(ini, fim) {
     const d = porSetor[s] || { count:0, mins:0, jobs:new Set() };
     const funcsSetor = (_dadosDash.funcionarios||[]).filter(f => f.setor === s).length;
     const horasPorPessoa = funcsSetor > 0 ? Math.round(d.mins/60/funcsSetor*10)/10 : null;
-    html += `<div class="metric-card" style="border-left-color:${cors[s]}">
+    html += `<div class="metric-card" style="border-left-color:${esc(cors[s])}">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <div style="width:36px;height:36px;background:${cors[s]}20;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">${icos[s]}</div>
-        <b style="color:#1e3a5f">${s}</b>
+        <div style="width:36px;height:36px;background:${esc(cors[s])}20;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">${esc(icos[s])}</div>
+        <b style="color:#1e3a5f">${esc(s)}</b>
       </div>
-      <div style="font-size:20px;font-weight:700;color:${cors[s]}">${d.mins>0?fmtMin(d.mins):'—'}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:4px">${d.count} lançamentos · ${d.jobs.size} jobs</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:2px">${horasPorPessoa!==null?horasPorPessoa+'h por pessoa':'sem meta de horas'}</div>
+      <div style="font-size:20px;font-weight:700;color:${esc(cors[s])}">${esc(d.mins>0?fmtMin(d.mins):'—')}</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px">${esc(d.count)} lançamentos · ${esc(d.jobs.size)} jobs</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px">${esc(horasPorPessoa!==null?horasPorPessoa+'h por pessoa':'sem meta de horas')}</div>
     </div>`;
   });
   html += `</div>`;
@@ -379,7 +379,7 @@ function desenharGeral(ini, fim) {
     }
     const porDia = {};
     for(let d=new Date(ini+'T12:00:00');d<=new Date(fim+'T12:00:00');d.setDate(d.getDate()+1)) {
-      const ds=d.toISOString().split('T')[0];
+      const ds=dataLocal(d);
       if(d.getDay()!==0&&!feriados.includes(ds)) porDia[ds]={U:0,B:0,P:0};
     }
     lancs.forEach(l => {
@@ -413,7 +413,7 @@ function desenharSetor(setor, ini, fim) {
   if (!div || !_dadosDash) return;
   const cor   = setor==='Usinagem'?'#0056b3':'#0891b2';
   const lancs = (_dadosDash.lancamentos||[]).filter(l=>l.setor===setor);
-  if (!lancs.length) { div.innerHTML=`<div class="empty-state"><div style="font-size:48px">${setor==='Usinagem'?'⚙️':'🛠️'}</div><div>Nenhum lançamento de ${setor} no período.</div></div>`; return; }
+  if (!lancs.length) { div.innerHTML=`<div class="empty-state"><div style="font-size:48px">${esc(setor==='Usinagem'?'⚙️':'🛠️')}</div><div>Nenhum lançamento de ${esc(setor)} no período.</div></div>`; return; }
 
   const feriados  = _dadosDash.feriados || [];
   const totalMins = lancs.reduce((a,l)=>a+(l.minutos||0),0);
@@ -498,7 +498,7 @@ function desenharSetor(setor, ini, fim) {
 
   let diasUteis = 0;
   for(let d=new Date(ini+'T12:00:00');d<=new Date(fim+'T12:00:00');d.setDate(d.getDate()+1)) {
-    const ds=d.toISOString().split('T')[0];
+    const ds=dataLocal(d);
     if(d.getDay()!==0&&d.getDay()!==6&&!feriados.includes(ds)) diasUteis++;
   }
   const capTotal  = 528 * diasUteis;
@@ -517,7 +517,7 @@ function desenharSetor(setor, ini, fim) {
     const c=pct>=90?'#059669':pct>=70?'#92400e':'#b91c1c';
     const bg=pct>=90?'#d1fae5':pct>=70?'#fef3c7':'#fee2e2';
     const t=pct>=90?'✅ Meta':pct>=70?'⚠️ OK':'🔴 Baixo';
-    return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${bg};color:${c}">${t}</span>`;
+    return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${esc(bg)};color:${esc(c)}">${esc(t)}</span>`;
   };
 
   const sx=setor==='Usinagem'?'U':'B';
@@ -541,35 +541,35 @@ function desenharSetor(setor, ini, fim) {
     ? Math.round(Object.values(porMaqPrincipal).reduce((a,b)=>a+b,0)/capTotalMaquinasPrincipais*100) : 0;
 
   let html=`<div class="cards-row">
-    <div class="metric-card" style="border-left-color:${cor}">
+    <div class="metric-card" style="border-left-color:${esc(cor)}">
       <div class="metric-icon">⏱️</div>
-      <div class="metric-valor" id="valHorasProdutivas" style="color:${cor}">${fmtMin(totalMinsSemSup)}</div>
+      <div class="metric-valor" id="valHorasProdutivas" style="color:${esc(cor)}">${esc(fmtMin(totalMinsSemSup))}</div>
       <div class="metric-label">Horas Produtivas</div>
       <div class="metric-sub">total da equipe (sem supervisão)</div>
     </div>
     ${metricCard('🔩','Jobs Trabalhados',totalJobs,'moldes únicos','#10b981')}
-    <div class="metric-card" style="border-left-color:${pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444'}">
+    <div class="metric-card" style="border-left-color:${esc(pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444')}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div class="metric-icon">👥</div><div id="badgeOcupacaoEquipe">${badgePct(pctEquipe)}</div>
       </div>
-      <div class="metric-valor" id="valOcupacaoEquipe" style="color:${pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444'}">${pctEquipe}%</div>
+      <div class="metric-valor" id="valOcupacaoEquipe" style="color:${esc(pctEquipe>=90?'#10b981':pctEquipe>=70?'#f59e0b':'#ef4444')}">${esc(pctEquipe)}%</div>
       <div class="metric-label">Ocupação da Equipe</div>
       <div class="metric-sub">vs meta do período</div>
     </div>
     ${setor==='Usinagem' ? `
     <div class="metric-card" style="border-left-color:#0056b3">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div class="metric-icon">⚙️</div><div id="badgeOcupacaoMaquinas"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${numMaq} máquinas</span></div>
+        <div class="metric-icon">⚙️</div><div id="badgeOcupacaoMaquinas"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${esc(numMaq)} máquinas</span></div>
       </div>
-      <div class="metric-valor" id="valOcupacaoMaquinas" style="color:#0056b3">${numMaq>0?pctMaqInicial+'%':'—'}</div>
+      <div class="metric-valor" id="valOcupacaoMaquinas" style="color:#0056b3">${esc(numMaq>0?pctMaqInicial+'%':'—')}</div>
       <div class="metric-label">Ocupação Máquinas</div>
       <div class="metric-sub">média das máquinas</div>
     </div>` : `
-    <div class="metric-card" style="border-left-color:${pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444'}">
+    <div class="metric-card" style="border-left-color:${esc(pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444')}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div class="metric-icon">🛠️</div><div id="badgeOcupacaoBancada">${badgePct(pctBancada)}</div>
       </div>
-      <div class="metric-valor" id="valOcupacaoBancada" style="color:${pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444'}">${pctBancada}%</div>
+      <div class="metric-valor" id="valOcupacaoBancada" style="color:${esc(pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444')}">${esc(pctBancada)}%</div>
       <div class="metric-label">Ocupação Bancada</div>
       <div class="metric-sub">vs capacidade real</div>
     </div>`}
@@ -581,14 +581,14 @@ function desenharSetor(setor, ini, fim) {
     </div>
     <div class="metric-card" id="cardHorasExtras" style="border-left-color:#f59e0b;display:${horasExtras>0?'':'none'}">
       <div class="metric-icon">⏰</div>
-      <div class="metric-valor" id="valHorasExtras" style="color:#f59e0b">${fmtMin(horasExtras)}</div>
+      <div class="metric-valor" id="valHorasExtras" style="color:#f59e0b">${esc(fmtMin(horasExtras))}</div>
       <div class="metric-label">Horas Extras</div>
       <div class="metric-sub">fora do expediente</div>
     </div>
     ${setor==='Usinagem' ? `
     <div class="metric-card" id="cardHorasParadas" style="border-left-color:#ef4444;display:${totalMinsParada>0?'':'none'}">
       <div class="metric-icon">🔴</div>
-      <div class="metric-valor" id="valHorasParadas" style="color:#ef4444">${fmtMin(totalMinsParada)}</div>
+      <div class="metric-valor" id="valHorasParadas" style="color:#ef4444">${esc(fmtMin(totalMinsParada))}</div>
       <div class="metric-label">Horas Paradas</div>
       <div class="metric-sub">máquinas sem produção</div>
     </div>` : ''}
@@ -606,7 +606,7 @@ function desenharSetor(setor, ini, fim) {
             <button class="btn-secondary" style="font-size:11px;padding:3px 8px;flex:1" onclick="marcarTodosFiltroDash('pessoas',false)">Limpar</button>
           </div>
           ${opOrdenados.map(o=>`<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;cursor:pointer">
-            <input type="checkbox" class="chkFiltroPessoa" value="${o.nome.replace(/"/g,'&quot;')}" checked onchange="aplicarFiltroDashPessoas()"> ${o.nome}
+            <input type="checkbox" class="chkFiltroPessoa" value="${esc(o.nome)}" checked onchange="aplicarFiltroDashPessoas()"> ${esc(o.nome)}
           </label>`).join('')}
         </div>
       </div>
@@ -620,14 +620,14 @@ function desenharSetor(setor, ini, fim) {
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
         <div style="font-weight:700;color:#1e3a5f;font-size:15px">🤖 Ocupação das Máquinas</div>
         <div style="position:relative;display:inline-block">
-          <button id="btnFiltroMaquinas" class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="toggleFiltroDash(event,'painelFiltroMaquinas')">🔽 Máquinas (${numMaq}/${numMaq})</button>
+          <button id="btnFiltroMaquinas" class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="toggleFiltroDash(event,'painelFiltroMaquinas')">🔽 Máquinas (${esc(numMaq)}/${esc(numMaq)})</button>
           <div id="painelFiltroMaquinas" class="painel-filtro-dash" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:500;width:220px;padding:10px;max-height:280px;overflow-y:auto" onclick="event.stopPropagation()">
             <div style="display:flex;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">
               <button class="btn-secondary" style="font-size:11px;padding:3px 8px;flex:1" onclick="marcarTodosFiltroDash('maquinas',true)">Marcar todos</button>
               <button class="btn-secondary" style="font-size:11px;padding:3px 8px;flex:1" onclick="marcarTodosFiltroDash('maquinas',false)">Limpar</button>
             </div>
             ${maqOrdenadas.map(m=>`<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;font-size:12px;cursor:pointer">
-              <input type="checkbox" class="chkFiltroMaquina" value="${m.replace(/"/g,'&quot;')}" checked onchange="aplicarFiltroDashMaquinas()"> ${m}
+              <input type="checkbox" class="chkFiltroMaquina" value="${esc(m)}" checked onchange="aplicarFiltroDashMaquinas()"> ${esc(m)}
             </label>`).join('')}
           </div>
         </div>
@@ -643,8 +643,8 @@ function desenharSetor(setor, ini, fim) {
       <div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:6px">🔧 Máquinas Secundárias — Uso no Período</div>
       <div style="font-size:12px;color:#94a3b8;margin-bottom:16px">Não seguem meta diária de ocupação — aqui só medimos quanto tempo cada uma foi usada</div>
       ${secOrdenadas.map(([maq,mins]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
-        <div style="font-weight:600;color:#1e3a5f;font-size:13px">⚙️ ${maq}</div>
-        <div style="font-size:13px;font-weight:700;color:#64748b">${fmtMin(mins)} usado${mins>0?'s':''}</div>
+        <div style="font-weight:600;color:#1e3a5f;font-size:13px">⚙️ ${esc(maq)}</div>
+        <div style="font-size:13px;font-weight:700;color:#64748b">${esc(fmtMin(mins))} usado${mins>0?'s':''}</div>
       </div>`).join('')}
     </div>`;
   }
@@ -659,21 +659,21 @@ function desenharSetor(setor, ini, fim) {
     html+=`<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
         <div style="font-weight:700;color:#1e3a5f;font-size:15px">🔴 Paradas de Máquina</div>
-        <div style="font-size:12px;color:#94a3b8">Total no período: <strong style="color:#b91c1c">${fmtMin(totalMinsParada)}</strong></div>
+        <div style="font-size:12px;color:#94a3b8">Total no período: <strong style="color:#b91c1c">${esc(fmtMin(totalMinsParada))}</strong></div>
       </div>
       ${maqsParada.map(maq => {
         const motivos = Object.entries(porMaqMotivo[maq]).sort((a,b)=>b[1]-a[1]);
         const totalMaq = motivos.reduce((a,[,m])=>a+m,0);
         return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #f1f5f9">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <div style="font-weight:600;color:#1e3a5f;font-size:13px">⚙️ ${maq}</div>
-            <div style="font-size:13px;font-weight:700;color:#b91c1c">${fmtMin(totalMaq)} parada${totalMaq>0?'s':''}</div>
+            <div style="font-weight:600;color:#1e3a5f;font-size:13px">⚙️ ${esc(maq)}</div>
+            <div style="font-size:13px;font-weight:700;color:#b91c1c">${esc(fmtMin(totalMaq))} parada${totalMaq>0?'s':''}</div>
           </div>
           <div style="display:flex;height:10px;border-radius:6px;overflow:hidden;background:#f1f5f9;margin-bottom:8px">
-            ${motivos.map(([,m],i)=>`<div style="width:${totalMaq>0?(m/totalMaq*100):0}%;background:${paletaMotivo[i%paletaMotivo.length]}"></div>`).join('')}
+            ${motivos.map(([,m],i)=>`<div style="width:${esc(totalMaq>0?(m/totalMaq*100):0)}%;background:${esc(paletaMotivo[i%paletaMotivo.length])}"></div>`).join('')}
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${motivos.map(([motivo,m],i)=>`<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:${paletaMotivo[i%paletaMotivo.length]}20;color:${paletaMotivo[i%paletaMotivo.length]};font-weight:600">${motivo}: ${fmtMin(m)}</span>`).join('')}
+            ${motivos.map(([motivo,m],i)=>`<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:${esc(paletaMotivo[i%paletaMotivo.length])}20;color:${esc(paletaMotivo[i%paletaMotivo.length])};font-weight:600">${esc(motivo)}: ${esc(fmtMin(m))}</span>`).join('')}
           </div>
         </div>`;
       }).join('')}
@@ -681,8 +681,8 @@ function desenharSetor(setor, ini, fim) {
   }
 
   html+=`<div class="graficos-2col">
-    <div class="grafico-card" style="flex:2;min-width:300px"><div class="grafico-titulo">🔩 Top 10 Jobs</div><div style="height:320px"><canvas id="chart${sx}Jobs"></canvas></div></div>
-    <div class="grafico-card" style="flex:1;min-width:240px"><div class="grafico-titulo">🗂️ Tipos</div><div style="height:320px"><canvas id="chart${sx}Tipos"></canvas></div></div>
+    <div class="grafico-card" style="flex:2;min-width:300px"><div class="grafico-titulo">🔩 Top 10 Jobs</div><div style="height:320px"><canvas id="chart${esc(sx)}Jobs"></canvas></div></div>
+    <div class="grafico-card" style="flex:1;min-width:240px"><div class="grafico-titulo">🗂️ Tipos</div><div style="height:320px"><canvas id="chart${esc(sx)}Tipos"></canvas></div></div>
   </div>`;
 
   div.innerHTML=html;
@@ -736,9 +736,9 @@ function desenharProjeto(ini,fim){
   </div><div class="card"><div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:20px">👤 Lançamentos por Funcionário</div>`;
   funcEnt.forEach(([nome,qtd])=>{
     const pct=totalLanc>0?Math.round(qtd/totalLanc*100):0;
-    html+=`<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${nome}</div>
-      <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:#64748b">${qtd} lançamentos</span><span class="barra-valor" style="color:#8b5cf6">${pct}%</span></div>
-    </div><div class="barra-track"><div class="barra-fill" style="width:${Math.min(pct,100)}%;background:#8b5cf6"></div></div></div>`;
+    html+=`<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${esc(nome)}</div>
+      <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:#64748b">${esc(qtd)} lançamentos</span><span class="barra-valor" style="color:#8b5cf6">${esc(pct)}%</span></div>
+    </div><div class="barra-track"><div class="barra-fill" style="width:${esc(Math.min(pct,100))}%;background:#8b5cf6"></div></div></div>`;
   });
   html+=`</div><div class="graficos-2col">
     <div class="grafico-card" style="flex:2;min-width:300px"><div class="grafico-titulo">🔩 Top 10 Jobs</div><div style="height:320px"><canvas id="chartPJobs"></canvas></div></div>
@@ -763,7 +763,7 @@ function desenharProducao(ini,fim){
     if(!prod||!prod.length){div.innerHTML='<div class="empty-state"><div style="font-size:48px">🏭</div><div>Nenhum lançamento de Produção no período.</div></div>';return;}
 
     const total=prod.length;
-    const hoje=new Date().toISOString().split('T')[0];
+    const hoje=hojeLocal();
     const totalHoje=prod.filter(p=>p.data===hoje).length;
     const minsTotal=prod.reduce((a,p)=>a+(p.minutos||0),0);
     const minsMedio=total>0?Math.round(minsTotal/total):0;
@@ -821,7 +821,7 @@ function desenharProducao(ini,fim){
       <div class="grafico-card" style="flex:1;min-width:240px">
         <div class="grafico-titulo">🔧 MTTR — Tempo Médio de Reparo (Corretivas)</div>
         <div style="text-align:center;padding:30px 0">
-          <div style="font-size:48px;font-weight:800;color:${mttr>0?'#ef4444':'#94a3b8'}">${mttr}<span style="font-size:20px;font-weight:600;color:#64748b"> min</span></div>
+          <div style="font-size:48px;font-weight:800;color:${mttr>0?'#ef4444':'#94a3b8'}">${esc(mttr)}<span style="font-size:20px;font-weight:600;color:#64748b"> min</span></div>
           <div style="font-size:13px;color:#64748b;margin-top:8px">Baseado em ${corretivas.length} manutenções corretivas</div>
         </div>
       </div>
@@ -838,12 +838,12 @@ function desenharProducao(ini,fim){
       const pct=Math.round(info.count/maxTec*100);
       const medalha=['🥇','🥈','🥉','4️⃣','5️⃣'][i]||'';
       const cor=coresTecnicos[i]||'#64748b';
-      html+=`<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${medalha} ${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(nome):nome}</div>
+      html+=`<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${esc(medalha)} ${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(nome):esc(nome)}</div>
         <div style="display:flex;gap:12px;align-items:center">
-          <span style="font-size:12px;color:#64748b">${info.count} manutenções · ${fmtMin(info.mins)}</span>
-          <span class="barra-valor" style="color:${cor}">#${i+1}</span>
+          <span style="font-size:12px;color:#64748b">${esc(info.count)} manutenções · ${esc(fmtMin(info.mins))}</span>
+          <span class="barra-valor" style="color:${esc(cor)}">#${esc(i+1)}</span>
         </div></div>
-        <div class="barra-track"><div class="barra-fill" style="width:${pct}%;background:${cor}"></div></div>
+        <div class="barra-track"><div class="barra-fill" style="width:${esc(pct)}%;background:${esc(cor)}"></div></div>
       </div>`;
     });
     html+=`</div>`;
@@ -890,16 +890,16 @@ function _renderBarrasPessoas(opEntries) {
       : op.pct>=70
       ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">📈 OK</span>`
       : `<span style="background:#fee2e2;color:#b91c1c;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">⚠️ Baixo</span>`;
-    const badgeTurno = `<span style="background:#f1f5f9;color:#475569;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px">⏰ ${turno}</span>`;
+    const badgeTurno = `<span style="background:#f1f5f9;color:#475569;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px">⏰ ${esc(turno)}</span>`;
     return `<div class="barra-wrap">
       <div class="barra-header">
-        <div class="barra-nome">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(op.nome):op.nome} ${badge} ${badgeTurno}</div>
+        <div class="barra-nome">${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(op.nome):esc(op.nome)} ${badge} ${badgeTurno}</div>
         <div style="display:flex;gap:12px;align-items:center">
-          <span style="font-size:12px;color:#64748b">${fmtMin(op.mins)} / ${fmtMin(op.meta)}</span>
-          <span class="barra-valor" style="color:${c}">${op.pct}%</span>
+          <span style="font-size:12px;color:#64748b">${esc(fmtMin(op.mins))} / ${esc(fmtMin(op.meta))}</span>
+          <span class="barra-valor" style="color:${esc(c)}">${esc(op.pct)}%</span>
         </div>
       </div>
-      <div class="barra-track"><div class="barra-fill" style="width:${Math.min(op.pct,100)}%;background:${c}"></div></div>
+      <div class="barra-track"><div class="barra-fill" style="width:${esc(Math.min(op.pct,100))}%;background:${esc(c)}"></div></div>
     </div>`;
   }).join('');
 }
@@ -915,9 +915,9 @@ function _renderBarrasMaquinas(porMaq) {
     const capMaq = _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados);
     const pct = capMaq>0?Math.round(mins/capMaq*100):0;
     const c = pct>=80?'#10b981':pct>=50?cor:'#f59e0b';
-    return `<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${maq}</div>
-      <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:#64748b">${fmtMin(mins)}</span><span class="barra-valor" style="color:${c}">${pct}%</span></div>
-    </div><div class="barra-track"><div class="barra-fill" style="width:${Math.min(pct,100)}%;background:${c}"></div></div></div>`;
+    return `<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${esc(maq)}</div>
+      <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:#64748b">${esc(fmtMin(mins))}</span><span class="barra-valor" style="color:${esc(c)}">${esc(pct)}%</span></div>
+    </div><div class="barra-track"><div class="barra-fill" style="width:${esc(Math.min(pct,100))}%;background:${esc(c)}"></div></div></div>`;
   }).join('');
 }
 
@@ -952,7 +952,7 @@ function _badgeOcupacaoHTML(pct) {
   const c  = pct>=90?'#059669':pct>=70?'#92400e':'#b91c1c';
   const bg = pct>=90?'#d1fae5':pct>=70?'#fef3c7':'#fee2e2';
   const t  = pct>=90?'✅ Meta':pct>=70?'⚠️ OK':'🔴 Baixo';
-  return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${bg};color:${c}">${t}</span>`;
+  return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${esc(bg)};color:${esc(c)}">${esc(t)}</span>`;
 }
 
 function _corPct(pct) { return pct>=90?'#10b981':pct>=70?'#f59e0b':'#ef4444'; }
@@ -1035,7 +1035,7 @@ function aplicarFiltroDashMaquinas() {
 
   _setTexto('valOcupacaoMaquinas', numSel>0 ? pctMaqF+'%' : '—');
   const badgeMaqEl = document.getElementById('badgeOcupacaoMaquinas');
-  if (badgeMaqEl) badgeMaqEl.innerHTML = `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${numSel} máquina(s)</span>`;
+  if (badgeMaqEl) badgeMaqEl.innerHTML = `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${esc(numSel)} máquina(s)</span>`;
 }
 
 // Capacidade vigente de uma máquina numa data específica (histórico com vigência,
@@ -1052,7 +1052,7 @@ function _capacidadeMaquinaNaData(historico, maquina, dataStr) {
 function _capTotalPorMaquina(historico, maquina, ini, fim, feriados) {
   let total = 0;
   for (let d = new Date(ini+'T12:00:00'); d <= new Date(fim+'T12:00:00'); d.setDate(d.getDate()+1)) {
-    const ds = d.toISOString().split('T')[0];
+    const ds = dataLocal(d);
     if (d.getDay()===0 || d.getDay()===6 || (feriados||[]).includes(ds)) continue;
     total += _capacidadeMaquinaNaData(historico, maquina, ds);
   }
@@ -1060,12 +1060,12 @@ function _capTotalPorMaquina(historico, maquina, ini, fim, feriados) {
 }
 
 function metricCard(ico,titulo,valor,sub,cor,extra){
-  return `<div class="metric-card" style="border-left-color:${cor}">
+  return `<div class="metric-card" style="border-left-color:${esc(cor)}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <div class="metric-icon">${ico}</div>${extra?`<div>${extra}</div>`:''}
+      <div class="metric-icon">${esc(ico)}</div>${extra?`<div>${extra}</div>`:''}
     </div>
-    <div class="metric-valor" style="color:${cor}">${valor}</div>
-    <div class="metric-label">${titulo}</div>
+    <div class="metric-valor" style="color:${esc(cor)}">${valor}</div>
+    <div class="metric-label">${esc(titulo)}</div>
     <div class="metric-sub">${sub}</div>
   </div>`;
 }
