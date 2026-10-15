@@ -58,6 +58,10 @@
     @keyframes spin { to { transform:rotate(360deg); } }
     .footer { text-align:center; margin-top:24px; font-size:11px; color:#94a3b8; }
   </style>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f1e3c">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
   <div class="card">
@@ -119,5 +123,6 @@
       btn.disabled = false; txt.innerText = 'Entrar';
     }
   </script>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>
