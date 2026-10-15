@@ -337,9 +337,9 @@ function desenharGeral(ini, fim) {
   const _funcDoMeuSetor = nome => !_setorSup || _doMeuSetor((_dadosDash.funcionarios||[]).find(f => f.nome === nome)?.setor);
   const atMaquinasSemAp = _doMeuSetor('Usinagem') ? maquinasSemApontamento : [];
   const atFuncsNegativos = funcsNegativos.filter(([n]) => _funcDoMeuSetor(n));
-  const atMoldesParados = _setorSup ? [] : moldesParados;
+  const atMoldesParados = (!_setorSup || _doMeuSetor('Bancada')) ? moldesParados : [];
   const atRamsAtrasadas = !_setorSup ? ramsAtrasadas : ramsAtrasadas.filter(r => ramSetoresTodas.some(s => s.ram_id === r.id && !s.concluido && _doMeuSetor(s.setor)));
-  const atCopos = _doMeuSetor('Usinagem') ? coposAbaixoMinimo : [];
+  const atCopos = (_doMeuSetor('Usinagem') || _doMeuSetor('Bancada')) ? coposAbaixoMinimo : [];
 
   // Horas extras / atrasos calculados automaticamente e ainda não validados (só para quem valida)
   const pendentesBH = (typeof _podeValidarBH === 'function' && _podeValidarBH())
