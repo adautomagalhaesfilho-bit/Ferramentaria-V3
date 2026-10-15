@@ -55,6 +55,16 @@ async function calcularSaldoBancoHoras(nome) {
   } catch(e) { avisarErro('calcular o saldo do banco de horas', e); return 0; }
 }
 
+// Atalho do painel inicial: abre RH > Banco de Horas (onde ficam os pendentes)
+function irParaPendentesBH() {
+  const menu = document.getElementById('menuFeriados');
+  irPara('feriados', menu);
+  setTimeout(() => {
+    const btn = [...document.querySelectorAll('.tab-rh')].find(b => (b.getAttribute('onclick')||'').includes('bancoHoras'));
+    mudarTabRH('bancoHoras', btn);
+  }, 250);
+}
+
 function _podeValidarBH() { return ['admin','gestor','supervisor'].includes(_sessao?.perfil); }
 
 // Aceita "12:30", "-12:30", "+3", "-12,5", "2.25" -> minutos (com sinal) ou null
