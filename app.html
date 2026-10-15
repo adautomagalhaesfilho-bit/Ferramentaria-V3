@@ -8,6 +8,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <link rel="stylesheet" href="css/estilos.css?v=4">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f1e3c">
+  <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
 
@@ -859,5 +863,6 @@
 <script src="js/ficha-funcionario.js?v=20261009"></script>
 <script src="js/app.js?v=20261009"></script>
 <script src="js/auditoria.js?v=20261009"></script>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>
