@@ -329,11 +329,15 @@ function desenharGeral(ini, fim) {
   </div>`;
 
   // Painel "Precisa de Atenção" — só aparece se houver algo relevante
-  const temAtencao = maquinasSemApontamento.length || funcsNegativos.length || moldesParados.length || ramsAtrasadas.length || coposAbaixoMinimo.length;
+  // Horas extras / atrasos calculados automaticamente e ainda não validados (só para quem valida)
+  const pendentesBH = (typeof _podeValidarBH === 'function' && _podeValidarBH())
+    ? bancoHoras.filter(b => (b.status||'Validado') === 'Pendente') : [];
+  const temAtencao = pendentesBH.length || maquinasSemApontamento.length || funcsNegativos.length || moldesParados.length || ramsAtrasadas.length || coposAbaixoMinimo.length;
   if (temAtencao) {
     html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:16px">
       <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:10px">⚠️ Precisa de Atenção</div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#92400e">
+        ${pendentesBH.length ? `<div>• <span style="cursor:pointer;text-decoration:underline" onclick="irParaPendentesBH()"><b>${pendentesBH.length} lançamento${pendentesBH.length>1?'s':''} do banco de horas aguardando sua validação</b></span> (${[...new Set(pendentesBH.map(b=>b.funcionario))].length} pessoa${[...new Set(pendentesBH.map(b=>b.funcionario))].length>1?'s':''}) — clique para validar</div>` : ''}
         ${maquinasSemApontamento.length ? `<div>• ${maquinasSemApontamento.length} máquina${maquinasSemApontamento.length>1?'s':''} Principal${maquinasSemApontamento.length>1?'is':''} sem apontamento no período: <b>${maquinasSemApontamento.join(', ')}</b></div>` : ''}
         ${funcsNegativos.length ? `<div>• ${funcsNegativos.length} funcionário${funcsNegativos.length>1?'s':''} com banco de horas negativo (10h+): <b>${funcsNegativos.map(([n,m])=>n+' ('+fmtMin(Math.abs(m))+')').join(', ')}</b></div>` : ''}
         ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(m.job)}')">${esc(m.job)}</span> (${esc(m.dias)}d)`).join(', ')}</b></div>` : ''}
