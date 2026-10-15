@@ -329,20 +329,32 @@ function desenharGeral(ini, fim) {
   </div>`;
 
   // Painel "Precisa de Atenção" — só aparece se houver algo relevante
+  // 🎯 Escopo do painel "Precisa de Atenção": admin, gestor e PCM veem tudo;
+  // supervisor vê só o que é do seu setor (se não tiver setor definido, vê tudo).
+  const _semAc = t => String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const _setorSup = (_sessao?.perfil === 'supervisor' && _sessao.setor && _semAc(_sessao.setor) !== 'supervisao') ? _semAc(_sessao.setor) : null;
+  const _doMeuSetor = nomeSetor => !_setorSup || _semAc(nomeSetor) === _setorSup;
+  const _funcDoMeuSetor = nome => !_setorSup || _doMeuSetor((_dadosDash.funcionarios||[]).find(f => f.nome === nome)?.setor);
+  const atMaquinasSemAp = _doMeuSetor('Usinagem') ? maquinasSemApontamento : [];
+  const atFuncsNegativos = funcsNegativos.filter(([n]) => _funcDoMeuSetor(n));
+  const atMoldesParados = _setorSup ? [] : moldesParados;
+  const atRamsAtrasadas = !_setorSup ? ramsAtrasadas : ramsAtrasadas.filter(r => ramSetoresTodas.some(s => s.ram_id === r.id && !s.concluido && _doMeuSetor(s.setor)));
+  const atCopos = _doMeuSetor('Usinagem') ? coposAbaixoMinimo : [];
+
   // Horas extras / atrasos calculados automaticamente e ainda não validados (só para quem valida)
   const pendentesBH = (typeof _podeValidarBH === 'function' && _podeValidarBH())
-    ? bancoHoras.filter(b => (b.status||'Validado') === 'Pendente') : [];
-  const temAtencao = pendentesBH.length || maquinasSemApontamento.length || funcsNegativos.length || moldesParados.length || ramsAtrasadas.length || coposAbaixoMinimo.length;
+    ? bancoHoras.filter(b => (b.status||'Validado') === 'Pendente' && _funcDoMeuSetor(b.funcionario)) : [];
+  const temAtencao = pendentesBH.length || atMaquinasSemAp.length || atFuncsNegativos.length || atMoldesParados.length || atRamsAtrasadas.length || atCopos.length;
   if (temAtencao) {
     html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:16px">
       <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:10px">⚠️ Precisa de Atenção</div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#92400e">
         ${pendentesBH.length ? `<div>• <span style="cursor:pointer;text-decoration:underline" onclick="irParaPendentesBH()"><b>${pendentesBH.length} lançamento${pendentesBH.length>1?'s':''} do banco de horas aguardando sua validação</b></span> (${[...new Set(pendentesBH.map(b=>b.funcionario))].length} pessoa${[...new Set(pendentesBH.map(b=>b.funcionario))].length>1?'s':''}) — clique para validar</div>` : ''}
-        ${maquinasSemApontamento.length ? `<div>• ${maquinasSemApontamento.length} máquina${maquinasSemApontamento.length>1?'s':''} Principal${maquinasSemApontamento.length>1?'is':''} sem apontamento no período: <b>${maquinasSemApontamento.join(', ')}</b></div>` : ''}
-        ${funcsNegativos.length ? `<div>• ${funcsNegativos.length} funcionário${funcsNegativos.length>1?'s':''} com banco de horas negativo (10h+): <b>${funcsNegativos.map(([n,m])=>n+' ('+fmtMin(Math.abs(m))+')').join(', ')}</b></div>` : ''}
-        ${moldesParados.length ? `<div>• ${moldesParados.length} molde${moldesParados.length>1?'s':''} parado${moldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${moldesParados.map(m=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(m.job)}')">${esc(m.job)}</span> (${esc(m.dias)}d)`).join(', ')}</b></div>` : ''}
-        ${ramsAtrasadas.length ? `<div>• ${ramsAtrasadas.length} RAM${ramsAtrasadas.length>1?'s':''} com prazo vencido: <b>${ramsAtrasadas.map(r=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(r.job)}')">RAM ${esc(r.numero)}</span>`).join(', ')}</b></div>` : ''}
-        ${coposAbaixoMinimo.length ? `<div>• ${coposAbaixoMinimo.length} copo${coposAbaixoMinimo.length>1?'s':''} abaixo do estoque mínimo: <b>${coposAbaixoMinimo.map(c=>`<span style="cursor:pointer;text-decoration:underline" onclick="irPara('copos', document.getElementById('menuCopos'))">${esc(c.codigo)}</span>`).join(', ')}</b></div>` : ''}
+        ${atMaquinasSemAp.length ? `<div>• ${atMaquinasSemAp.length} máquina${atMaquinasSemAp.length>1?'s':''} Principal${atMaquinasSemAp.length>1?'is':''} sem apontamento no período: <b>${atMaquinasSemAp.join(', ')}</b></div>` : ''}
+        ${atFuncsNegativos.length ? `<div>• ${atFuncsNegativos.length} funcionário${atFuncsNegativos.length>1?'s':''} com banco de horas negativo (10h+): <b>${atFuncsNegativos.map(([n,m])=>n+' ('+fmtMin(Math.abs(m))+')').join(', ')}</b></div>` : ''}
+        ${atMoldesParados.length ? `<div>• ${atMoldesParados.length} molde${atMoldesParados.length>1?'s':''} parado${atMoldesParados.length>1?'s':''} na Ferramentaria há 5+ dias: <b>${atMoldesParados.map(m=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(m.job)}')">${esc(m.job)}</span> (${esc(m.dias)}d)`).join(', ')}</b></div>` : ''}
+        ${atRamsAtrasadas.length ? `<div>• ${atRamsAtrasadas.length} RAM${atRamsAtrasadas.length>1?'s':''} com prazo vencido: <b>${atRamsAtrasadas.map(r=>`<span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(r.job)}')">RAM ${esc(r.numero)}</span>`).join(', ')}</b></div>` : ''}
+        ${atCopos.length ? `<div>• ${atCopos.length} copo${atCopos.length>1?'s':''} abaixo do estoque mínimo: <b>${atCopos.map(c=>`<span style="cursor:pointer;text-decoration:underline" onclick="irPara('copos', document.getElementById('menuCopos'))">${esc(c.codigo)}</span>`).join(', ')}</b></div>` : ''}
       </div>
     </div>`;
   }
