@@ -61,7 +61,7 @@ async function inicializarPainelRAM() {
   el.innerHTML = `
     <div class="page-header">
       <h1>📋 RAM — Registros de Alteração/Modificação</h1>
-      <button class="btn-primary" onclick="abrirModalNovaRAM()">+ Nova RAM</button>
+      <div style="display:flex;gap:8px"><button class="btn-success" onclick="exportarRAMExcel()">📊 Excel</button><button class="btn-primary" onclick="abrirModalNovaRAM()">+ Nova RAM</button></div>
     </div>
     <div class="filtros-bar">
       <div class="filtro-item"><label>BUSCAR</label><input type="text" id="ramFiltroTexto" placeholder="Número, molde ou descrição..." oninput="filtrarPainelRAM()"></div>
@@ -104,7 +104,37 @@ function filtrarPainelRAM() {
     if (status === 'concluidas' &&  estaAberta) return false;
     return true;
   });
+  _ramFiltradasExport = filtradas;
   renderizarPainelRAM(filtradas);
+}
+
+var _ramFiltradasExport = [];
+function exportarRAMExcel() {
+  if (typeof XLSX === 'undefined') return toast('Biblioteca do Excel não carregou. Atualize a página (Ctrl+Shift+R).','erro');
+  const rams = _ramFiltradasExport || [];
+  if (!rams.length) return toast('Nenhuma RAM na lista para exportar.','erro');
+  const br = d => d ? String(d).substring(0,10).split('-').reverse().join('/') : '';
+  const hoje = hojeLocal();
+  const cab = ['Nº RAM','Molde (Job)','Descrição','Prazo final','Situação','Setores pendentes','Setores concluídos','Criada em','Criada por'];
+  const linhas = rams.map(r => {
+    const abertos = r.setores.filter(s => !s.concluido).map(s => s.setor);
+    const feitos = r.setores.filter(s => s.concluido).map(s => s.setor);
+    const situacao = !abertos.length ? 'Concluída' : (r.prazo_final && r.prazo_final < hoje ? 'Atrasada' : 'Aberta');
+    return [r.numero, r.job, r.descricao||'', br(r.prazo_final), situacao, abertos.join(' / '), feitos.join(' / '), br(r.criado_em), r.criado_por||''];
+  });
+  const det = [];
+  rams.forEach(r => r.setores.forEach(s => det.push([r.numero, r.job, s.setor, s.concluido ? 'Sim' : 'Não', br(s.data_conclusao), s.concluido_por||'', s.descricao_conclusao||''])));
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([cab, ...linhas]);
+  ws1['!cols'] = [{wch:12},{wch:18},{wch:60},{wch:12},{wch:12},{wch:28},{wch:28},{wch:12},{wch:20}];
+  ws1['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:linhas.length,c:cab.length-1} }) };
+  const cabD = ['Nº RAM','Molde (Job)','Setor','Concluído','Data conclusão','Concluído por','Descrição da conclusão'];
+  const ws2 = XLSX.utils.aoa_to_sheet([cabD, ...det]);
+  ws2['!cols'] = [{wch:12},{wch:18},{wch:12},{wch:10},{wch:14},{wch:22},{wch:60}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'RAMs');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Por setor');
+  XLSX.writeFile(wb, `RAM_${hoje}.xlsx`);
+  toast('Excel exportado!','sucesso');
 }
 
 function renderizarPainelRAM(rams) {

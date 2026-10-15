@@ -136,6 +136,63 @@ function _minutosForaDoTurno(blocosMesclados, entradaMin, saidaMin) {
   return fora;
 }
 
+// Ciclo padrão do relatório: do dia 16 ao dia 15 mais recente já ocorrido
+function _cicloBH() {
+  const h = new Date(); h.setHours(12,0,0,0);
+  const fim = new Date(h.getFullYear(), h.getMonth(), 15, 12);
+  if (h.getDate() < 15) fim.setMonth(fim.getMonth() - 1);
+  const ini = new Date(fim.getFullYear(), fim.getMonth() - 1, 16, 12);
+  return { ini: dataLocal(ini), fim: dataLocal(fim) };
+}
+
+function exportarRelatorioMensalBH() {
+  if (typeof XLSX === 'undefined') return toast('Biblioteca do Excel não carregou. Atualize a página (Ctrl+Shift+R).','erro');
+  const ini = document.getElementById('bhRelIni')?.value, fim = document.getElementById('bhRelFim')?.value;
+  if (!ini || !fim || ini > fim) return toast('Informe um período válido.','erro');
+  const br = d => d ? String(d).split('-').reverse().join('/') : '';
+  const hm = m => { m = Math.round(m||0); const a = Math.abs(m); return (m<0?'-':'') + Math.floor(a/60) + ':' + String(a%60).padStart(2,'0'); };
+
+  const porFunc = {};
+  (_todosBancoHoras||[]).forEach(r => { if (r.funcionario) (porFunc[r.funcionario] = porFunc[r.funcionario] || []).push(r); });
+  const linhas = [];
+  Object.keys(porFunc).sort().forEach(nome => {
+    const regs = porFunc[nome];
+    const inicial = calcularSaldoBH(regs.filter(r => r.data < ini)).saldo;
+    const finalR  = calcularSaldoBH(regs.filter(r => r.data <= fim));
+    const noPeriodo = regs.filter(r => r.data >= ini && r.data <= fim);
+    let cred = 0, deb = 0, pend = 0, qPend = 0;
+    noPeriodo.forEach(r => {
+      if (r.origem === _ORIGEM_ACERTO_BH) return;
+      const st = _statusBH(r);
+      if (st === 'Validado') { if (r.tipo === 'Credito') cred += r.minutos||0; else deb += r.minutos||0; }
+      else if (st === 'Pendente') { pend += _sinalBH(r); qPend++; }
+    });
+    if (!noPeriodo.length && !inicial && !finalR.saldo) return;
+    const ajuste = finalR.saldo - (inicial + cred - deb);
+    linhas.push([nome, hm(inicial), hm(cred), hm(-deb), hm(ajuste), hm(finalR.saldo), qPend ? hm(pend) + ' (' + qPend + ')' : '—', inicial, cred, -deb, ajuste, finalR.saldo, pend]);
+  });
+  if (!linhas.length) return toast('Nenhum dado de banco de horas no período.','erro');
+
+  const cab = ['Técnico','Saldo inicial','Créditos validados','Débitos validados','Ajuste (acerto de saldo)','Saldo final','Aguardando validação (qtd)','Saldo inicial (min)','Créditos (min)','Débitos (min)','Ajuste (min)','Saldo final (min)','Pendente (min)'];
+  const tot = i => linhas.reduce((a,r) => a + (r[i]||0), 0);
+  const totais = ['TOTAL', hm(tot(7)), hm(tot(8)), hm(tot(9)), hm(tot(10)), hm(tot(11)), hm(tot(12)), tot(7), tot(8), tot(9), tot(10), tot(11), tot(12)];
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([['Relatório de Banco de Horas'], ['Período', br(ini) + ' a ' + br(fim)], ['Saldo final = saldo oficial (acerto) + movimentos validados. Pendentes não entram.'], [], cab, ...linhas, totais]);
+  ws1['!cols'] = cab.map((c,i) => ({ wch: i === 0 ? 40 : 16 }));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumo');
+
+  const ext = (_todosBancoHoras||[]).filter(r => r.data >= ini && r.data <= fim)
+    .sort((a,b) => a.funcionario.localeCompare(b.funcionario) || a.data.localeCompare(b.data) || (a.id-b.id))
+    .map(r => [br(r.data), r.funcionario, r.tipo === 'Credito' ? 'Crédito' : 'Débito', r.origem||'', hm(_sinalBH(r)), _sinalBH(r), _statusBH(r), r.validado_por||'', r.descricao||'']);
+  const cabE = ['Data','Técnico','Tipo','Origem','Horas','Minutos','Situação','Validado por','Descrição'];
+  const ws2 = XLSX.utils.aoa_to_sheet([cabE, ...ext]);
+  ws2['!cols'] = [{wch:11},{wch:38},{wch:9},{wch:22},{wch:9},{wch:9},{wch:11},{wch:22},{wch:70}];
+  ws2['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:Math.max(ext.length,1),c:cabE.length-1} }) };
+  XLSX.utils.book_append_sheet(wb, ws2, 'Extrato do período');
+  XLSX.writeFile(wb, `BancoHoras_${ini}_a_${fim}.xlsx`);
+  toast('Relatório exportado!','sucesso');
+}
+
 async function sincronizarHorasExtras() {
   const ini = document.getElementById('bhSincIni')?.value;
   const fim = document.getElementById('bhSincFim')?.value;
@@ -339,6 +396,16 @@ async function inicializarBancoHoras() {
       <div class="form-group" style="margin-bottom:0"><label>Início</label><input type="date" id="bhSincIni" value="${esc(primeiroDia)}"></div>
       <div class="form-group" style="margin-bottom:0"><label>Fim</label><input type="date" id="bhSincFim" value="${esc(hojeStr)}"></div>
       <button class="btn-primary" id="btnSincHE" onclick="sincronizarHorasExtras()">🔄 Sincronizar Horas Extras</button>
+    </div>
+  </div>
+
+  <div class="card" style="background:#f0fdf4;border-color:#bbf7d0">
+    <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:6px">📊 Relatório mensal (Excel)</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:12px">Saldo inicial, créditos, débitos, pendentes e saldo final de cada pessoa no período, mais o extrato completo. Padrão: ciclo do dia 16 ao dia 15.</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="margin-bottom:0"><label>Início</label><input type="date" id="bhRelIni" value="${esc(_cicloBH().ini)}"></div>
+      <div class="form-group" style="margin-bottom:0"><label>Fim</label><input type="date" id="bhRelFim" value="${esc(_cicloBH().fim)}"></div>
+      <button class="btn-success" onclick="exportarRelatorioMensalBH()">📊 Gerar Excel</button>
     </div>
   </div>
 

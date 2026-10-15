@@ -48,7 +48,8 @@ async function inicializarProgramacaoFerias() {
       <button class="btn-secondary" style="padding:6px 12px" onclick="mudarAnoFerias(-1)">◀</button>
       <div style="font-size:18px;font-weight:700;color:#1e3a5f;min-width:60px;text-align:center" id="labelAnoFerias">${esc(_anoAtualFerias)}</div>
       <button class="btn-secondary" style="padding:6px 12px" onclick="mudarAnoFerias(1)">▶</button>
-      <button class="btn-primary" style="margin-left:12px" onclick="abrirNovaFeriasRapida()">+ Nova Férias</button>
+      <button class="btn-success" style="margin-left:12px" onclick="exportarFeriasExcel()">📊 Excel</button>
+      <button class="btn-primary" onclick="abrirNovaFeriasRapida()">+ Nova Férias</button>
     </div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="setorFeriasTabs">
@@ -627,6 +628,37 @@ function _periodoAquisitivoAtual(admissaoStr, refDateStr) {
     guard++;
   }
   return { inicio: admissaoStr, fim: admissaoStr };
+}
+
+async function exportarFeriasExcel() {
+  if (typeof XLSX === 'undefined') return toast('Biblioteca do Excel não carregou. Atualize a página (Ctrl+Shift+R).','erro');
+  const br = d => d ? String(d).split('-').reverse().join('/') : '';
+  const setorMapeado = _setorAtivoFerias === 'Produção' ? ['Producao','Produção'] : [_setorAtivoFerias];
+  const funcs = (_setorAtivoFerias === 'Todos' ? _funcionariosFerias : _funcionariosFerias.filter(f => setorMapeado.includes(f.setor)));
+  const nomes = new Set(funcs.map(f => f.nome));
+  const regs = (_registrosFerias||[]).filter(r => nomes.has(r.funcionario)).sort((a,b) => a.inicio.localeCompare(b.inicio));
+  if (!regs.length && !funcs.length) return toast('Nada para exportar.','erro');
+  const porNome = {}; _funcionariosFerias.forEach(f => { porNome[f.nome] = f; });
+  const dias = r => Math.round((new Date(r.fim+'T12:00:00')-new Date(r.inicio+'T12:00:00'))/86400000) + 1;
+  const linhas = regs.map(r => [r.funcionario, porNome[r.funcionario]?.setor||'', porNome[r.funcionario]?.turno||'', r.motivo||'', br(r.inicio), br(r.fim), dias(r)]);
+  const hoje = hojeLocal();
+  const saldos = [];
+  for (const f of funcs) {
+    if (!f.admissao) continue;
+    const s = await calcularSaldoFerias(f.nome, f.admissao);
+    const ate = Math.round((new Date(s.periodoFim+'T12:00:00') - new Date(hoje+'T12:00:00')) / 86400000);
+    saldos.push([f.nome, f.setor||'', br(f.admissao), br(s.periodoInicio), br(s.periodoFim), s.usados, s.saldo, s.saldo > 0 ? (ate < 0 ? Math.abs(ate) + ' dias atrasado' : ate + ' dias') : '—']);
+  }
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([['Funcionário','Setor','Turno','Motivo','Início','Fim','Dias'], ...linhas]);
+  ws1['!cols'] = [{wch:40},{wch:12},{wch:10},{wch:16},{wch:12},{wch:12},{wch:7}];
+  ws1['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:Math.max(linhas.length,1),c:6} }) };
+  const ws2 = XLSX.utils.aoa_to_sheet([['Funcionário','Setor','Admissão','Período aquisitivo (início)','Período aquisitivo (fim)','Dias usados','Saldo (dias)','Prazo para programar'], ...saldos]);
+  ws2['!cols'] = [{wch:40},{wch:12},{wch:12},{wch:24},{wch:24},{wch:12},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Programação ' + _anoAtualFerias);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Saldo e prazo');
+  XLSX.writeFile(wb, `Ferias_${_anoAtualFerias}_${_setorAtivoFerias}.xlsx`);
+  toast('Excel exportado!','sucesso');
 }
 
 async function calcularSaldoFerias(funcionario, admissao, dataReferencia) {
