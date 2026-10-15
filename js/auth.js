@@ -86,12 +86,18 @@ function aplicarPermissoes() {
   const p = _sessao.perfil;
   const s = _sessao.setor || '';
 
-  // Avatar e nome
-  const avatares = {
-    operador:'👷', tecnico:'🔧', supervisor:'👨‍🔧',
-    pcm:'🗂️', gestor:'🏢', admin:'⚙️'
+  // Avatar: iniciais do nome num círculo colorido por perfil
+  const coresPerfil = {
+    operador:'#475569', tecnico:'#0e7490', supervisor:'#1d4ed8',
+    pcm:'#b45309', gestor:'#0f766e', admin:'#6d28d9'
   };
-  document.getElementById('userAvatar').innerText = avatares[p] || '👤';
+  const partesNome = String(_sessao.nome || '').split(/[\s._-]+/).filter(Boolean);
+  const iniciais = (partesNome.length > 1
+    ? partesNome[0][0] + partesNome[partesNome.length - 1][0]
+    : (partesNome[0] || '?').slice(0, 2)).toUpperCase();
+  const elAvatar = document.getElementById('userAvatar');
+  elAvatar.textContent = iniciais;
+  elAvatar.style.background = coresPerfil[p] || '#475569';
   document.getElementById('userNome').innerText   = _sessao.nome;
   document.getElementById('userPerfil').innerText =
     (p.charAt(0).toUpperCase() + p.slice(1)) + (s ? ' · ' + s : '');
