@@ -361,6 +361,7 @@ async function editarApontamento(idx) {
     setSelect('formCategoria', item.tipo);
   }
   document.getElementById('formJob').value  = item.job       || '';
+  window._jobOrigEdicao = item.job || null;
   document.getElementById('formDesc').value = item.descricao || '';
   if (item.job && typeof _atualizarSeletorRAM === 'function') {
     await _atualizarSeletorRAM(item.job);
@@ -634,6 +635,8 @@ function coletarDadosForm(setor) {
   const data      = document.getElementById('formData').value;
   const job       = document.getElementById('formJob').value;
   const descricao = document.getElementById('formDesc').value;
+  const _idEdicao = document.getElementById('formId')?.value;
+  if (job && !_jobCadastrado(job) && !(_idEdicao && job === window._jobOrigEdicao)) { toast('Esse molde não existe no cadastro. Escolha um da lista.','erro'); return null; }
   const status    = _statusForm || 'Em andamento';
   if (!data)      { toast('Informe a data.','erro');        return null; }
   if (!descricao) { toast('Preencha a descrição.','erro');  return null; }
