@@ -120,6 +120,7 @@ function renderizarDashAtivo(aba) {
   else if (aba==='projeto')  desenharProjeto(ini, fim);
   else if (aba==='producao') desenharProducao(ini, fim);
   else if (aba==='pcm')       desenharPCM(ini, fim);
+  else if (aba==='confiab')   desenharConfiabilidade(ini, fim);
 }
 
 // Gera o texto "▲ 8% vs período anterior" (ou ▼), colorindo verde/vermelho.
