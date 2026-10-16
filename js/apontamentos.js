@@ -112,9 +112,11 @@ function renderizarApontamentosPorMaquina() {
 
   const porMaquina = {};
   nomesMaquinas.forEach(m => porMaquina[m] = []);
+  const semMaquina = [];
   dados.forEach(item => {
     const maq = item.maquina || null;
-    if (!maq || !porMaquina[maq]) return; // "sem máquina" não entra nesta visão (é a exceção de organização/CAM)
+    // Sem máquina (ou máquina que não está mais na lista) vai pro bloco "Sem máquina" no fim da tabela
+    if (!maq || maq === 'Sem Máquina' || !porMaquina[maq]) { semMaquina.push(item); return; }
     porMaquina[maq].push(item);
   });
 
@@ -165,7 +167,16 @@ function renderizarApontamentosPorMaquina() {
     </td></tr>`;
   };
 
-  const linhas = ordenadas.map(maq => linhaCabecalhoMaquina(maq) + porMaquina[maq].map(linhaItem).join('')).join('');
+  let linhas = ordenadas.map(maq => linhaCabecalhoMaquina(maq) + porMaquina[maq].map(linhaItem).join('')).join('');
+
+  if (semMaquina.length) {
+    linhas += `<tr style="background:#eff6ff"><td colspan="7" style="padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div style="font-weight:700;color:#1e3a5f;font-size:13px">👷 Atividades sem máquina</div>
+        <div style="font-size:12px"><span style="color:#1d4ed8;font-weight:700">${semMaquina.length} lançamento${semMaquina.length>1?'s':''}</span></div>
+      </div>
+    </td></tr>` + semMaquina.map(linhaItem).join('');
+  }
 
   div.innerHTML = `<div class="card">
     <div class="table-wrap">
