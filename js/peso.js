@@ -16,6 +16,37 @@ function _statusPeso(peso, nominal) {
   return { desvioPct, ok: Math.abs(desvioPct) <= _PESO_TOLERANCIA_PCT };
 }
 
+
+// ==========================================
+// Número REAL das cavidades (lido do nome do molde)
+// Ex.: "… - CAV 3" → [3] · "CAVS 3 E 4" → [3,4] · "CAVS 1 A 4" → [1,2,3,4] · "cav 3 4 e 5" → [3,4,5]
+// ==========================================
+function parseCavidadesDoNome(nome, numCavidades) {
+  const n = parseInt(numCavidades) || 0;
+  const padrao = n ? Array.from({length:n}, (_,i)=>i+1) : [];
+  const m = String(nome||'').match(/\bCAVS?\b\.?\s*([^()]*)/i);
+  if (!m) return padrao;
+  const trecho = m[1];
+  const nums = (trecho.match(/\d+/g)||[]).map(Number);
+  if (!nums.length) return padrao;
+  let lista;
+  if (nums.length === 2 && /\b(A|ATE|ATÉ)\b|[-–]/i.test(trecho) && nums[1] > nums[0]) {
+    lista = []; for (let c = nums[0]; c <= nums[1]; c++) lista.push(c);
+  } else {
+    lista = [...new Set(nums)].sort((a,b)=>a-b);
+  }
+  if (n && lista.length !== n) return padrao;   // nome e cadastro não batem → mantém 1..N
+  return lista;
+}
+
+// Verificações antigas gravaram a posição (1..N). Converte pro número real quando necessário.
+function _pesosComNumeroReal(pesos, cavReais) {
+  const arr = (pesos||[]).map(p => ({...p})).sort((a,b)=>a.cavidade-b.cavidade);
+  const posicional = arr.length === cavReais.length && arr.every((p,i)=>p.cavidade === i+1);
+  if (posicional) arr.forEach((p,i)=>{ p.cavidade = cavReais[i]; });
+  return arr;
+}
+
 // ==========================================
 // Editar peso nominal — direto na Ficha
 // ==========================================
@@ -67,7 +98,7 @@ function abrirModalNovaVerificacaoPeso(job, numCavidades) {
   const div = document.createElement('div');
   div.id = 'modalVerifPesoWrap';
   let camposCavidades = '';
-  for (let c = 1; c <= numCavidades; c++) {
+  for (const c of parseCavidadesDoNome(job, numCavidades)) {
     camposCavidades += `<div class="form-group" style="margin-bottom:8px">
       <label style="font-size:12px">Cavidade ${c} (g)</label>
       <input type="number" step="0.01" class="peso-cavidade-input" data-cavidade="${c}" placeholder="0.00">
@@ -112,12 +143,51 @@ async function salvarNovaVerificacaoPeso(job, numCavidades) {
   } catch(e) { toast('Erro ao salvar verificação.', 'erro'); }
 }
 
+
+// ==========================================
+// Gráfico: peso nominal x peso medido por data de medição
+// ==========================================
+let _chartPeso = null;
+function _desenharGraficoPeso(canvasId, job, numCavidades, pesoNominal, verificacoes) {
+  const el = document.getElementById(canvasId);
+  if (!el || typeof Chart === 'undefined') return;
+  if (_chartPeso) { _chartPeso.destroy(); _chartPeso = null; }
+  const cavReais = parseCavidadesDoNome(job, numCavidades);
+  const vs = [...verificacoes].sort((a,b)=> (a.data+(a.criado_em||'')).localeCompare(b.data+(b.criado_em||'')));
+  const labels = vs.map(v => new Date(v.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}));
+  const cores = ['#0056b3','#f59e0b','#059669','#8b5cf6','#ec4899','#0891b2','#84cc16','#f97316'];
+  const convertidas = vs.map(v => _pesosComNumeroReal(v.pesos, cavReais));
+  const todas = [...new Set(convertidas.flat().map(p=>p.cavidade))].sort((a,b)=>a-b);
+  const datasets = todas.map((c,i) => ({
+    label: 'Cavidade '+c,
+    data: convertidas.map(arr => arr.find(p=>p.cavidade===c)?.peso ?? null),
+    borderColor: cores[i%cores.length], backgroundColor: cores[i%cores.length],
+    tension: .25, pointRadius: 4, spanGaps: true
+  }));
+  if (pesoNominal) {
+    datasets.push({ label:'Peso nominal', data: vs.map(()=>pesoNominal), borderColor:'#1e3a5f', borderDash:[6,4], borderWidth:2, pointRadius:0 });
+    const tol = _PESO_TOLERANCIA_PCT/100;
+    datasets.push({ label:'Limite sup. (+'+_PESO_TOLERANCIA_PCT+'%)', data: vs.map(()=>pesoNominal*(1+tol)), borderColor:'#ef4444', borderDash:[2,4], borderWidth:1, pointRadius:0 });
+    datasets.push({ label:'Limite inf. (−'+_PESO_TOLERANCIA_PCT+'%)', data: vs.map(()=>pesoNominal*(1-tol)), borderColor:'#ef4444', borderDash:[2,4], borderWidth:1, pointRadius:0 });
+  }
+  _chartPeso = new Chart(el, {
+    type: 'line',
+    data: { labels, datasets },
+    options: { responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{size:11} } },
+                tooltip:{ callbacks:{ label: c => c.dataset.label+': '+(c.parsed.y!=null?c.parsed.y.toFixed(2):'—')+' g' } } },
+      scales:{ y:{ title:{display:true,text:'Peso (g)'} } } }
+  });
+}
+
 // ==========================================
 // Renderização do card completo
 // ==========================================
 function renderizarControlePeso(job, jobId, numCavidades, pesoNominal, verificacoes, logsPesoNominal) {
   const podeGerenciar = podeGerenciarPesoMolde();
   const ultima = verificacoes && verificacoes.length ? verificacoes[0] : null;
+  const cavReais = parseCavidadesDoNome(job, numCavidades);
 
   const cardsResumo = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">
     <div style="background:#f8fafc;border-radius:8px;padding:12px">
@@ -148,7 +218,7 @@ function renderizarControlePeso(job, jobId, numCavidades, pesoNominal, verificac
         <th style="text-align:center;padding:6px 4px;color:#64748b;font-weight:600">Status</th>
       </tr></thead>
       <tbody>
-        ${ultima.pesos.sort((a,b)=>a.cavidade-b.cavidade).map(p => {
+        ${_pesosComNumeroReal(ultima.pesos, cavReais).map(p => {
           const st = _statusPeso(p.peso, pesoNominal);
           const badge = st.ok === null ? '<span style="color:#94a3b8;font-size:12px">—</span>'
             : st.ok ? '<span style="background:#d1fae5;color:#059669;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:700">OK</span>'
@@ -173,9 +243,16 @@ function renderizarControlePeso(job, jobId, numCavidades, pesoNominal, verificac
     ? renderizarHistoricoItemHTML((logsPesoNominal||[]).filter(l => l.campo === 'peso_nominal'))
     : '<div style="color:#94a3b8;font-size:12px">Indisponível.</div>';
 
+  const canvasId = 'chartPeso_' + Math.random().toString(36).slice(2,8);
+  const blocoGrafico = (verificacoes && verificacoes.length)
+    ? `<div style="margin-top:18px"><div style="font-size:12px;color:#64748b;font-weight:600;margin-bottom:6px">Evolução do peso por data de medição</div>
+       <div style="position:relative;height:260px"><canvas id="${canvasId}"></canvas></div></div>` : '';
+  if (blocoGrafico) setTimeout(() => _desenharGraficoPeso(canvasId, job, numCavidades, pesoNominal, verificacoes), 0);
+
   return `
     ${cardsResumo}
     ${tabela}
+    ${blocoGrafico}
     <details style="margin-top:14px">
       <summary style="cursor:pointer;font-size:12px;color:#0056b3;font-weight:600">Ver histórico de verificações anteriores</summary>
       <div style="margin-top:8px">${historicoVerificacoes}</div>
