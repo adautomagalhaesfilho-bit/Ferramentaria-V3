@@ -467,8 +467,12 @@ function desenharSetor(setor, ini, fim) {
   const totalMeta = opEntries.reduce((a,o)=>a+o.meta,0);
   const pctEquipe = totalMeta>0?Math.round(totalMinsSemSup/totalMeta*100):0;
 
+  // Ocupação da máquina = tempo ÚNICO em que ela trabalhou. Dois operadores no mesmo horário
+  // (treinamento / troca de turno) contam uma vez só — por isso une os intervalos por máquina.
   const porMaq = {};
-  if(setor==='Usinagem') lancsProdutivos.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; if(!porMaq[l.maquina]) porMaq[l.maquina]=0; porMaq[l.maquina]+=l.minutos||0; });
+  const lancsPorMaq = {};
+  if(setor==='Usinagem') lancsProdutivos.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; (lancsPorMaq[l.maquina] = lancsPorMaq[l.maquina] || []).push(l); });
+  Object.entries(lancsPorMaq).forEach(([maq, arr]) => { porMaq[maq] = _minutosSemSobreposicao(arr); });
 
   // Separa máquinas Principais (seguem meta de ocupação diária) das Secundárias
   // (só medimos quanto tempo foram usadas no período, sem meta/percentual)
@@ -506,12 +510,16 @@ function desenharSetor(setor, ini, fim) {
       'Torno': 'Torno Convencional', 'Torno Convencional': 'Torno Convencional',
       'Fresadora': 'Fresadora Convencional', 'Fresadora Convencional': 'Fresadora Convencional'
     };
+    const extrasPorMaq = {};
     (_dadosDash.lancamentos || []).forEach(l => {
       if (l.setor === 'Usinagem') return; // já contabilizado acima via campo Máquina
       const nomeReal = MAPA_MAQUINAS_COMPARTILHADAS[l.tipo];
       if (!nomeReal) return;
-      if (!porMaq[nomeReal]) porMaq[nomeReal] = 0;
-      porMaq[nomeReal] += l.minutos || 0;
+      (extrasPorMaq[nomeReal] = extrasPorMaq[nomeReal] || []).push(l);
+    });
+    Object.entries(extrasPorMaq).forEach(([nomeReal, arr]) => {
+      // une com os lançamentos da própria Usinagem nessa máquina, sem contar horário repetido
+      porMaq[nomeReal] = _minutosSemSobreposicao((lancsPorMaq[nomeReal] || []).concat(arr));
     });
   }
 
