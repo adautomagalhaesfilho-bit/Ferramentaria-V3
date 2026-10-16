@@ -515,6 +515,23 @@ function desenharSetor(setor, ini, fim) {
     });
   }
 
+  // Solda Laser: a Bancada também usa a máquina (lança como tipo "Solda Laser") e esse
+  // tempo não aparecia na ocupação. Soma os dois setores sem contar duas vezes o mesmo horário.
+  let soldaDetalhe = null;
+  if (setor === 'Usinagem') {
+    const NOME_SOLDA = 'Solda Laser';
+    if (maquinasTipo[NOME_SOLDA] !== 'Secundaria') {
+      const lancUsin = lancsProdutivos.filter(l => l.maquina === NOME_SOLDA);
+      const lancBanc = (_dadosDash.lancamentos||[]).filter(l => l.setor==='Bancada' && l.tipo===NOME_SOLDA);
+      if (lancUsin.length || lancBanc.length) {
+        const soma = arr => arr.reduce((a,l)=>a+(l.minutos||0),0);
+        const total = _minutosSemSobreposicao(lancUsin.concat(lancBanc));
+        porMaqPrincipal[NOME_SOLDA] = total;
+        soldaDetalhe = { usinagem: soma(lancUsin), bancada: soma(lancBanc), total };
+      }
+    }
+  }
+
   let diasUteis = 0;
   for(let d=new Date(ini+'T12:00:00');d<=new Date(fim+'T12:00:00');d.setDate(d.getDate()+1)) {
     const ds=dataLocal(d);
@@ -551,13 +568,10 @@ function desenharSetor(setor, ini, fim) {
     filtroPessoas:  new Set(opEntries.map(o=>o.nome)),
     filtroMaquinas: new Set(Object.keys(porMaqPrincipal)),
     // Necessários pra calcular a capacidade real (por vigência) de cada máquina
-    capHistorico: capHistorico, periodoIni: ini, periodoFim: fim
+    capHistorico: capHistorico, periodoIni: ini, periodoFim: fim,
+    soldaDetalhe,
+    esperadoGrupos: _contarMaquinasPorGrupo(maquinasTipo)
   };
-
-  const capTotalMaquinasPrincipais = Object.keys(porMaqPrincipal)
-    .reduce((soma, maq) => soma + _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados), 0);
-  const pctMaqInicial = capTotalMaquinasPrincipais>0
-    ? Math.round(Object.values(porMaqPrincipal).reduce((a,b)=>a+b,0)/capTotalMaquinasPrincipais*100) : 0;
 
   let html=`<div class="cards-row">
     <div class="metric-card" style="border-left-color:${esc(cor)}">
@@ -575,15 +589,7 @@ function desenharSetor(setor, ini, fim) {
       <div class="metric-label">Ocupação da Equipe</div>
       <div class="metric-sub">vs meta do período</div>
     </div>
-    ${setor==='Usinagem' ? `
-    <div class="metric-card" style="border-left-color:#0056b3">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div class="metric-icon">⚙️</div><div id="badgeOcupacaoMaquinas"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${esc(numMaq)} máquinas</span></div>
-      </div>
-      <div class="metric-valor" id="valOcupacaoMaquinas" style="color:#0056b3">${esc(numMaq>0?pctMaqInicial+'%':'—')}</div>
-      <div class="metric-label">Ocupação Máquinas</div>
-      <div class="metric-sub">média das máquinas</div>
-    </div>` : `
+    ${setor==='Usinagem' ? _htmlCardsOcupacaoMaquinas(porMaqPrincipal, _dashEstado.esperadoGrupos, soldaDetalhe) : `
     <div class="metric-card" style="border-left-color:${esc(pctBancada>=90?'#10b981':pctBancada>=70?'#f59e0b':'#ef4444')}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div class="metric-icon">🛠️</div><div id="badgeOcupacaoBancada">${badgePct(pctBancada)}</div>
@@ -923,20 +929,125 @@ function _renderBarrasPessoas(opEntries) {
   }).join('');
 }
 
+// Grupos de máquinas principais — cada um tem a própria ocupação (cards e barras)
+var _GRUPOS_MAQ = [
+  { id:'produtivas', ico:'⚙️', titulo:'Máquinas Produtivas', desc:'5 eixos, 3 eixos e torno CNC' },
+  { id:'solda',      ico:'🔥', titulo:'Solda',               desc:'Solda Laser (Usinagem + Bancada)' },
+  { id:'erosao',     ico:'⚡', titulo:'Erosão',              desc:'Erosão' }
+];
+
+function _grupoMaquina(nome) {
+  const n = String(nome||'').toLowerCase();
+  if (n.includes('solda')) return 'solda';
+  if (n.includes('erosão') || n.includes('erosao')) return 'erosao';
+  return 'produtivas';
+}
+
+function _contarMaquinasPorGrupo(maquinasTipo) {
+  const r = { produtivas:0, solda:0, erosao:0 };
+  Object.entries(maquinasTipo||{}).forEach(([nome, tipo]) => { if (tipo !== 'Secundaria') r[_grupoMaquina(nome)]++; });
+  return r;
+}
+
+// Soma de minutos sem contar duas vezes o mesmo horário (lançamentos que se sobrepõem no mesmo dia).
+// Só desconta a parte sobreposta, então sem sobreposição o resultado é exatamente a soma dos minutos.
+function _minutosSemSobreposicao(lancs) {
+  const hm = h => { const m = /^(\d{1,2}):(\d{2})/.exec(h || ''); return m ? (+m[1])*60 + (+m[2]) : null; };
+  const total = lancs.reduce((a,l)=>a+(l.minutos||0),0);
+  const porDia = {};
+  lancs.forEach(l => {
+    const a = hm(l.horaInicio), b0 = hm(l.horaFim);
+    if (a === null || b0 === null) return;
+    (porDia[l.data] = porDia[l.data] || []).push([a, b0 > a ? b0 : b0 + 1440]);
+  });
+  let sobreposto = 0;
+  Object.values(porDia).forEach(iv => {
+    const soma = iv.reduce((x,[a,b])=>x+(b-a),0);
+    iv.sort((p,q)=>p[0]-q[0]);
+    let uniao = 0, ci = null, cf = null;
+    iv.forEach(([a,b]) => {
+      if (ci === null) { ci = a; cf = b; }
+      else if (a <= cf) cf = Math.max(cf, b);
+      else { uniao += cf - ci; ci = a; cf = b; }
+    });
+    if (ci !== null) uniao += cf - ci;
+    sobreposto += soma - uniao;
+  });
+  return Math.max(0, total - sobreposto);
+}
+
+function _ocupacaoPorGrupo(porMaq) {
+  const capHistorico = _dashEstado?.capHistorico || [];
+  const ini = _dashEstado?.periodoIni, fim = _dashEstado?.periodoFim;
+  const feriados = _dashEstado?.feriados || [];
+  const r = {};
+  _GRUPOS_MAQ.forEach(g => { r[g.id] = Object.assign({}, g, { nomes: [], mins: 0, cap: 0, pct: null }); });
+  Object.entries(porMaq).forEach(([maq, mins]) => {
+    const g = r[_grupoMaquina(maq)];
+    g.nomes.push(maq); g.mins += mins;
+    g.cap += _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados);
+  });
+  Object.values(r).forEach(g => { g.pct = g.nomes.length && g.cap > 0 ? Math.round(g.mins / g.cap * 100) : null; });
+  return r;
+}
+
+function _corPctMaq(pct) { return pct == null ? '#94a3b8' : pct>=80 ? '#10b981' : pct>=50 ? '#0056b3' : '#f59e0b'; }
+
+function _badgeGrupoMaq(g, esperado) {
+  const txt = esperado ? `${g.nomes.length} de ${esperado} máquina${esperado>1?'s':''}` : `${g.nomes.length} máquina(s)`;
+  return `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${esc(txt)}</span>`;
+}
+
+function _subGrupoMaq(g, soldaDetalhe) {
+  if (g.id === 'solda' && soldaDetalhe) {
+    return `Usinagem ${esc(fmtMin(soldaDetalhe.usinagem))} + Bancada ${esc(fmtMin(soldaDetalhe.bancada))}`;
+  }
+  return esc(g.desc);
+}
+
+function _htmlCardsOcupacaoMaquinas(porMaq, esperadoGrupos, soldaDetalhe) {
+  const grupos = _ocupacaoPorGrupo(porMaq);
+  return _GRUPOS_MAQ.map(def => {
+    const g = grupos[def.id];
+    const cor = _corPctMaq(g.pct);
+    return `<div class="metric-card" style="border-left-color:${esc(cor)}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="metric-icon">${esc(g.ico)}</div><div id="badgeOcupMaq_${esc(g.id)}">${_badgeGrupoMaq(g, (esperadoGrupos||{})[g.id])}</div>
+      </div>
+      <div class="metric-valor" id="valOcupMaq_${esc(g.id)}" style="color:${esc(cor)}">${esc(g.pct==null ? '—' : g.pct+'%')}</div>
+      <div class="metric-label">Ocupação — ${esc(g.titulo)}</div>
+      <div class="metric-sub" id="subOcupMaq_${esc(g.id)}">${_subGrupoMaq(g, soldaDetalhe)}</div>
+    </div>`;
+  }).join('');
+}
+
 function _renderBarrasMaquinas(porMaq) {
-  const entradas = Object.entries(porMaq).sort((a,b)=>b[1]-a[1]);
+  const entradas = Object.entries(porMaq);
   if (!entradas.length) return '<div style="color:#94a3b8;font-size:13px;padding:8px 0">Nenhuma máquina com lançamentos no período.</div>';
   const cor = _dashEstado?.cor || '#0056b3';
   const capHistorico = _dashEstado?.capHistorico || [];
   const ini = _dashEstado?.periodoIni, fim = _dashEstado?.periodoFim;
   const feriados = _dashEstado?.feriados || [];
-  return entradas.map(([maq,mins]) => {
-    const capMaq = _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados);
-    const pct = capMaq>0?Math.round(mins/capMaq*100):0;
-    const c = pct>=80?'#10b981':pct>=50?cor:'#f59e0b';
-    return `<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${esc(maq)}</div>
-      <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:#64748b">${esc(fmtMin(mins))}</span><span class="barra-valor" style="color:${esc(c)}">${esc(pct)}%</span></div>
-    </div><div class="barra-track"><div class="barra-fill" style="width:${esc(Math.min(pct,100))}%;background:${esc(c)}"></div></div></div>`;
+  const grupos = _ocupacaoPorGrupo(porMaq);
+  return _GRUPOS_MAQ.map(def => {
+    const g = grupos[def.id];
+    if (!g.nomes.length) return '';
+    const barras = g.nomes.sort((a,b)=>porMaq[b]-porMaq[a]).map(maq => {
+      const mins = porMaq[maq];
+      const capMaq = _capTotalPorMaquina(capHistorico, maq, ini, fim, feriados);
+      const pct = capMaq>0?Math.round(mins/capMaq*100):0;
+      const c = pct>=80?'#10b981':pct>=50?cor:'#f59e0b';
+      return `<div class="barra-wrap"><div class="barra-header"><div class="barra-nome">${esc(maq)}</div>
+        <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:#64748b">${esc(fmtMin(mins))}</span><span class="barra-valor" style="color:${esc(c)}">${esc(pct)}%</span></div>
+      </div><div class="barra-track"><div class="barra-fill" style="width:${esc(Math.min(pct,100))}%;background:${esc(c)}"></div></div></div>`;
+    }).join('');
+    const detalhe = g.id === 'solda' && _dashEstado?.soldaDetalhe
+      ? `<div style="font-size:11px;color:#94a3b8;margin:-4px 0 10px">Usinagem ${esc(fmtMin(_dashEstado.soldaDetalhe.usinagem))} + Bancada ${esc(fmtMin(_dashEstado.soldaDetalhe.bancada))} (horários sobrepostos contados uma vez só)</div>` : '';
+    return `<div style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
+        <div style="font-weight:700;color:#1e3a5f;font-size:13px">${esc(g.ico)} ${esc(g.titulo)}</div>
+        <div style="font-size:12px;color:#64748b">média <strong style="color:${esc(_corPctMaq(g.pct))}">${esc(g.pct==null?'—':g.pct+'%')}</strong></div>
+      </div>${detalhe}${barras}</div>`;
   }).join('');
 }
 
@@ -1045,16 +1156,16 @@ function aplicarFiltroDashMaquinas() {
   const btn = document.getElementById('btnFiltroMaquinas');
   if (btn) btn.innerText = `🔽 Máquinas (${marcados.length}/${totalMaq})`;
 
-  // Recalcula Ocupação Máquinas com base na seleção, usando a capacidade real de cada uma
-  const totalMinsF = Object.values(porMaqFiltrado).reduce((a,b)=>a+b,0);
-  const numSel = marcados.length;
-  const capTotalF = marcados.reduce((soma, maq) =>
-    soma + _capTotalPorMaquina(_dashEstado.capHistorico||[], maq, _dashEstado.periodoIni, _dashEstado.periodoFim, _dashEstado.feriados||[]), 0);
-  const pctMaqF = numSel>0 && capTotalF>0 ? Math.round(totalMinsF/capTotalF*100) : 0;
-
-  _setTexto('valOcupacaoMaquinas', numSel>0 ? pctMaqF+'%' : '—');
-  const badgeMaqEl = document.getElementById('badgeOcupacaoMaquinas');
-  if (badgeMaqEl) badgeMaqEl.innerHTML = `<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${esc(numSel)} máquina(s)</span>`;
+  // Recalcula os cards de ocupação (Produtivas, Solda, Erosão) com base na seleção
+  const grupos = _ocupacaoPorGrupo(porMaqFiltrado);
+  _GRUPOS_MAQ.forEach(def => {
+    const g = grupos[def.id];
+    _setTexto('valOcupMaq_' + def.id, g.pct==null ? '—' : g.pct+'%');
+    const el = document.getElementById('valOcupMaq_' + def.id);
+    if (el) el.style.color = _corPctMaq(g.pct);
+    const badge = document.getElementById('badgeOcupMaq_' + def.id);
+    if (badge) badge.innerHTML = _badgeGrupoMaq(g, (_dashEstado.esperadoGrupos||{})[def.id]);
+  });
 }
 
 // Capacidade vigente de uma máquina numa data específica (histórico com vigência,
