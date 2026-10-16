@@ -4,7 +4,8 @@
 function podeGerenciarMapeamento() {
   const perfil = _sessao?.perfil;
   return (typeof isAdmin === 'function' && isAdmin()) ||
-         ['supervisor','pcm','gestor'].includes(perfil);
+         ['supervisor','pcm','gestor'].includes(perfil) ||
+         _sessao?.setor === 'Bancada';   // equipe da Bancada também registra os calços
 }
 
 // Mapeamento "vence" depois desse prazo — precisa ser refeito/reverificado
@@ -22,7 +23,7 @@ async function buscarMapeamentosCalcos(job) {
 // Registrar novo mapeamento (data + observação + anexo opcional do documento)
 // ==========================================
 function abrirModalNovoMapeamento(job) {
-  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor ou Admin podem registrar o mapeamento.', 'erro');
+  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor, Admin ou a equipe da Bancada podem registrar o mapeamento.', 'erro');
   const div = document.createElement('div');
   div.id = 'modalMapeamentoWrap';
   div.innerHTML = `
@@ -97,7 +98,7 @@ async function salvarNovoMapeamento(job) {
 // Editar um registro de mapeamento já existente
 // ==========================================
 function abrirEdicaoMapeamento(id, job, dataAtual, obsAtual) {
-  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor ou Admin podem editar o mapeamento.', 'erro');
+  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor, Admin ou a equipe da Bancada podem editar o mapeamento.', 'erro');
   const div = document.createElement('div');
   div.id = 'modalMapeamentoWrap';
   div.innerHTML = `
@@ -136,7 +137,7 @@ async function salvarEdicaoMapeamento(id, job) {
 }
 
 function excluirMapeamento(id, job) {
-  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor ou Admin podem excluir o mapeamento.', 'erro');
+  if (!podeGerenciarMapeamento()) return toast('Só Supervisor, PCM, Gestor, Admin ou a equipe da Bancada podem excluir o mapeamento.', 'erro');
   confirmarExclusao('Excluir este registro de mapeamento?', async () => {
     try {
       await db._delete('molde_mapeamento_calcos', 'id=eq.'+id);
