@@ -767,6 +767,7 @@ function verificarMoldeNaMaquina() {
 async function salvarLocalizacao() {
   const job  = _modalLocJob || document.getElementById('pcmLocJob')?.value?.trim();
   if (!job) return toast('Informe o job.','erro');
+  if (!_modalLocJob && !_jobCadastrado(job)) return toast('Esse molde não existe no cadastro. Escolha um da lista.','erro');
   const loc  = document.getElementById('pcmLocSelecionada')?.value;
   const maq  = document.getElementById('pcmLocMaquina')?.value || null;
   const obs  = document.getElementById('pcmLocObs')?.value?.trim() || null;

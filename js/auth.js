@@ -17,6 +17,8 @@ function _obj(i) { return _registroObjetos[i]; }
 function _ehJobServico(nome) { return /^SV\s*-/i.test(nome||''); }
 function _listaSoMoldes() { return ((_listas && _listas.jobs) || []).filter(j => !_ehJobServico(j)); }
 var _listas = null;
+// Molde/job existe no cadastro (jobs)? Usado para impedir nomes digitados fora do padrão
+function _jobCadastrado(nome) { return !!(_listas && _listas.jobs && _listas.jobs.includes(nome)); }
 
 function getSessao()    { return _sessao; }
 function getListas()    { return _listas; }

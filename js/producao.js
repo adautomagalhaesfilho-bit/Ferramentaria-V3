@@ -171,6 +171,7 @@ async function enviarWhatsappProducao() {
 // ➕ NOVO / EDITAR — via MODAL
 // ==========================================
 function abrirNovoLancamentoProducao() {
+  window._prodMoldeOrigEdicao = null;
   document.getElementById('prodFormId').value = '';
   _tecnicosSelecionadosProd = [];
   _statusFormProd = null;
@@ -195,6 +196,7 @@ async function editarProd(id) {
   document.getElementById('prodFormHrFim').value = item.hora_fim    ? item.hora_fim.substring(0,5)    : '';
   document.getElementById('prodFormInjetora').value = item.injetora || '';
   document.getElementById('prodFormMolde').value = item.molde || '';
+  window._prodMoldeOrigEdicao = item.molde || null;
   // Restaura os valores de molde congelados no momento da criação — evita que o
   // sistema tente "adivinhar" de novo a partir do estado atual (já mudado) do PCM
   document.getElementById('prodFormMoldeAtual').value = item.molde_atual || '';
@@ -486,6 +488,10 @@ async function salvarFormProducao() {
   const moldeNovo      = document.getElementById('prodFormMoldeNovo')?.value?.trim()  || null;
   const outraInjetora  = document.getElementById('prodFormOutraInjetora')?.value?.trim() || null;
   const moldeOutraInjetora = document.getElementById('prodFormMoldeOutraInjetora')?.value?.trim() || null;
+
+  const _moldeForm = document.getElementById('prodFormMolde')?.value?.trim();
+  if (_moldeForm && !_jobCadastrado(_moldeForm) && _moldeForm !== window._prodMoldeOrigEdicao) return toast('O molde "'+_moldeForm+'" não existe no cadastro. Escolha um da lista.','erro');
+  if (moldeNovo && !_jobCadastrado(moldeNovo)) return toast('O molde novo não existe no cadastro. Escolha um da lista.','erro');
 
   // Validações específicas das atividades de Setup que mexem no PCM
   if (tipo === 'Setup') {
