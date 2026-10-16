@@ -491,6 +491,14 @@
           <div id="avisoFunc" class="aviso-info" style="display:none">Buscando último apontamento...</div>
           <div id="avisoFuncOpcional" style="display:none;font-size:11px;color:#94a3b8;margin-top:4px">Opcional — máquina parada não tem operador</div>
         </div>
+        <div class="form-group" id="grupoFuncExtra" style="display:none;margin-top:10px;margin-bottom:0">
+          <label style="font-size:12px">Segundo operador (opcional) — cria o mesmo lançamento para ele</label>
+          <div style="display:flex;gap:8px">
+            <select id="formFuncExtra" style="flex:1"><option value="">+ Adicionar operador...</option></select>
+            <button type="button" class="btn-secondary" style="padding:8px 14px;white-space:nowrap" onclick="_adicionarOperadorExtra()">+ Add</button>
+          </div>
+          <div id="operadoresExtrasWrap" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px"></div>
+        </div>
         <div class="form-group" id="grupoFuncBancada" style="display:none;margin-bottom:0">
           <label>Adicionar Técnico</label>
           <div style="display:flex;gap:8px">
@@ -842,7 +850,7 @@
 <script src="js/util.js?v=20261009"></script>
 <script src="js/supabase.js?v=20261009"></script>
 <script src="js/auth.js?v=20261016"></script>
-<script src="js/apontamentos.js?v=20261016a"></script>
+<script src="js/apontamentos.js?v=20261016b"></script>
 <script src="js/ficha.js?v=20261009"></script>
 <script src="js/anexos.js?v=20261009"></script>
 <script src="js/peso.js?v=20261016"></script>
