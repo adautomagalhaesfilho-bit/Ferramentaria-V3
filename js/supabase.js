@@ -226,7 +226,8 @@ const db = {
   buscarLancamentosDia: async function(setor, data, maquina) {
     let filtro = 'setor=eq.' + setor + '&data=eq.' + data;
     if (maquina && maquina !== 'Todas') filtro += '&maquina=eq.' + encodeURIComponent(maquina);
-    const res = await db._get('lancamentos', filtro, '*');
+    // Ordem cronológica (pelo horário de início), não pela ordem em que foi lançado; empate/sem horário → ordem de criação
+    const res = await db._get('lancamentos', filtro + '&order=hora_inicio.asc.nullslast,id.asc', '*');
     return (res || []).map(db._formatarLancamento);
   },
 
