@@ -519,7 +519,11 @@ function desenharSetor(setor, ini, fim) {
     });
     Object.entries(extrasPorMaq).forEach(([nomeReal, arr]) => {
       // une com os lançamentos da própria Usinagem nessa máquina, sem contar horário repetido
-      porMaq[nomeReal] = _minutosSemSobreposicao((lancsPorMaq[nomeReal] || []).concat(arr));
+      const total = _minutosSemSobreposicao((lancsPorMaq[nomeReal] || []).concat(arr));
+      porMaq[nomeReal] = total;
+      // as barras/cards leem os grupos Principal/Secundária, então o tempo da Bancada precisa entrar neles também
+      if (maquinasTipo[nomeReal] === 'Secundaria') porMaqSecundaria[nomeReal] = total;
+      else porMaqPrincipal[nomeReal] = total;
     });
   }
 
