@@ -816,7 +816,7 @@ var _abaSetorAtiva = 'Usinagem';
 async function _carregarCategoriasLista() {
   try {
     // Supervisor só vê e mexe no próprio setor — Admin continua vendo todos
-    const restrito = !(typeof isAdmin === 'function' && isAdmin());
+    const restrito = !(typeof isAdmin === 'function' && isAdmin()) && _sessao?.perfil !== 'gestor';
     if (restrito && _sessao?.setor && _SETORES_CAT.includes(_sessao.setor)) _abaSetorAtiva = _sessao.setor;
 
     const todas = await db.listarProdCategorias();
@@ -895,7 +895,7 @@ async function _carregarCategoriasLista() {
 }
 
 function _mudarAbaCategoria(setor) {
-  const restrito = !(typeof isAdmin === 'function' && isAdmin());
+  const restrito = !(typeof isAdmin === 'function' && isAdmin()) && _sessao?.perfil !== 'gestor';
   if (restrito && setor !== _sessao?.setor) return;
   _abaSetorAtiva = setor; carregarCategorias();
 }
@@ -951,7 +951,7 @@ function fecharModalCategoria() {
 
 // Admin mexe em qualquer setor; supervisor só no próprio
 function _podeEditarCategoriaSetor(setor) {
-  return (typeof isAdmin === 'function' && isAdmin()) || setor === _sessao?.setor;
+  return (typeof isAdmin === 'function' && isAdmin()) || _sessao?.perfil === 'gestor' || setor === _sessao?.setor;
 }
 
 // Renomeia o grupo (tipo) inteiro — atualiza todas as atividades dentro dele de uma vez
