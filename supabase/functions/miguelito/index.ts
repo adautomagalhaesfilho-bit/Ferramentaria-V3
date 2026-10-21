@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
   if (limpo.length && limpo[limpo.length - 1].role === "user") limpo.pop();
   limpo.push({ role: "user", content: pergunta });
 
-  let tin = 0, tout = 0, resposta = "", ok = true;
+  let tin = 0, tout = 0, resposta = "", ok = true, erroTec = "";
   try {
     for (let passo = 0; passo < 8; passo++) {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -142,6 +142,7 @@ Deno.serve(async (req) => {
     if (!resposta) resposta = "Não consegui chegar a uma resposta. Tente perguntar de outro jeito ou com um período menor.";
   } catch (e) {
     ok = false;
+    erroTec = String((e as Error)?.message || e);
     resposta = "Tive um problema para responder agora. Tente de novo em instantes.";
     console.error("miguelito:", e);
   }
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
   const custo = (tin * modelo.in + tout * modelo.out) / 1_000_000;
   await svc.from("ia_uso").insert({
     usuario_id: usr.id, usuario_nome: usr.nome, perfil: usr.perfil, modelo: modelo.id,
-    tokens_in: tin, tokens_out: tout, custo_usd: custo, pergunta, resposta: resposta.slice(0, 4000), ok,
+    tokens_in: tin, tokens_out: tout, custo_usd: custo, pergunta, resposta: (erroTec ? "[ERRO TÉCNICO] " + erroTec + " | " : "") + resposta.slice(0, 4000), ok,
   });
   return json({ resposta, modelo: modelo.id, usadas: (usadas || 0) + 1, limite: limiteDia });
 });
