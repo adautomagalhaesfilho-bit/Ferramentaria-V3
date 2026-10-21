@@ -251,6 +251,7 @@
       <div style="text-align:center;background:#fff"><button type="button" class="mg-opcao" id="mgOpcaoMascote"></button></div>`;
     document.body.appendChild(p);
     const nome = String(_sessao?.nome || '').split(/[\s._-]+/)[0];
+    add('mg-pose', `<img alt="" src="${src('acenando')}" style="height:150px">`);
     add('mg-bot', `E aí${nome ? ', ' + esc(nome) : ''}! 👋 Sou o Miguelito. O que você quer saber hoje?`);
     el('mgFechar').onclick = alternar; el('mgEnviar').onclick = () => enviar();
     el('mgEntrada').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
