@@ -325,7 +325,7 @@ async function editarApontamento(idx) {
   _tecnicosSelecionados = novosTecnicos;
   _tecnicosOriginaisIds = novosIds;
   const grpExtra = document.getElementById('grupoFuncExtra');
-  if (grpExtra) grpExtra.style.display = 'none';   // segundo operador só vale para lançamento novo
+  if (grpExtra) grpExtra.style.display = _setorAtivo === 'Usinagem' ? '' : 'none';   // Usinagem: dá para acrescentar operador na edição
   _renderizarTecnicosSelecionados();
 
   await carregarFuncionariosForm(_setorAtivo);
@@ -623,7 +623,16 @@ async function salvarForm() {
         toast('Lançamento atualizado!','sucesso');
       } else {
         await db.atualizarLancamento(id, dados);
-        toast('Lançamento atualizado!','sucesso');
+        let nExtrasEd = 0;
+        if (setor === 'Usinagem' && _operadoresExtras.length) {
+          for (const nomeExtra of _operadoresExtras) {
+            if (nomeExtra === dados.funcionario) continue;
+            await db.salvarLancamento({ ...dados, funcionario: nomeExtra, ramId:null, ramNumero:null, trocaCopo:false, tipoCopo:null, descricaoCopo:null, copoId:null, temObservacao:false, observacao:null });
+            nExtrasEd++;
+          }
+          _operadoresExtras = [];
+        }
+        toast(nExtrasEd ? `Lançamento atualizado e ${nExtrasEd} operador(es) adicionado(s)!` : 'Lançamento atualizado!','sucesso');
       }
       _tecnicosOriginaisIds = null;
       fecharModalForm();
