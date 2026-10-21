@@ -71,10 +71,18 @@ async function inicializarPainelRAM() {
       </select></div>
       <div class="filtro-item"><label>STATUS</label><select id="ramFiltroStatus" onchange="filtrarPainelRAM()">
         <option value="abertas">Abertas</option>
+        <option value="atrasadas">Atrasadas</option>
+        <option value="vencendo">Vencem em 7 dias</option>
+        <option value="semprazo">Abertas sem prazo</option>
         <option value="concluidas">Concluídas</option>
         <option value="todas">Todas</option>
       </select></div>
+      <div class="filtro-item"><label>ORDEM</label><select id="ramFiltroOrdem" onchange="filtrarPainelRAM()">
+        <option value="desc">Nº RAM — maior primeiro</option>
+        <option value="asc">Nº RAM — menor primeiro</option>
+      </select></div>
     </div>
+    <div id="cardsControleRAM"></div>
     <div id="loaderRAM" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Carregando RAMs...</span></div>
     <div id="listaPainelRAM"></div>
   `;
@@ -102,8 +110,12 @@ function filtrarPainelRAM() {
     const estaAberta = r.setores.some(s => !s.concluido);
     if (status === 'abertas'    && !estaAberta) return false;
     if (status === 'concluidas' &&  estaAberta) return false;
+    if (status === 'atrasadas'  && !_ramAtrasada(r)) return false;
+    if (status === 'vencendo'   && !_ramVenceEm7(r)) return false;
+    if (status === 'semprazo'   && !(estaAberta && !r.prazo_final)) return false;
     return true;
   });
+  _renderizarCardsControleRAM();
   _ramFiltradasExport = filtradas;
   renderizarPainelRAM(filtradas);
 }
@@ -137,6 +149,72 @@ function exportarRAMExcel() {
   toast('Excel exportado!','sucesso');
 }
 
+// ---- Situação da RAM (comparação por data em texto AAAA-MM-DD, sem fuso) ----
+function _ramAberta(r)   { return r.setores.some(s => !s.concluido); }
+function _ramAtrasada(r) { return _ramAberta(r) && !!r.prazo_final && r.prazo_final < hojeLocal(); }
+function _ramVenceEm7(r) {
+  if (!_ramAberta(r) || !r.prazo_final) return false;
+  const hoje = hojeLocal();
+  const lim = new Date(hoje + 'T12:00:00'); lim.setDate(lim.getDate() + 7);
+  const limStr = lim.getFullYear() + '-' + String(lim.getMonth()+1).padStart(2,'0') + '-' + String(lim.getDate()).padStart(2,'0');
+  return r.prazo_final >= hoje && r.prazo_final <= limStr;
+}
+// Número da RAM como número quando der (ex.: "12" < "103"); texto como plano B
+function _ramCompararNumero(a, b) {
+  return String(a.numero).localeCompare(String(b.numero), 'pt-BR', { numeric: true, sensitivity: 'base' });
+}
+
+// Clique num card de controle aplica o filtro correspondente
+function aplicarFiltroRAM(status, setor) {
+  const st = document.getElementById('ramFiltroStatus'); if (st) st.value = status;
+  const se = document.getElementById('ramFiltroSetor');  if (se) se.value = setor || 'Todos';
+  const tx = document.getElementById('ramFiltroTexto');  if (tx) tx.value = '';
+  filtrarPainelRAM();
+}
+
+function _renderizarCardsControleRAM() {
+  const el = document.getElementById('cardsControleRAM');
+  if (!el) return;
+  const todas = _todasRAMsCache || [];
+  const abertas = todas.filter(_ramAberta);
+  const atrasadas = todas.filter(_ramAtrasada);
+  const vencendo = todas.filter(_ramVenceEm7);
+  const semPrazo = abertas.filter(r => !r.prazo_final);
+  const statusAtual = document.getElementById('ramFiltroStatus')?.value || 'abertas';
+  const setorAtual  = document.getElementById('ramFiltroSetor')?.value || 'Todos';
+
+  const card = (titulo, valor, cor, bg, status, dica, ativo) => `
+    <div onclick="aplicarFiltroRAM('${status}')" title="${esc(dica)}" style="cursor:pointer;background:${bg};border:2px solid ${ativo?cor:'transparent'};border-radius:12px;padding:12px 14px;min-width:150px;flex:1">
+      <div style="font-size:11px;font-weight:700;color:${cor};letter-spacing:.4px;text-transform:uppercase">${titulo}</div>
+      <div style="font-size:28px;font-weight:800;color:${cor};line-height:1.15">${valor}</div>
+      <div style="font-size:11px;color:#64748b">${esc(dica)}</div>
+    </div>`;
+
+  const setores = (typeof _RAM_SETORES !== 'undefined' ? _RAM_SETORES : []).map(st => {
+    const n = abertas.filter(r => r.setores.some(x => x.setor === st && !x.concluido)).length;
+    const atr = atrasadas.filter(r => r.setores.some(x => x.setor === st && !x.concluido)).length;
+    return { st, n, atr };
+  });
+
+  el.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      ${card('Abertas', abertas.length, '#0056b3', '#e8f1fb', 'abertas', 'com algum setor pendente', statusAtual==='abertas' && setorAtual==='Todos')}
+      ${card('Atrasadas', atrasadas.length, '#b91c1c', '#fee2e2', 'atrasadas', 'prazo já passou', statusAtual==='atrasadas')}
+      ${card('Vencem em 7 dias', vencendo.length, '#92400e', '#fef3c7', 'vencendo', 'atenção ao prazo', statusAtual==='vencendo')}
+      ${card('Sem prazo', semPrazo.length, '#475569', '#f1f5f9', 'semprazo', 'abertas sem prazo final', statusAtual==='semprazo')}
+    </div>
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px">Falta apontar por setor (RAMs abertas)</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${setores.map(x => `<div onclick="aplicarFiltroRAM('abertas','${escJs(x.st)}')" style="cursor:pointer;border:2px solid ${setorAtual===x.st?'#0056b3':'#e2e8f0'};background:${x.n?'#fff7ed':'#f0fdf4'};border-radius:10px;padding:8px 12px;min-width:110px">
+          <div style="font-size:12px;font-weight:700;color:#1e3a5f">${esc(x.st)}</div>
+          <div style="font-size:20px;font-weight:800;color:${x.n?'#c2410c':'#059669'}">${x.n}</div>
+          <div style="font-size:11px;color:${x.atr?'#b91c1c':'#64748b'}">${x.atr?x.atr+' atrasada'+(x.atr>1?'s':''):(x.n?'pendente'+(x.n>1?'s':''):'em dia')}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
 function renderizarPainelRAM(rams) {
   const el = document.getElementById('listaPainelRAM');
   if (!el) return;
@@ -144,18 +222,14 @@ function renderizarPainelRAM(rams) {
     el.innerHTML = '<div class="empty-state"><div style="font-size:48px">📋</div><div>Nenhuma RAM encontrada.</div></div>';
     return;
   }
-  // Atrasadas primeiro, depois por prazo mais próximo
-  const ordenadas = [...rams].sort((a,b) => {
-    const aAtrasada = a.prazo_final && new Date(a.prazo_final) < new Date() && a.setores.some(s=>!s.concluido);
-    const bAtrasada = b.prazo_final && new Date(b.prazo_final) < new Date() && b.setores.some(s=>!s.concluido);
-    if (aAtrasada !== bAtrasada) return aAtrasada ? -1 : 1;
-    return (a.prazo_final||'9999-99-99').localeCompare(b.prazo_final||'9999-99-99');
-  });
+  // Ordenada pelo número da RAM (maior primeiro por padrão)
+  const asc = (document.getElementById('ramFiltroOrdem')?.value || 'desc') === 'asc';
+  const ordenadas = [...rams].sort((a,b) => asc ? _ramCompararNumero(a,b) : _ramCompararNumero(b,a));
 
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
     ${ordenadas.map(r => {
-      const atrasada = r.prazo_final && new Date(r.prazo_final) < new Date() && r.setores.some(s=>!s.concluido);
-      return `<div class="card" style="margin:0">
+      const atrasada = _ramAtrasada(r);
+      return `<div class="card" style="margin:0;${atrasada?'border-left:4px solid #dc2626':''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
           <div>
             <div style="font-weight:700;color:#1e3a5f;font-size:14px">RAM ${esc(r.numero)}</div>
