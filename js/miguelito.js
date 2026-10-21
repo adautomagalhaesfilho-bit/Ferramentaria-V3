@@ -1,6 +1,7 @@
 // ==========================================
 // 🪣 Miguelito — assistente de bordo (só supervisor, gestor e admin)
 // Conversa com a Edge Function "miguelito", que consulta os dados (somente leitura) usando o Claude.
+// O personagem é feito de poses (icons/miguelito/*.png) que trocam conforme o momento.
 // ==========================================
 (function () {
   'use strict';
@@ -11,163 +12,100 @@
     'Quem fez mais hora extra neste mês?',
     'RAMs atrasadas'
   ];
+  const POSES = ['feliz', 'piscando', 'acenando', 'comemorando', 'lendo', 'aprovando', 'pensativo', 'indicando', 'caminhando'];
+  // Ajuste fino de tamanho por pose (o desenho original varia um pouco entre elas)
+  const ESCALA = { acenando: 1.02, aprovando: 1.02, lendo: .93 };
   let aberto = false, ocupado = false, historico = [];
 
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function el(id) { return document.getElementById(id); }
+  const src = p => `icons/miguelito/${p}.png`;
 
-  // Desenho do Miguelito (balde com a logo BX). Os olhos piscam por CSS.
-  function desenho(comBracos) {
-    const bracos = comBracos ? `
-      <path d="M10 210 Q-30 220 -26 262" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/>
-      <circle cx="-26" cy="266" r="12" fill="#fff" stroke="#9fb0c8" stroke-width="3"/>
-      <path class="mg-braco" d="M290 210 Q330 190 346 148" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/>
-      <circle class="mg-braco" cx="348" cy="142" r="12" fill="#fff" stroke="#9fb0c8" stroke-width="3"/>` : '';
-    const vb = comBracos ? '-45 -25 420 400' : '-8 -25 316 395';
-    return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id="mgCorpo" x1="0" x2="1"><stop offset="0" stop-color="#dfe7f2"/><stop offset=".45" stop-color="#fff"/><stop offset="1" stop-color="#cfd9e8"/></linearGradient>
-        <linearGradient id="mgBorda" x1="0" x2="1"><stop offset="0" stop-color="#1b365f"/><stop offset="1" stop-color="#2c4f86"/></linearGradient>
-      </defs>
-      <path d="M8 66 C -14 -30, 314 -30, 292 66" fill="none" stroke="#8a97ab" stroke-width="11" stroke-linecap="round"/>
-      <path d="M10 70 L290 70 L280 340 Q279 356 262 356 L38 356 Q21 356 20 340 Z" fill="url(#mgCorpo)" stroke="#9fb0c8" stroke-width="4"/>
-      <rect x="-2" y="56" width="304" height="30" rx="15" fill="url(#mgBorda)"/>
-      <rect x="12" y="62" width="276" height="6" rx="3" fill="#fff" opacity=".25"/>
-      <path d="M21 318 L279 318 L278 340 Q277 348 268 348 L32 348 Q23 348 22 340 Z" fill="#c0302f"/>
-      <g transform="translate(0,18)">
-        <g class="mg-olhos">
-          <ellipse cx="108" cy="132" rx="26" ry="30" fill="#fff" stroke="#1b365f" stroke-width="5"/>
-          <ellipse cx="192" cy="132" rx="26" ry="30" fill="#fff" stroke="#1b365f" stroke-width="5"/>
-          <circle cx="114" cy="136" r="13" fill="#1b365f"/><circle cx="198" cy="136" r="13" fill="#1b365f"/>
-          <circle cx="119" cy="130" r="4.5" fill="#fff"/><circle cx="203" cy="130" r="4.5" fill="#fff"/>
-        </g>
-        <path d="M82 96 Q108 84 132 94" stroke="#1b365f" stroke-width="6" fill="none" stroke-linecap="round"/>
-        <path d="M168 94 Q192 84 218 96" stroke="#1b365f" stroke-width="6" fill="none" stroke-linecap="round"/>
-        <path d="M112 172 Q150 212 188 172" stroke="#1b365f" stroke-width="7" fill="#fff" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>
-      <g transform="translate(96,236) scale(0.19)"><image href="icons/bx-sem-fundo.png" x="0" y="0" width="575" height="406"/></g>
-      ${bracos}
-    </svg>`;
-  }
-
-
-  // Miguelito de corpo inteiro para o canto da tela (sem círculo): respira, pisca, olha em volta, acena e dá pulinhos
-  function desenhoCorpoInteiro() {
-    return `<svg viewBox="-70 -170 460 590" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id="mfCorpo" x1="0" x2="1"><stop offset="0" stop-color="#dfe7f2"/><stop offset=".45" stop-color="#fff"/><stop offset="1" stop-color="#cfd9e8"/></linearGradient>
-        <linearGradient id="mfBorda" x1="0" x2="1"><stop offset="0" stop-color="#1b365f"/><stop offset="1" stop-color="#2c4f86"/></linearGradient>
-      </defs>
-      <ellipse data-p="chao" cx="150" cy="382" rx="95" ry="11" fill="#0f172a" opacity=".18"/>
-      <g data-p="pernaE"><path d="M100 340 Q96 372 84 384" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><ellipse cx="78" cy="387" rx="19" ry="9" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
-      <g data-p="pernaD"><path d="M200 340 Q204 372 216 384" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><ellipse cx="222" cy="387" rx="19" ry="9" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
-      <g data-p="corpo">
-        <g data-p="bracoE"><path d="M12 215 Q-26 232 -22 272" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><circle cx="-22" cy="276" r="12" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
-        <path d="M8 66 C -14 -30, 314 -30, 292 66" fill="none" stroke="#8a97ab" stroke-width="10" stroke-linecap="round"/>
-        <path d="M10 70 L290 70 L280 340 Q279 356 262 356 L38 356 Q21 356 20 340 Z" fill="url(#mfCorpo)" stroke="#9fb0c8" stroke-width="4"/>
-        <rect x="-2" y="56" width="304" height="30" rx="15" fill="url(#mfBorda)"/><rect x="12" y="62" width="276" height="6" rx="3" fill="#fff" opacity=".25"/>
-        <path d="M21 318 L279 318 L278 340 Q277 348 268 348 L32 348 Q23 348 22 340 Z" fill="#c0302f"/>
-        <g transform="translate(0,18)">
-          <g data-p="olhos" style="transform-box:fill-box;transform-origin:center">
-            <ellipse cx="108" cy="132" rx="26" ry="30" fill="#fff" stroke="#1b365f" stroke-width="5"/><ellipse cx="192" cy="132" rx="26" ry="30" fill="#fff" stroke="#1b365f" stroke-width="5"/>
-            <g data-p="pupilas"><circle cx="114" cy="136" r="13" fill="#1b365f"/><circle cx="198" cy="136" r="13" fill="#1b365f"/><circle cx="119" cy="130" r="4.5" fill="#fff"/><circle cx="203" cy="130" r="4.5" fill="#fff"/></g>
-          </g>
-          <path data-p="sobrE" d="M82 96 Q108 84 132 94" stroke="#1b365f" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path data-p="sobrD" d="M168 94 Q192 84 218 96" stroke="#1b365f" stroke-width="6" fill="none" stroke-linecap="round"/>
-          <path data-p="boca" d="M112 172 Q150 212 188 172" stroke="#1b365f" stroke-width="7" fill="#fff" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-        <g transform="translate(96,236) scale(0.19)"><image href="icons/bx-sem-fundo.png" width="575" height="406"/></g>
-        <g data-p="bracoD"><path d="M288 215 Q326 205 340 168" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><circle cx="342" cy="162" r="12" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
-      </g>
-    </svg>`;
-  }
-
-  const ease = x => x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+  // ---------- Animação do personagem ----------
+  const ease = x => x * x * (3 - 2 * x);
   const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
-  const seg = (t, a, b) => clamp((t - a) / (b - a));
-  let partes = null, pensandoAgora = false;
+  let imgEl = null, sombraEl = null, poseAtual = '', pensandoAgora = false;
+  let temp = null;      // pose temporária: { pose, ate, ini }
+  let gesto = null;     // gesto sorteado: { tipo, ini, dur }
+  let proximoGesto = 0, proximaPiscada = 0, piscadaAte = 0, andando = null, ultimo = 0;
 
-  // t em segundos; laço de 6s. Com "pensando", ele fica acenando e olhando de um lado para o outro.
-  // treal = relógio real (respiração, modo "pensando"); t = tempo do gesto atual (-1 = parado)
-  function quadro(treal, t, piscada) {
-    const P = partes; if (!P) return;
-    let dy = 0, sx = 1, sy = 1 + Math.sin(treal * Math.PI * .8) * 0.012, perna = 1;
-    const j = seg(t, 3.6, 4.7);
-    if (!pensandoAgora && t >= 3.6 && t <= 4.7) {
-      if (j < .18) { const k = j / .18; sy = 1 - .10 * ease(k); sx = 1 + .06 * ease(k); perna = 1 - .35 * ease(k); }
-      else if (j < .78) { const k = (j - .18) / .6; dy = -Math.sin(k * Math.PI) * 70; sy = 1 + .07 * Math.sin(k * Math.PI); sx = 1 - .035 * Math.sin(k * Math.PI); perna = 1 + .25 * Math.sin(k * Math.PI); }
-      else { const k = (j - .78) / .22; sy = 1 - .08 * Math.sin(k * Math.PI); sx = 1 + .05 * Math.sin(k * Math.PI); perna = 1 - .25 * Math.sin(k * Math.PI); }
-    }
-    const olha = pensandoAgora ? (treal % 1.6) / 1.6 : seg(t, 1.0, 1.8);
-    const balanco = pensandoAgora ? Math.sin(treal * 5) * .8 : (t > 1 && t < 1.8 ? Math.sin(olha * Math.PI * 2) : 0);
-    P.corpo.setAttribute('transform', `translate(150,356) rotate(${balanco * 2.2}) scale(${sx},${sy}) translate(-150,-356) translate(0,${dy})`);
-    const pl = `translate(0,${dy}) translate(0,340) scale(1,${perna}) translate(0,-340)`;
-    P.pernaE.setAttribute('transform', pl); P.pernaD.setAttribute('transform', pl);
-    const alt = -dy / 70; P.chao.setAttribute('rx', 95 * (1 - .25 * alt)); P.chao.setAttribute('opacity', .18 * (1 - .5 * alt));
-    let px = 0, py = 0;
-    if (pensandoAgora) { px = Math.sin(treal * 3) * 10; py = -3; }
-    else if (t >= 1 && t <= 1.8) { px = Math.sin(olha * Math.PI * 2) * 9; py = -2; }
-    else if (t >= 2.3 && t <= 3.0) { px = 6; py = -5; }
-    P.pupilas.setAttribute('transform', `translate(${px},${py})`);
-    P.olhos.setAttribute('transform', `scale(1,${piscada})`);
-    const sob = (!pensandoAgora && t > 3.5 && t < 4.9) ? -6 : 0;
-    P.sobrE.setAttribute('transform', `translate(0,${sob})`); P.sobrD.setAttribute('transform', `translate(0,${sob})`);
-    let ang = 0;
-    if (pensandoAgora) ang = -34 + Math.sin(treal * 9) * 16;
-    else if (t >= 2.1 && t <= 3.5) { const k = seg(t, 2.1, 3.5); ang = -48 * Math.sin(Math.min(k * 6, 1) * Math.PI / 2) * (k < .9 ? 1 : 1 - (k - .9) / .1) + (k < .9 ? Math.sin(k * Math.PI * 8) * 14 : 0); }
-    P.bracoD.setAttribute('transform', `rotate(${ang},288,215)`);
-    const al = (!pensandoAgora && t >= 3.6 && t <= 4.7) ? -28 * Math.sin(j * Math.PI) : Math.sin(treal * 1.4) * 1.5;
-    P.bracoE.setAttribute('transform', `rotate(${al},12,215)`);
-    const grande = pensandoAgora || (t > 2.1 && t < 3.5) || (t > 3.7 && t < 4.6);
-    P.boca.setAttribute('d', grande ? 'M106 168 Q150 224 194 168' : 'M112 172 Q150 212 188 172');
+  function trocarPose(p) {
+    if (p === poseAtual || !imgEl) return;
+    poseAtual = p; imgEl.src = src(p);
+    imgEl.style.setProperty('--esc', ESCALA[p] || 1);
   }
+  function mostrarPose(pose, seg) { temp = { pose, ini: performance.now() / 1000, ate: performance.now() / 1000 + seg }; }
 
-  // Parado quase o tempo todo (só respira e pisca). A cada 25–50 s faz UM gesto curto sorteado.
-  const GESTOS = [{ ini: 1.0, dur: .9 }, { ini: 2.1, dur: 1.5 }, { ini: 3.6, dur: 1.2 }]; // olhar, acenar, pular
-  let ultimo = 0, gesto = null, proximoGesto = 0, proximaPiscada = 0, piscadaIni = -1;
   function laco(agora) {
     requestAnimationFrame(laco);
     if (document.hidden || agora - ultimo < 40) return; // ~25 quadros por segundo
-    ultimo = agora; const tr = agora / 1000;
-    if (!proximoGesto) { proximoGesto = tr + 12 + Math.random() * 10; proximaPiscada = tr + 2; }
-    if (!gesto && tr >= proximoGesto && !aberto && !pensandoAgora) {
-      gesto = { g: GESTOS[Math.floor(Math.random() * GESTOS.length)], ini: tr };
+    ultimo = agora; const t = agora / 1000;
+    if (!imgEl) return;
+    if (!proximoGesto) { proximoGesto = t + 15 + Math.random() * 10; proximaPiscada = t + 2.5; }
+
+    let pose = 'feliz', dx = 0, dy = 0, rot = 0, sx = 1, sy = 1 + Math.sin(t * Math.PI * .8) * .012, sombra = 1;
+
+    if (andando) { // entrada: caminha da esquerda até o canto (uma vez)
+      const k = clamp((t - andando.ini) / andando.dur);
+      pose = 'caminhando'; dx = -(1 - ease(k)) * andando.dist; dy = -Math.abs(Math.sin(t * 7)) * 6; rot = Math.sin(t * 7) * 2;
+      if (k >= 1) { andando = null; proximoGesto = t + 12 + Math.random() * 8; }
+    } else if (pensandoAgora) { // respondendo: lendo a prancheta
+      pose = 'lendo'; rot = Math.sin(t * 3.2) * 2.2; sy = 1 + Math.sin(t * 6) * .01;
+    } else if (temp && t < temp.ate) { // aprovando / pensativo: "pop" no começo
+      pose = temp.pose; const k = clamp((t - temp.ini) / .5); const pop = Math.sin(k * Math.PI) * .07;
+      sx = 1 + pop * .6; sy = 1 + pop;
+    } else {
+      temp = null;
+      if (!gesto && t >= proximoGesto && !aberto) {
+        const tipo = Math.random() < .6 ? 'acenando' : 'comemorando';
+        gesto = { tipo, ini: t, dur: tipo === 'acenando' ? 2.4 : 1.3 };
+      }
+      if (gesto) {
+        const e = t - gesto.ini;
+        if (e > gesto.dur) { gesto = null; proximoGesto = t + 25 + Math.random() * 25; }
+        else if (gesto.tipo === 'acenando') { pose = 'acenando'; rot = Math.sin(e * 6) * 1.8; if (!gesto.balao && e > .2 && !aberto) { gesto.balao = true; mostrarBalao(true); } }
+        else { // comemorando: agacha, pula e amortece
+          pose = 'comemorando'; const k = e / gesto.dur;
+          if (k < .18) { const a = k / .18; sy = 1 - .08 * ease(a); sx = 1 + .05 * ease(a); }
+          else if (k < .8) { const a = (k - .18) / .62; dy = -Math.sin(a * Math.PI) * 38; sy = 1 + .05 * Math.sin(a * Math.PI); sombra = 1 - .4 * Math.sin(a * Math.PI); }
+          else { const a = (k - .8) / .2; sy = 1 - .06 * Math.sin(a * Math.PI); sx = 1 + .04 * Math.sin(a * Math.PI); }
+        }
+      }
+      if (!gesto && t >= proximaPiscada) { piscadaAte = t + .22; proximaPiscada = t + 3 + Math.random() * 4; }
+      if (!gesto && t < piscadaAte) pose = 'piscando';
     }
-    let tv = -1;
-    if (gesto) { const e = tr - gesto.ini; if (e > gesto.g.dur + .15) { gesto = null; proximoGesto = tr + 25 + Math.random() * 25; } else tv = gesto.g.ini + e; }
-    if (tr >= proximaPiscada) { piscadaIni = tr; proximaPiscada = tr + 3 + Math.random() * 4; }
-    let piscada = 1; const dp = tr - piscadaIni;
-    if (piscadaIni >= 0 && dp < .18) piscada = .1 + Math.abs(dp - .09) / .09 * .9;
-    quadro(tr, tv, piscada);
-  }
-  function iniciarAnimacao(svgEl) {
-    partes = {}; svgEl.querySelectorAll('[data-p]').forEach(n => partes[n.dataset.p] = n);
-    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { quadro(0, -1, 1); return; }
-    requestAnimationFrame(laco);
+    trocarPose(pose);
+    imgEl.style.transform = `translate(${dx}px,${dy}px) rotate(${rot}deg) scale(${sx},${sy})`;
+    if (sombraEl) { sombraEl.style.opacity = (.22 * sombra).toFixed(3); sombraEl.style.transform = `translateX(${dx}px)`; }
   }
 
-  // Balão que aparece de vez em quando, só se o painel estiver fechado e ninguém estiver digitando
-  function agendarBalao() {
-    setTimeout(function mostrar() {
-      const b = el('mgBalao'), digitando = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-      if (b && !aberto && !digitando && !document.hidden) { b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 4500); }
-      setTimeout(mostrar, 180000 + Math.random() * 120000); // a cada 3–5 minutos
-    }, 45000);
+  function iniciarAnimacao() {
+    POSES.forEach(p => { const i = new Image(); i.src = src(p); }); // pré-carrega
+    const reduzido = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduzido) {
+      andando = { ini: performance.now() / 1000, dur: 3.2, dist: Math.max(300, window.innerWidth - 40) };
+      requestAnimationFrame(laco);
+    }
   }
 
+  // Balão "Precisa de uma mão?" — aparece junto do aceno ocasional
+  let balaoAte = 0;
+  function mostrarBalao(on) { const b = el('mgBalao'); if (!b) return; if (on) { b.classList.add('on'); clearTimeout(balaoAte); balaoAte = setTimeout(() => b.classList.remove('on'), 2600); } }
+
+  // ---------- Estilo ----------
   const CSS = `
-  #mgFab{position:fixed;right:12px;bottom:6px;width:var(--mg-w,120px);height:calc(var(--mg-w,120px) * 1.28);border:none;background:transparent;cursor:pointer;z-index:9000;padding:0;filter:drop-shadow(0 6px 8px rgba(15,23,42,.30));-webkit-tap-highlight-color:transparent}
-  #mgFab svg{width:100%;height:100%;overflow:visible;display:block}
-  #mgBalao{position:fixed;right:20px;bottom:calc(var(--mg-w,120px) * 1.28 + 4px);max-width:230px;background:#fff;border:1px solid #c9d5e6;border-radius:14px;padding:9px 12px;font:13px 'Segoe UI',Arial,sans-serif;color:#334155;box-shadow:0 6px 18px rgba(15,23,42,.2);z-index:9000;opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .25s,transform .25s}
+  #mgFab{position:fixed;right:10px;bottom:4px;height:var(--mg-h,132px);border:none;background:transparent;cursor:pointer;z-index:9000;padding:0;display:flex;align-items:flex-end;-webkit-tap-highlight-color:transparent}
+  #mgFab img{height:calc(var(--mg-h,132px) * var(--esc,1));width:auto;display:block;transform-origin:50% 100%;filter:drop-shadow(0 5px 6px rgba(15,23,42,.28));pointer-events:none;user-select:none}
+  #mgFab .mg-sombra{position:absolute;left:50%;bottom:-2px;width:60%;height:9px;margin-left:-30%;border-radius:50%;background:#0f172a;opacity:.22;filter:blur(3px);pointer-events:none}
+  #mgBalao{position:fixed;right:24px;bottom:calc(var(--mg-h,132px) + 8px);max-width:230px;background:#fff;border:1px solid #c9d5e6;border-radius:14px;padding:9px 12px;font:13px 'Segoe UI',Arial,sans-serif;color:#334155;box-shadow:0 6px 18px rgba(15,23,42,.2);z-index:9000;opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .25s,transform .25s}
   #mgBalao b{display:block;color:#1b365f;font-size:13px}
   #mgBalao.on{opacity:1;transform:none}
-  @media (max-width:700px){#mgFab{--mg-w:92px}}
-  .mg-olhos{transform-box:fill-box;transform-origin:center;animation:mgPiscar 5s infinite}
-  @keyframes mgPiscar{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
-  #mgPainel{position:fixed;right:18px;bottom:166px;width:min(400px,calc(100vw - 24px));height:min(580px,calc(100vh - 190px));background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(15,23,42,.3);z-index:9001;display:none;flex-direction:column;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif}
+  @media (max-width:700px){#mgFab{--mg-h:104px}}
+  #mgPainel{position:fixed;right:18px;bottom:calc(var(--mg-h,132px) + 22px);width:min(400px,calc(100vw - 24px));height:min(580px,calc(100vh - 210px));background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(15,23,42,.3);z-index:9001;display:none;flex-direction:column;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif}
   #mgPainel.aberto{display:flex}
   .mg-topo{display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(90deg,#1b365f,#2c4f86);color:#fff}
-  .mg-topo .mg-av{width:42px;height:42px;background:#fff;border-radius:50%;padding:3px;flex:none}
-  .mg-topo .mg-av svg{width:100%;height:100%}
+  .mg-topo .mg-av{width:46px;height:46px;background:#fff;border-radius:50%;flex:none;overflow:hidden;position:relative}
+  .mg-topo .mg-av img{position:absolute;width:150%;left:-25%;top:6%}
   .mg-topo b{font-size:15px}.mg-topo small{display:block;opacity:.8;font-size:11px}
   .mg-topo button{margin-left:auto;background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}
   .mg-msgs{flex:1;overflow-y:auto;padding:12px;background:#f4f7fb;display:flex;flex-direction:column;gap:8px}
@@ -214,13 +152,11 @@
     return out;
   }
 
-  function el(id) { return document.getElementById(id); }
   function rolar() { const m = el('mgMsgs'); if (m) m.scrollTop = m.scrollHeight; }
   function add(classe, html) {
     const d = document.createElement('div'); d.className = 'mg-m ' + classe; d.innerHTML = html;
     el('mgMsgs').appendChild(d); rolar(); return d;
   }
-  function falando(on) { pensandoAgora = on; }
 
   async function enviar(texto) {
     texto = String(texto || el('mgEntrada').value).trim();
@@ -229,7 +165,7 @@
     const chips = el('mgChips'); if (chips) chips.style.display = 'none';
     add('mg-eu', esc(texto));
     const pensando = add('mg-bot mg-digitando', '<span></span><span></span><span></span>');
-    falando(true);
+    pensandoAgora = true; let deuCerto = false;
     try {
       const { data, error } = await sbClient.functions.invoke('miguelito', { body: { pergunta: texto, historico } });
       pensando.remove();
@@ -240,7 +176,7 @@
       if (d?.erro === 'limite_diario' || d?.erro === 'teto_mensal' || d?.erro === 'perfil' || d?.erro === 'login' || d?.erro === 'config') {
         add('mg-aviso', esc(d.mensagem || 'Não foi possível responder.'));
       } else if (d?.resposta) {
-        add('mg-bot', formatar(d.resposta));
+        add('mg-bot', formatar(d.resposta)); deuCerto = true;
         historico.push({ role: 'user', content: texto }, { role: 'assistant', content: d.resposta });
         historico = historico.slice(-8);
         if (d.limite) el('mgRodape').textContent = `Perguntas de hoje: ${d.usadas} de ${d.limite}`;
@@ -250,7 +186,8 @@
     } catch (e) {
       pensando.remove(); add('mg-aviso', 'Não consegui falar com o servidor agora. Tente de novo.'); console.error(e);
     }
-    falando(false); ocupado = false; el('mgEnviar').disabled = false; el('mgEntrada').focus();
+    pensandoAgora = false; mostrarPose(deuCerto ? 'aprovando' : 'pensativo', 2.8);
+    ocupado = false; el('mgEnviar').disabled = false; el('mgEntrada').focus();
   }
 
   function alternar() {
@@ -263,14 +200,15 @@
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     const fab = document.createElement('button');
     fab.id = 'mgFab'; fab.type = 'button'; fab.title = 'Miguelito — assistente'; fab.setAttribute('aria-label', 'Abrir o Miguelito');
-    fab.innerHTML = desenhoCorpoInteiro();
-    fab.onclick = () => { el('mgBalao')?.classList.remove('on'); alternar(); }; document.body.appendChild(fab);
+    fab.innerHTML = `<span class="mg-sombra"></span><img alt="" src="${src('feliz')}" draggable="false">`;
+    fab.onclick = () => { el('mgBalao')?.classList.remove('on'); alternar(); };
+    document.body.appendChild(fab);
+    imgEl = fab.querySelector('img'); sombraEl = fab.querySelector('.mg-sombra'); poseAtual = 'feliz';
     const bal = document.createElement('div'); bal.id = 'mgBalao';
     bal.innerHTML = '<b>Precisa de uma mão?</b>Clique em mim 😉'; document.body.appendChild(bal);
-    iniciarAnimacao(fab.querySelector('svg')); agendarBalao();
     const p = document.createElement('div'); p.id = 'mgPainel';
     p.innerHTML = `
-      <div class="mg-topo"><div class="mg-av" id="mgAv">${desenho(true)}</div><div><b>Miguelito</b><small>Assistente da Ferramentaria</small></div><button type="button" id="mgFechar" aria-label="Fechar">×</button></div>
+      <div class="mg-topo"><div class="mg-av"><img alt="" src="${src('feliz')}"></div><div><b>Miguelito</b><small>Assistente da Ferramentaria</small></div><button type="button" id="mgFechar" aria-label="Fechar">×</button></div>
       <div class="mg-msgs" id="mgMsgs"></div>
       <div class="mg-chips" id="mgChips">${SUGESTOES.map(s => `<button type="button">${esc(s)}</button>`).join('')}</div>
       <div class="mg-form"><textarea id="mgEntrada" placeholder="Pergunte sobre lançamentos, máquinas, RAMs, copos…" maxlength="1500"></textarea><button type="button" id="mgEnviar">Enviar</button></div>
@@ -281,6 +219,7 @@
     el('mgFechar').onclick = alternar; el('mgEnviar').onclick = () => enviar();
     el('mgEntrada').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
     el('mgChips').querySelectorAll('button').forEach(b => b.onclick = () => enviar(b.textContent));
+    iniciarAnimacao();
   }
 
   // Espera o login carregar e só então mostra o Miguelito para quem tem permissão
