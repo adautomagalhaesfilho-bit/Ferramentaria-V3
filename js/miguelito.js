@@ -15,6 +15,9 @@
   const POSES = ['feliz', 'piscando', 'acenando', 'comemorando', 'lendo', 'aprovando', 'pensativo', 'indicando', 'caminhando'];
   // Ajuste fino de tamanho por pose (o desenho original varia um pouco entre elas)
   const ESCALA = { acenando: 1.02, aprovando: 1.02, lendo: .93 };
+  // Calma: tempo entre gestos e duração de cada ação multiplicados por 5 (pedido do Adauto).
+  // Para ajustar, mude só este número (1 = ritmo original).
+  const CALMA = 5;
   let aberto = false, ocupado = false, historico = [];
 
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -41,14 +44,14 @@
     if (document.hidden || agora - ultimo < 40) return; // ~25 quadros por segundo
     ultimo = agora; const t = agora / 1000;
     if (!imgEl) return;
-    if (!proximoGesto) { proximoGesto = t + 15 + Math.random() * 10; proximaPiscada = t + 2.5; }
+    if (!proximoGesto) { proximoGesto = t + (15 + Math.random() * 10) * CALMA; proximaPiscada = t + 2.5; }
 
     let pose = 'feliz', dx = 0, dy = 0, rot = 0, sx = 1, sy = 1 + Math.sin(t * Math.PI * .8) * .012, sombra = 1;
 
     if (andando) { // entrada: caminha da esquerda até o canto (uma vez)
       const k = clamp((t - andando.ini) / andando.dur);
       pose = 'caminhando'; dx = -(1 - ease(k)) * andando.dist; dy = -Math.abs(Math.sin(t * 7)) * 6; rot = Math.sin(t * 7) * 2;
-      if (k >= 1) { andando = null; proximoGesto = t + 12 + Math.random() * 8; }
+      if (k >= 1) { andando = null; proximoGesto = t + (12 + Math.random() * 8) * CALMA; }
     } else if (pensandoAgora) { // respondendo: lendo a prancheta
       pose = 'lendo'; rot = Math.sin(t * 3.2) * 2.2; sy = 1 + Math.sin(t * 6) * .01;
     } else if (temp && t < temp.ate) { // aprovando / pensativo: "pop" no começo
@@ -58,20 +61,20 @@
       temp = null;
       if (!gesto && t >= proximoGesto && !aberto) {
         const tipo = Math.random() < .6 ? 'acenando' : 'comemorando';
-        gesto = { tipo, ini: t, dur: tipo === 'acenando' ? 2.4 : 1.3 };
+        gesto = { tipo, ini: t, dur: (tipo === 'acenando' ? 2.4 : 1.3) * CALMA };
       }
       if (gesto) {
         const e = t - gesto.ini;
-        if (e > gesto.dur) { gesto = null; proximoGesto = t + 25 + Math.random() * 25; }
+        if (e > gesto.dur) { gesto = null; proximoGesto = t + (25 + Math.random() * 25) * CALMA; }
         else if (gesto.tipo === 'acenando') { pose = 'acenando'; rot = Math.sin(e * 6) * 1.8; if (!gesto.balao && e > .2 && !aberto) { gesto.balao = true; mostrarBalao(true); } }
         else { // comemorando: agacha, pula e amortece
-          pose = 'comemorando'; const k = e / gesto.dur;
+          pose = 'comemorando'; const k = (e % 1.3) / 1.3; // um pulinho a cada 1,3 s durante toda a ação
           if (k < .18) { const a = k / .18; sy = 1 - .08 * ease(a); sx = 1 + .05 * ease(a); }
           else if (k < .8) { const a = (k - .18) / .62; dy = -Math.sin(a * Math.PI) * 38; sy = 1 + .05 * Math.sin(a * Math.PI); sombra = 1 - .4 * Math.sin(a * Math.PI); }
           else { const a = (k - .8) / .2; sy = 1 - .06 * Math.sin(a * Math.PI); sx = 1 + .04 * Math.sin(a * Math.PI); }
         }
       }
-      if (!gesto && t >= proximaPiscada) { piscadaAte = t + .22; proximaPiscada = t + 3 + Math.random() * 4; }
+      if (!gesto && t >= proximaPiscada) { piscadaAte = t + .22; proximaPiscada = t + 8 + Math.random() * 8; }
       if (!gesto && t < piscadaAte) pose = 'piscando';
     }
     trocarPose(pose);
@@ -90,7 +93,7 @@
 
   // Balão "Precisa de uma mão?" — aparece junto do aceno ocasional
   let balaoAte = 0;
-  function mostrarBalao(on) { const b = el('mgBalao'); if (!b) return; if (on) { b.classList.add('on'); clearTimeout(balaoAte); balaoAte = setTimeout(() => b.classList.remove('on'), 2600); } }
+  function mostrarBalao(on) { const b = el('mgBalao'); if (!b) return; if (on) { b.classList.add('on'); clearTimeout(balaoAte); balaoAte = setTimeout(() => b.classList.remove('on'), 2600 * CALMA); } }
 
   // ---------- Estilo ----------
   const CSS = `
@@ -186,7 +189,7 @@
     } catch (e) {
       pensando.remove(); add('mg-aviso', 'Não consegui falar com o servidor agora. Tente de novo.'); console.error(e);
     }
-    pensandoAgora = false; mostrarPose(deuCerto ? 'aprovando' : 'pensativo', 2.8);
+    pensandoAgora = false; mostrarPose(deuCerto ? 'aprovando' : 'pensativo', 2.8 * CALMA);
     ocupado = false; el('mgEnviar').disabled = false; el('mgEntrada').focus();
   }
 
