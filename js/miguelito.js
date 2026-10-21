@@ -49,17 +49,110 @@
     </svg>`;
   }
 
+
+  // Miguelito de corpo inteiro para o canto da tela (sem círculo): respira, pisca, olha em volta, acena e dá pulinhos
+  function desenhoCorpoInteiro() {
+    return `<svg viewBox="-70 -170 460 590" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="mfCorpo" x1="0" x2="1"><stop offset="0" stop-color="#dfe7f2"/><stop offset=".45" stop-color="#fff"/><stop offset="1" stop-color="#cfd9e8"/></linearGradient>
+        <linearGradient id="mfBorda" x1="0" x2="1"><stop offset="0" stop-color="#1b365f"/><stop offset="1" stop-color="#2c4f86"/></linearGradient>
+      </defs>
+      <ellipse data-p="chao" cx="150" cy="382" rx="95" ry="11" fill="#0f172a" opacity=".18"/>
+      <g data-p="pernaE"><path d="M100 340 Q96 372 84 384" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><ellipse cx="78" cy="387" rx="19" ry="9" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
+      <g data-p="pernaD"><path d="M200 340 Q204 372 216 384" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><ellipse cx="222" cy="387" rx="19" ry="9" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
+      <g data-p="corpo">
+        <g data-p="bracoE"><path d="M12 215 Q-26 232 -22 272" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><circle cx="-22" cy="276" r="12" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
+        <path d="M8 66 C -14 -30, 314 -30, 292 66" fill="none" stroke="#8a97ab" stroke-width="10" stroke-linecap="round"/>
+        <path d="M10 70 L290 70 L280 340 Q279 356 262 356 L38 356 Q21 356 20 340 Z" fill="url(#mfCorpo)" stroke="#9fb0c8" stroke-width="4"/>
+        <rect x="-2" y="56" width="304" height="30" rx="15" fill="url(#mfBorda)"/><rect x="12" y="62" width="276" height="6" rx="3" fill="#fff" opacity=".25"/>
+        <path d="M21 318 L279 318 L278 340 Q277 348 268 348 L32 348 Q23 348 22 340 Z" fill="#c0302f"/>
+        <g transform="translate(0,18)">
+          <g data-p="olhos" style="transform-box:fill-box;transform-origin:center">
+            <ellipse cx="108" cy="132" rx="26" ry="30" fill="#fff" stroke="#1b365f" stroke-width="5"/><ellipse cx="192" cy="132" rx="26" ry="30" fill="#fff" stroke="#1b365f" stroke-width="5"/>
+            <g data-p="pupilas"><circle cx="114" cy="136" r="13" fill="#1b365f"/><circle cx="198" cy="136" r="13" fill="#1b365f"/><circle cx="119" cy="130" r="4.5" fill="#fff"/><circle cx="203" cy="130" r="4.5" fill="#fff"/></g>
+          </g>
+          <path data-p="sobrE" d="M82 96 Q108 84 132 94" stroke="#1b365f" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path data-p="sobrD" d="M168 94 Q192 84 218 96" stroke="#1b365f" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path data-p="boca" d="M112 172 Q150 212 188 172" stroke="#1b365f" stroke-width="7" fill="#fff" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <g transform="translate(96,236) scale(0.19)"><image href="icons/bx-sem-fundo.png" width="575" height="406"/></g>
+        <g data-p="bracoD"><path d="M288 215 Q326 205 340 168" stroke="#9fb0c8" stroke-width="12" fill="none" stroke-linecap="round"/><circle cx="342" cy="162" r="12" fill="#fff" stroke="#9fb0c8" stroke-width="3"/></g>
+      </g>
+    </svg>`;
+  }
+
+  const ease = x => x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const seg = (t, a, b) => clamp((t - a) / (b - a));
+  let partes = null, pensandoAgora = false;
+
+  // t em segundos; laço de 6s. Com "pensando", ele fica acenando e olhando de um lado para o outro.
+  function quadro(t) {
+    const P = partes; if (!P) return;
+    t = t % 6;
+    let dy = 0, sx = 1, sy = 1 + Math.sin(t * Math.PI) * 0.012, perna = 1;
+    const j = seg(t, 3.6, 4.7);
+    if (!pensandoAgora && t >= 3.6 && t <= 4.7) {
+      if (j < .18) { const k = j / .18; sy = 1 - .10 * ease(k); sx = 1 + .06 * ease(k); perna = 1 - .35 * ease(k); }
+      else if (j < .78) { const k = (j - .18) / .6; dy = -Math.sin(k * Math.PI) * 70; sy = 1 + .07 * Math.sin(k * Math.PI); sx = 1 - .035 * Math.sin(k * Math.PI); perna = 1 + .25 * Math.sin(k * Math.PI); }
+      else { const k = (j - .78) / .22; sy = 1 - .08 * Math.sin(k * Math.PI); sx = 1 + .05 * Math.sin(k * Math.PI); perna = 1 - .25 * Math.sin(k * Math.PI); }
+    }
+    const olha = pensandoAgora ? (t % 1.6) / 1.6 : seg(t, 1.0, 1.8);
+    const balanco = pensandoAgora ? Math.sin(t * 5) * .8 : (t > 1 && t < 1.8 ? Math.sin(olha * Math.PI * 2) : 0);
+    P.corpo.setAttribute('transform', `translate(150,356) rotate(${balanco * 2.2}) scale(${sx},${sy}) translate(-150,-356) translate(0,${dy})`);
+    const pl = `translate(0,${dy}) translate(0,340) scale(1,${perna}) translate(0,-340)`;
+    P.pernaE.setAttribute('transform', pl); P.pernaD.setAttribute('transform', pl);
+    const alt = -dy / 70; P.chao.setAttribute('rx', 95 * (1 - .25 * alt)); P.chao.setAttribute('opacity', .18 * (1 - .5 * alt));
+    let px = 0, py = 0;
+    if (pensandoAgora) { px = Math.sin(t * 3) * 10; py = -3; }
+    else if (t >= 1 && t <= 1.8) { px = Math.sin(olha * Math.PI * 2) * 9; py = -2; }
+    else if (t >= 2.3 && t <= 3.0) { px = 6; py = -5; }
+    P.pupilas.setAttribute('transform', `translate(${px},${py})`);
+    let bl = 1; for (const b of [0.6, 3.3, 5.2]) { const d = Math.abs(t - b); if (d < .09) bl = Math.min(bl, .1 + d / .09 * .9); }
+    P.olhos.setAttribute('transform', `scale(1,${bl})`);
+    const sob = (!pensandoAgora && t > 3.5 && t < 4.9) ? -6 : 0;
+    P.sobrE.setAttribute('transform', `translate(0,${sob})`); P.sobrD.setAttribute('transform', `translate(0,${sob})`);
+    let ang = 0;
+    if (pensandoAgora) ang = -34 + Math.sin(t * 9) * 16;
+    else if (t >= 2.1 && t <= 3.5) { const k = seg(t, 2.1, 3.5); ang = -48 * Math.sin(Math.min(k * 6, 1) * Math.PI / 2) * (k < .9 ? 1 : 1 - (k - .9) / .1) + (k < .9 ? Math.sin(k * Math.PI * 8) * 14 : 0); }
+    P.bracoD.setAttribute('transform', `rotate(${ang},288,215)`);
+    const al = (!pensandoAgora && t >= 3.6 && t <= 4.7) ? -28 * Math.sin(j * Math.PI) : Math.sin(t * 2.2) * 2;
+    P.bracoE.setAttribute('transform', `rotate(${al},12,215)`);
+    const grande = pensandoAgora || (t > 2.1 && t < 3.5) || (t > 3.7 && t < 4.6);
+    P.boca.setAttribute('d', grande ? 'M106 168 Q150 224 194 168' : 'M112 172 Q150 212 188 172');
+  }
+
+  let ultimo = 0;
+  function laco(agora) {
+    requestAnimationFrame(laco);
+    if (document.hidden || agora - ultimo < 40) return; // ~25 quadros por segundo
+    ultimo = agora; quadro(agora / 1000);
+  }
+  function iniciarAnimacao(svgEl) {
+    partes = {}; svgEl.querySelectorAll('[data-p]').forEach(n => partes[n.dataset.p] = n);
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { quadro(0); return; }
+    requestAnimationFrame(laco);
+  }
+
+  // Balão que aparece de vez em quando, só se o painel estiver fechado e ninguém estiver digitando
+  function agendarBalao() {
+    setTimeout(function mostrar() {
+      const b = el('mgBalao'), digitando = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+      if (b && !aberto && !digitando && !document.hidden) { b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 4500); }
+      setTimeout(mostrar, 180000 + Math.random() * 120000); // a cada 3–5 minutos
+    }, 45000);
+  }
+
   const CSS = `
-  #mgFab{position:fixed;right:18px;bottom:18px;width:64px;height:64px;border:none;border-radius:50%;background:#fff;box-shadow:0 6px 18px rgba(27,54,95,.35);cursor:pointer;z-index:9000;padding:6px;transition:transform .15s}
-  #mgFab:hover{transform:scale(1.07)}
-  #mgFab svg{width:100%;height:100%}
-  #mgFab .mg-dica{position:absolute;right:72px;bottom:12px;background:#1b365f;color:#fff;font:600 12px 'Segoe UI',Arial,sans-serif;padding:6px 10px;border-radius:10px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
-  #mgFab:hover .mg-dica{opacity:1}
+  #mgFab{position:fixed;right:12px;bottom:6px;width:var(--mg-w,120px);height:calc(var(--mg-w,120px) * 1.28);border:none;background:transparent;cursor:pointer;z-index:9000;padding:0;filter:drop-shadow(0 6px 8px rgba(15,23,42,.30));-webkit-tap-highlight-color:transparent}
+  #mgFab svg{width:100%;height:100%;overflow:visible;display:block}
+  #mgBalao{position:fixed;right:20px;bottom:calc(var(--mg-w,120px) * 1.28 + 4px);max-width:230px;background:#fff;border:1px solid #c9d5e6;border-radius:14px;padding:9px 12px;font:13px 'Segoe UI',Arial,sans-serif;color:#334155;box-shadow:0 6px 18px rgba(15,23,42,.2);z-index:9000;opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .25s,transform .25s}
+  #mgBalao b{display:block;color:#1b365f;font-size:13px}
+  #mgBalao.on{opacity:1;transform:none}
+  @media (max-width:700px){#mgFab{--mg-w:92px}}
   .mg-olhos{transform-box:fill-box;transform-origin:center;animation:mgPiscar 5s infinite}
   @keyframes mgPiscar{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
-  .mg-falando .mg-braco{animation:mgAcenar .6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:left bottom}
-  @keyframes mgAcenar{from{transform:rotate(-8deg)}to{transform:rotate(10deg)}}
-  #mgPainel{position:fixed;right:18px;bottom:96px;width:min(400px,calc(100vw - 24px));height:min(580px,calc(100vh - 120px));background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(15,23,42,.3);z-index:9001;display:none;flex-direction:column;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif}
+  #mgPainel{position:fixed;right:18px;bottom:166px;width:min(400px,calc(100vw - 24px));height:min(580px,calc(100vh - 190px));background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(15,23,42,.3);z-index:9001;display:none;flex-direction:column;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif}
   #mgPainel.aberto{display:flex}
   .mg-topo{display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(90deg,#1b365f,#2c4f86);color:#fff}
   .mg-topo .mg-av{width:42px;height:42px;background:#fff;border-radius:50%;padding:3px;flex:none}
@@ -85,7 +178,7 @@
   .mg-digitando span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:#94a3b8;animation:mgPonto 1s infinite}
   .mg-digitando span:nth-child(2){animation-delay:.15s}.mg-digitando span:nth-child(3){animation-delay:.3s}
   @keyframes mgPonto{0%,80%,100%{opacity:.3}40%{opacity:1}}
-  @media print{#mgFab,#mgPainel{display:none!important}}`;
+  @media print{#mgFab,#mgPainel,#mgBalao{display:none!important}}`;
 
   // Markdown simples: negrito, listas, quebras de linha e tabelas
   function formatar(txt) {
@@ -116,7 +209,7 @@
     const d = document.createElement('div'); d.className = 'mg-m ' + classe; d.innerHTML = html;
     el('mgMsgs').appendChild(d); rolar(); return d;
   }
-  function falando(on) { el('mgFab')?.classList.toggle('mg-falando', on); el('mgAv')?.classList.toggle('mg-falando', on); }
+  function falando(on) { pensandoAgora = on; }
 
   async function enviar(texto) {
     texto = String(texto || el('mgEntrada').value).trim();
@@ -158,9 +251,12 @@
     if (el('mgFab')) return;
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     const fab = document.createElement('button');
-    fab.id = 'mgFab'; fab.type = 'button'; fab.title = 'Miguelito — assistente';
-    fab.innerHTML = desenho(false) + '<span class="mg-dica">Pergunte ao Miguelito</span>';
-    fab.onclick = alternar; document.body.appendChild(fab);
+    fab.id = 'mgFab'; fab.type = 'button'; fab.title = 'Miguelito — assistente'; fab.setAttribute('aria-label', 'Abrir o Miguelito');
+    fab.innerHTML = desenhoCorpoInteiro();
+    fab.onclick = () => { el('mgBalao')?.classList.remove('on'); alternar(); }; document.body.appendChild(fab);
+    const bal = document.createElement('div'); bal.id = 'mgBalao';
+    bal.innerHTML = '<b>Precisa de uma mão?</b>Clique em mim 😉'; document.body.appendChild(bal);
+    iniciarAnimacao(fab.querySelector('svg')); agendarBalao();
     const p = document.createElement('div'); p.id = 'mgPainel';
     p.innerHTML = `
       <div class="mg-topo"><div class="mg-av" id="mgAv">${desenho(true)}</div><div><b>Miguelito</b><small>Assistente da Ferramentaria</small></div><button type="button" id="mgFechar" aria-label="Fechar">×</button></div>
