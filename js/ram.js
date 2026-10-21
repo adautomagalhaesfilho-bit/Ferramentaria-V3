@@ -106,7 +106,14 @@ function filtrarPainelRAM() {
 
   const filtradas = _todasRAMsCache.filter(r => {
     if (texto && !(r.numero.toLowerCase().includes(texto) || r.job.toLowerCase().includes(texto) || (r.descricao||'').toLowerCase().includes(texto))) return false;
-    if (setor !== 'Todos' && !r.setores.some(s => s.setor === setor)) return false;
+    if (setor !== 'Todos') {
+      // Com status "aberto" (abertas, atrasadas, vencendo, sem prazo) só vale RAM em que ESSE setor ainda não concluiu;
+      // em "concluídas" vale quem já concluiu; em "todas" basta o setor participar.
+      const doSetor = r.setores.filter(s => s.setor === setor);
+      if (!doSetor.length) return false;
+      if (status === 'concluidas') { if (!doSetor.some(s => s.concluido)) return false; }
+      else if (status !== 'todas') { if (!doSetor.some(s => !s.concluido)) return false; }
+    }
     const estaAberta = r.setores.some(s => !s.concluido);
     if (status === 'abertas'    && !estaAberta) return false;
     if (status === 'concluidas' &&  estaAberta) return false;
