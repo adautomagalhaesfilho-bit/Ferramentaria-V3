@@ -104,7 +104,7 @@
   #mgBalao b{display:block;color:#1b365f;font-size:13px}
   #mgBalao.on{opacity:1;transform:none}
   @media (max-width:700px){#mgFab{--mg-h:104px}}
-  #mgPainel{position:fixed;right:18px;bottom:calc(var(--mg-h,132px) + 22px);width:min(400px,calc(100vw - 24px));height:min(580px,calc(100vh - 210px));background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(15,23,42,.3);z-index:9001;display:none;flex-direction:column;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif}
+  #mgPainel{position:fixed;right:0;top:0;bottom:0;width:min(400px,100vw);background:#fff;box-shadow:-10px 0 30px rgba(15,23,42,.22);z-index:9001;display:none;flex-direction:column;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif}
   #mgPainel.aberto{display:flex}
   .mg-topo{display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(90deg,#1b365f,#2c4f86);color:#fff}
   .mg-topo .mg-av{width:46px;height:46px;background:#fff;border-radius:50%;flex:none;overflow:hidden;position:relative}
@@ -112,6 +112,18 @@
   .mg-topo b{font-size:15px}.mg-topo small{display:block;opacity:.8;font-size:11px}
   .mg-topo button{margin-left:auto;background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}
   .mg-msgs{flex:1;overflow-y:auto;padding:12px;background:#f4f7fb;display:flex;flex-direction:column;gap:8px}
+  .mg-pose{align-self:flex-start;display:flex;gap:10px;align-items:flex-end;color:#64748b;font-size:12px}
+  .mg-pose img{height:92px;width:auto;pointer-events:none}
+  .mg-rosto{display:inline-block;width:22px;height:22px;border-radius:50%;background:#fff;overflow:hidden;position:relative;flex:none;border:1px solid #dbe4f0}
+  .mg-rosto img{position:absolute;width:150%;left:-25%;top:6%}
+  .mg-busca{display:flex;align-items:center;gap:8px;width:min(430px,38vw);height:36px;border:1px solid #cbd5e1;border-radius:10px;padding:0 10px;background:#f8fafc}
+  .mg-busca:focus-within{border-color:#1b365f;background:#fff;box-shadow:0 0 0 3px rgba(27,54,95,.12)}
+  .mg-busca input{flex:1;min-width:0;border:none;outline:none;background:transparent;font:13px 'Segoe UI',Arial,sans-serif;color:#1e293b}
+  .mg-busca kbd{font:600 11px 'Segoe UI',Arial,sans-serif;background:#fff;border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:6px;padding:2px 6px;color:#64748b;white-space:nowrap}
+  @media (max-width:900px){.mg-busca{display:none}}
+  .mg-novo.menu-txt{flex:none}
+  .mg-novo{margin-left:auto;background:#c0302f;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:8px}
+  .mg-opcao{background:none;border:none;color:#64748b;font-size:11px;cursor:pointer;text-decoration:underline;padding:0 0 6px}
   .mg-m{max-width:88%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
   .mg-bot{background:#fff;border:1px solid #dbe4f0;color:#1e293b;align-self:flex-start;border-bottom-left-radius:4px}
   .mg-eu{background:#1b365f;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
@@ -130,7 +142,7 @@
   .mg-digitando span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:#94a3b8;animation:mgPonto 1s infinite}
   .mg-digitando span:nth-child(2){animation-delay:.15s}.mg-digitando span:nth-child(3){animation-delay:.3s}
   @keyframes mgPonto{0%,80%,100%{opacity:.3}40%{opacity:1}}
-  @media print{#mgFab,#mgPainel,#mgBalao{display:none!important}}`;
+  @media print{#mgFab,#mgPainel,#mgBalao,.mg-busca{display:none!important}}`;
 
   // Markdown simples: negrito, listas, quebras de linha e tabelas
   function formatar(txt) {
@@ -167,7 +179,8 @@
     ocupado = true; el('mgEntrada').value = ''; el('mgEnviar').disabled = true;
     const chips = el('mgChips'); if (chips) chips.style.display = 'none';
     add('mg-eu', esc(texto));
-    const pensando = add('mg-bot mg-digitando', '<span></span><span></span><span></span>');
+    el('mgMsgs').querySelectorAll('.mg-pose').forEach(n => n.remove());
+    const pensando = add('mg-pose', `<img alt="" src="${src('lendo')}"><span>Lendo os dados…</span>`);
     pensandoAgora = true; let deuCerto = false;
     try {
       const { data, error } = await sbClient.functions.invoke('miguelito', { body: { pergunta: texto, historico } });
@@ -190,6 +203,7 @@
       pensando.remove(); add('mg-aviso', 'Não consegui falar com o servidor agora. Tente de novo.'); console.error(e);
     }
     pensandoAgora = false; mostrarPose(deuCerto ? 'aprovando' : 'pensativo', 2.8 * CALMA);
+    add('mg-pose', `<img alt="" src="${src(deuCerto ? 'aprovando' : 'pensativo')}"><span>${deuCerto ? 'Pronto!' : 'Hmm…'}</span>`);
     ocupado = false; el('mgEnviar').disabled = false; el('mgEntrada').focus();
   }
 
@@ -198,9 +212,12 @@
     if (aberto) setTimeout(() => el('mgEntrada')?.focus(), 50);
   }
 
-  function montar() {
+  // Preferência por pessoa/navegador: mascote flutuante (desligado por padrão)
+  function mascoteLigado() { try { return localStorage.getItem('mg_mascote') === '1'; } catch (e) { return false; } }
+  function guardarMascote(on) { try { localStorage.setItem('mg_mascote', on ? '1' : '0'); } catch (e) { /* sem armazenamento */ } }
+
+  function montarMascote() {
     if (el('mgFab')) return;
-    const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     const fab = document.createElement('button');
     fab.id = 'mgFab'; fab.type = 'button'; fab.title = 'Miguelito — assistente'; fab.setAttribute('aria-label', 'Abrir o Miguelito');
     fab.innerHTML = `<span class="mg-sombra"></span><img alt="" src="${src('feliz')}" draggable="false">`;
@@ -209,20 +226,67 @@
     imgEl = fab.querySelector('img'); sombraEl = fab.querySelector('.mg-sombra'); poseAtual = 'feliz';
     const bal = document.createElement('div'); bal.id = 'mgBalao';
     bal.innerHTML = '<b>Precisa de uma mão?</b>Clique em mim 😉'; document.body.appendChild(bal);
+    iniciarAnimacao();
+  }
+  function removerMascote() {
+    el('mgFab')?.remove(); el('mgBalao')?.remove(); imgEl = null; sombraEl = null; poseAtual = ''; gesto = null; andando = null; temp = null;
+  }
+  function atualizarOpcaoMascote() { const b = el('mgOpcaoMascote'); if (b) b.textContent = mascoteLigado() ? 'Esconder o mascote da tela' : 'Mostrar o mascote na tela'; }
+
+  function abrirComPergunta(texto) { if (!aberto) alternar(); if (texto) enviar(texto); }
+
+  function montar() {
+    if (el('mgPainel')) return;
+    const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    POSES.forEach(p => { const i = new Image(); i.src = src(p); }); // pré-carrega as poses do painel
+
+    // Painel (gaveta lateral)
     const p = document.createElement('div'); p.id = 'mgPainel';
     p.innerHTML = `
       <div class="mg-topo"><div class="mg-av"><img alt="" src="${src('feliz')}"></div><div><b>Miguelito</b><small>Assistente da Ferramentaria</small></div><button type="button" id="mgFechar" aria-label="Fechar">×</button></div>
       <div class="mg-msgs" id="mgMsgs"></div>
       <div class="mg-chips" id="mgChips">${SUGESTOES.map(s => `<button type="button">${esc(s)}</button>`).join('')}</div>
       <div class="mg-form"><textarea id="mgEntrada" placeholder="Pergunte sobre lançamentos, máquinas, RAMs, copos…" maxlength="1500"></textarea><button type="button" id="mgEnviar">Enviar</button></div>
-      <div class="mg-rod" id="mgRodape">Só consulta dados, não altera nada.</div>`;
+      <div class="mg-rod" id="mgRodape">Só consulta dados, não altera nada.</div>
+      <div style="text-align:center;background:#fff"><button type="button" class="mg-opcao" id="mgOpcaoMascote"></button></div>`;
     document.body.appendChild(p);
     const nome = String(_sessao?.nome || '').split(/[\s._-]+/)[0];
     add('mg-bot', `E aí${nome ? ', ' + esc(nome) : ''}! 👋 Sou o Miguelito. O que você quer saber hoje?`);
     el('mgFechar').onclick = alternar; el('mgEnviar').onclick = () => enviar();
     el('mgEntrada').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
     el('mgChips').querySelectorAll('button').forEach(b => b.onclick = () => enviar(b.textContent));
-    iniciarAnimacao();
+    el('mgOpcaoMascote').onclick = () => { const on = !mascoteLigado(); guardarMascote(on); on ? montarMascote() : removerMascote(); atualizarOpcaoMascote(); };
+    atualizarOpcaoMascote();
+
+    // Item "Assistente" no menu lateral (depois de "Histórico")
+    const ref = el('menuHistorico');
+    if (ref && !el('menuAssistente')) {
+      const it = document.createElement('div'); it.className = 'menu-item'; it.id = 'menuAssistente';
+      it.innerHTML = `<span class="menu-icon"><span class="mg-rosto"><img alt="" src="${src('feliz')}"></span></span><span class="menu-txt">Assistente</span><span class="mg-novo menu-txt">NOVO</span>`;
+      it.onclick = () => abrirComPergunta();
+      ref.insertAdjacentElement('afterend', it);
+    }
+
+    // Barra "Pergunte ao sistema…" no topo
+    const titulo = el('topbarTitulo');
+    if (titulo && !el('mgBusca')) {
+      const b = document.createElement('div'); b.className = 'mg-busca'; b.id = 'mgBusca';
+      b.innerHTML = `<span class="mg-rosto"><img alt="" src="${src('feliz')}"></span><input id="mgBuscaEntrada" type="text" maxlength="1500" placeholder="Pergunte ao sistema… ex.: última troca de copo do BX 18 N" autocomplete="off"><kbd>Ctrl K</kbd>`;
+      titulo.insertAdjacentElement('afterend', b);
+      const inp = el('mgBuscaEntrada');
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && inp.value.trim()) { const t = inp.value.trim(); inp.value = ''; inp.blur(); abrirComPergunta(t); }
+        if (e.key === 'Escape') inp.blur();
+      });
+    }
+    // Atalho Ctrl+K (ou Cmd+K) leva o cursor para a barra
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault(); const inp = el('mgBuscaEntrada');
+        if (inp && inp.offsetParent) inp.focus(); else abrirComPergunta();
+      }
+    });
+    if (mascoteLigado()) montarMascote();
   }
 
   // Espera o login carregar e só então mostra o Miguelito para quem tem permissão
