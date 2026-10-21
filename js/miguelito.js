@@ -97,12 +97,14 @@
 
   // ---------- Estilo ----------
   const CSS = `
-  #mgFab{position:fixed;right:10px;bottom:4px;height:var(--mg-h,132px);border:none;background:transparent;cursor:pointer;z-index:9000;padding:0;display:flex;align-items:flex-end;-webkit-tap-highlight-color:transparent}
+  #mgFab{position:fixed;right:10px;bottom:4px;height:var(--mg-h,132px);border:none;background:transparent;cursor:pointer;z-index:9002;padding:0;display:flex;transition:bottom .3s;align-items:flex-end;-webkit-tap-highlight-color:transparent}
   #mgFab img{height:calc(var(--mg-h,132px) * var(--esc,1));width:auto;display:block;transform-origin:50% 100%;filter:drop-shadow(0 5px 6px rgba(15,23,42,.28));pointer-events:none;user-select:none}
   #mgFab .mg-sombra{position:absolute;left:50%;bottom:-2px;width:60%;height:9px;margin-left:-30%;border-radius:50%;background:#0f172a;opacity:.22;filter:blur(3px);pointer-events:none}
-  #mgBalao{position:fixed;right:24px;bottom:calc(var(--mg-h,132px) + 8px);max-width:230px;background:#fff;border:1px solid #c9d5e6;border-radius:14px;padding:9px 12px;font:13px 'Segoe UI',Arial,sans-serif;color:#334155;box-shadow:0 6px 18px rgba(15,23,42,.2);z-index:9000;opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .25s,transform .25s}
+  #mgBalao{position:fixed;right:24px;bottom:calc(var(--mg-h,132px) + 8px);max-width:230px;background:#fff;border:1px solid #c9d5e6;border-radius:14px;padding:9px 12px;font:13px 'Segoe UI',Arial,sans-serif;color:#334155;box-shadow:0 6px 18px rgba(15,23,42,.2);z-index:9002;opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .25s,transform .25s}
   #mgBalao b{display:block;color:#1b365f;font-size:13px}
   #mgBalao.on{opacity:1;transform:none}
+  body.mg-painel-aberto #mgFab{bottom:150px;pointer-events:none}
+  body.mg-painel-aberto #mgBalao{display:none}
   @media (max-width:700px){#mgFab{--mg-h:104px}}
   #mgPainel{position:fixed;right:0;top:0;bottom:0;width:min(400px,100vw);background:#fff;box-shadow:-10px 0 30px rgba(15,23,42,.22);z-index:9001;display:none;flex-direction:column;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif}
   #mgPainel.aberto{display:flex}
@@ -208,7 +210,7 @@
   }
 
   function alternar() {
-    aberto = !aberto; el('mgPainel').classList.toggle('aberto', aberto);
+    aberto = !aberto; el('mgPainel').classList.toggle('aberto', aberto); document.body.classList.toggle('mg-painel-aberto', aberto);
     if (aberto) setTimeout(() => el('mgEntrada')?.focus(), 50);
   }
 
