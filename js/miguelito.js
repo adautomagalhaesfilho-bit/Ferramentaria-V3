@@ -87,50 +87,61 @@
   let partes = null, pensandoAgora = false;
 
   // t em segundos; laço de 6s. Com "pensando", ele fica acenando e olhando de um lado para o outro.
-  function quadro(t) {
+  // treal = relógio real (respiração, modo "pensando"); t = tempo do gesto atual (-1 = parado)
+  function quadro(treal, t, piscada) {
     const P = partes; if (!P) return;
-    t = t % 6;
-    let dy = 0, sx = 1, sy = 1 + Math.sin(t * Math.PI) * 0.012, perna = 1;
+    let dy = 0, sx = 1, sy = 1 + Math.sin(treal * Math.PI * .8) * 0.012, perna = 1;
     const j = seg(t, 3.6, 4.7);
     if (!pensandoAgora && t >= 3.6 && t <= 4.7) {
       if (j < .18) { const k = j / .18; sy = 1 - .10 * ease(k); sx = 1 + .06 * ease(k); perna = 1 - .35 * ease(k); }
       else if (j < .78) { const k = (j - .18) / .6; dy = -Math.sin(k * Math.PI) * 70; sy = 1 + .07 * Math.sin(k * Math.PI); sx = 1 - .035 * Math.sin(k * Math.PI); perna = 1 + .25 * Math.sin(k * Math.PI); }
       else { const k = (j - .78) / .22; sy = 1 - .08 * Math.sin(k * Math.PI); sx = 1 + .05 * Math.sin(k * Math.PI); perna = 1 - .25 * Math.sin(k * Math.PI); }
     }
-    const olha = pensandoAgora ? (t % 1.6) / 1.6 : seg(t, 1.0, 1.8);
-    const balanco = pensandoAgora ? Math.sin(t * 5) * .8 : (t > 1 && t < 1.8 ? Math.sin(olha * Math.PI * 2) : 0);
+    const olha = pensandoAgora ? (treal % 1.6) / 1.6 : seg(t, 1.0, 1.8);
+    const balanco = pensandoAgora ? Math.sin(treal * 5) * .8 : (t > 1 && t < 1.8 ? Math.sin(olha * Math.PI * 2) : 0);
     P.corpo.setAttribute('transform', `translate(150,356) rotate(${balanco * 2.2}) scale(${sx},${sy}) translate(-150,-356) translate(0,${dy})`);
     const pl = `translate(0,${dy}) translate(0,340) scale(1,${perna}) translate(0,-340)`;
     P.pernaE.setAttribute('transform', pl); P.pernaD.setAttribute('transform', pl);
     const alt = -dy / 70; P.chao.setAttribute('rx', 95 * (1 - .25 * alt)); P.chao.setAttribute('opacity', .18 * (1 - .5 * alt));
     let px = 0, py = 0;
-    if (pensandoAgora) { px = Math.sin(t * 3) * 10; py = -3; }
+    if (pensandoAgora) { px = Math.sin(treal * 3) * 10; py = -3; }
     else if (t >= 1 && t <= 1.8) { px = Math.sin(olha * Math.PI * 2) * 9; py = -2; }
     else if (t >= 2.3 && t <= 3.0) { px = 6; py = -5; }
     P.pupilas.setAttribute('transform', `translate(${px},${py})`);
-    let bl = 1; for (const b of [0.6, 3.3, 5.2]) { const d = Math.abs(t - b); if (d < .09) bl = Math.min(bl, .1 + d / .09 * .9); }
-    P.olhos.setAttribute('transform', `scale(1,${bl})`);
+    P.olhos.setAttribute('transform', `scale(1,${piscada})`);
     const sob = (!pensandoAgora && t > 3.5 && t < 4.9) ? -6 : 0;
     P.sobrE.setAttribute('transform', `translate(0,${sob})`); P.sobrD.setAttribute('transform', `translate(0,${sob})`);
     let ang = 0;
-    if (pensandoAgora) ang = -34 + Math.sin(t * 9) * 16;
+    if (pensandoAgora) ang = -34 + Math.sin(treal * 9) * 16;
     else if (t >= 2.1 && t <= 3.5) { const k = seg(t, 2.1, 3.5); ang = -48 * Math.sin(Math.min(k * 6, 1) * Math.PI / 2) * (k < .9 ? 1 : 1 - (k - .9) / .1) + (k < .9 ? Math.sin(k * Math.PI * 8) * 14 : 0); }
     P.bracoD.setAttribute('transform', `rotate(${ang},288,215)`);
-    const al = (!pensandoAgora && t >= 3.6 && t <= 4.7) ? -28 * Math.sin(j * Math.PI) : Math.sin(t * 2.2) * 2;
+    const al = (!pensandoAgora && t >= 3.6 && t <= 4.7) ? -28 * Math.sin(j * Math.PI) : Math.sin(treal * 1.4) * 1.5;
     P.bracoE.setAttribute('transform', `rotate(${al},12,215)`);
     const grande = pensandoAgora || (t > 2.1 && t < 3.5) || (t > 3.7 && t < 4.6);
     P.boca.setAttribute('d', grande ? 'M106 168 Q150 224 194 168' : 'M112 172 Q150 212 188 172');
   }
 
-  let ultimo = 0;
+  // Parado quase o tempo todo (só respira e pisca). A cada 25–50 s faz UM gesto curto sorteado.
+  const GESTOS = [{ ini: 1.0, dur: .9 }, { ini: 2.1, dur: 1.5 }, { ini: 3.6, dur: 1.2 }]; // olhar, acenar, pular
+  let ultimo = 0, gesto = null, proximoGesto = 0, proximaPiscada = 0, piscadaIni = -1;
   function laco(agora) {
     requestAnimationFrame(laco);
     if (document.hidden || agora - ultimo < 40) return; // ~25 quadros por segundo
-    ultimo = agora; quadro(agora / 1000);
+    ultimo = agora; const tr = agora / 1000;
+    if (!proximoGesto) { proximoGesto = tr + 12 + Math.random() * 10; proximaPiscada = tr + 2; }
+    if (!gesto && tr >= proximoGesto && !aberto && !pensandoAgora) {
+      gesto = { g: GESTOS[Math.floor(Math.random() * GESTOS.length)], ini: tr };
+    }
+    let tv = -1;
+    if (gesto) { const e = tr - gesto.ini; if (e > gesto.g.dur + .15) { gesto = null; proximoGesto = tr + 25 + Math.random() * 25; } else tv = gesto.g.ini + e; }
+    if (tr >= proximaPiscada) { piscadaIni = tr; proximaPiscada = tr + 3 + Math.random() * 4; }
+    let piscada = 1; const dp = tr - piscadaIni;
+    if (piscadaIni >= 0 && dp < .18) piscada = .1 + Math.abs(dp - .09) / .09 * .9;
+    quadro(tr, tv, piscada);
   }
   function iniciarAnimacao(svgEl) {
     partes = {}; svgEl.querySelectorAll('[data-p]').forEach(n => partes[n.dataset.p] = n);
-    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { quadro(0); return; }
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { quadro(0, -1, 1); return; }
     requestAnimationFrame(laco);
   }
 
