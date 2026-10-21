@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
   const cfg = Object.fromEntries((cfgs || []).map((c) => [c.chave, Number(c.valor)]));
   const limiteDia = cfg.limite_diario_por_pessoa ?? 10;
   const teto = cfg.teto_mensal_usd ?? 10;
-  const { count: usadas } = await svc.from("ia_uso").select("id", { count: "exact", head: true }).eq("dia", hoje).eq("usuario_id", usr.id);
+  const { count: usadas } = await svc.from("ia_uso").select("id", { count: "exact", head: true }).eq("dia", hoje).eq("usuario_id", usr.id).eq("ok", true); // tentativas que falharam não contam
   if ((usadas || 0) >= limiteDia) return json({ erro: "limite_diario", mensagem: MSG_LIMITE, usadas, limite: limiteDia });
   const { data: mes } = await svc.from("ia_uso").select("custo_usd").gte("dia", hoje.slice(0, 8) + "01");
   const gastoMes = (mes || []).reduce((s, r) => s + Number(r.custo_usd || 0), 0);
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       }
       limpo.push({ role: "user", content: resultados });
     }
-    if (!resposta) resposta = "Não consegui chegar a uma resposta. Tente perguntar de outro jeito ou com um período menor.";
+    if (!resposta) { ok = false; resposta = "Não consegui chegar a uma resposta. Tente perguntar de outro jeito ou com um período menor."; }
   } catch (e) {
     ok = false;
     erroTec = String((e as Error)?.message || e);
@@ -152,5 +152,5 @@ Deno.serve(async (req) => {
     usuario_id: usr.id, usuario_nome: usr.nome, perfil: usr.perfil, modelo: modelo.id,
     tokens_in: tin, tokens_out: tout, custo_usd: custo, pergunta, resposta: (erroTec ? "[ERRO TÉCNICO] " + erroTec + " | " : "") + resposta.slice(0, 4000), ok,
   });
-  return json({ resposta, modelo: modelo.id, usadas: (usadas || 0) + 1, limite: limiteDia });
+  return json({ resposta, modelo: modelo.id, usadas: (usadas || 0) + (ok ? 1 : 0), limite: limiteDia });
 });
