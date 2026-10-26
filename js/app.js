@@ -93,6 +93,7 @@ var _mapaTelaEl = {
   injetoras:    'telaInjetoras',
   categorias:   'telaCategorias',
   feriados:     'telaFeriados',
+  atrasos:      'telaAtrasos',
   usuarios:     'telaUsuarios',
   pcm:          'telaPCM',
   ram:          'telaRAM',
@@ -118,6 +119,7 @@ var _mapaTitulos = {
   injetoras:    'Injetoras',
   categorias:   'Categorias',
   feriados:     'Gestão e RH',
+  atrasos:      'Atrasos e Ocorrências',
   usuarios:     'Usuários',
   pcm:          'PCM — Controle de Moldes',
   ram:          'RAM — Registros de Alteração/Modificação',
@@ -151,6 +153,7 @@ function _irParaSemHistory(tela, elMenu) {
     else if (tela === 'dashboard')    { carregarDashboard(); }
     else if (tela === 'historico')    { inicializarHistorico(); }
     else if (tela === 'feriados')     { inicializarRH(); }
+    else if (tela === 'atrasos')      { inicializarAtrasos(); }
     else if (tela === 'usuarios')     { carregarUsuarios(); }
     else if (tela === 'funcionarios') { carregarFuncionariosAdmin(); }
     else if (tela === 'jobsAdmin')    { carregarJobsAdmin(); }

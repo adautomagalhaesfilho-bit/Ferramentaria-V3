@@ -805,7 +805,6 @@ function mudarTabRH(aba, elBtn) {
 function carregarPainelRH(aba) {
   if (aba==='feriados')         carregarFeriados();
   else if (aba==='ausencias')   carregarFerias();
-  else if (aba==='parciais')    carregarParciais();
   else if (aba==='bancoHoras')  { if (typeof inicializarBancoHoras==='function') inicializarBancoHoras(); }
   else if (aba==='cargos')      { if (typeof carregarCargosPainelRH==='function') carregarCargosPainelRH(); }
 }
@@ -962,25 +961,70 @@ function fecharEdicaoFerias() { document.getElementById('modalEditFeriasWrap')?.
 // ==========================================
 // ⏱️ PARCIAIS / ATRASOS
 // ==========================================
+// Regra: sair para almoçar depois do limite exige justificativa e aprovação (não mexe no banco de horas)
+var LIMITE_ALMOCO = '13:30';
+var MOTIVO_ALMOCO = 'Almoço fora do horário';
+var _MOTIVOS_PARCIAL = ['Almoço fora do horário','Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
+
+function _setorDoFuncionario(nome) {
+  const L = _listas || {};
+  if ((L.funcionarios||[]).includes(nome)) return 'Usinagem';
+  if ((L.funcBancada||[]).includes(nome))  return 'Bancada';
+  if ((L.funcProjeto||[]).includes(nome))  return 'Projeto';
+  if ((L.funcProducao||[]).includes(nome)) return 'Producao';
+  return null;
+}
+// Setor que a pessoa logada enxerga: admin/gestor veem tudo; os demais, só o próprio setor (se tiver um dos 4 setores)
+function _setorEscopoAtrasos() {
+  const p = _sessao?.perfil, s = _sessao?.setor;
+  if (p === 'admin' || p === 'gestor') return null;
+  return ['Usinagem','Bancada','Projeto','Producao'].includes(s) ? s : null;
+}
+function _ehLiderAtrasos() { return ['admin','gestor','supervisor'].includes(_sessao?.perfil); }
+function _podeDecidirAtraso(p) {
+  if (!_ehLiderAtrasos()) return false;
+  const esc_ = _setorEscopoAtrasos();
+  return !esc_ || !p.setor || p.setor === esc_;
+}
+function _funcsAtrasos() {
+  const L = _listas || {};
+  const setor = _setorEscopoAtrasos();
+  const mapa = { Usinagem:L.funcionarios, Bancada:L.funcBancada, Projeto:L.funcProjeto, Producao:L.funcProducao };
+  const base = setor ? (mapa[setor]||[]) : [].concat(L.funcionarios||[], L.funcBancada||[], L.funcProjeto||[], L.funcProducao||[]);
+  return base.filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a.localeCompare(b));
+}
+function _badgeSituacaoAtraso(p) {
+  if (p.motivo !== MOTIVO_ALMOCO) return '<span style="color:#94a3b8;font-size:11px">—</span>';
+  const st = p.status || 'Pendente';
+  const cor = st === 'Aprovado' ? ['#dcfce7','#166534'] : st === 'Reprovado' ? ['#fee2e2','#991b1b'] : ['#fef9c3','#854d0e'];
+  const tip = p.validado_por ? ` title="${esc(st)} por ${esc(p.validado_por)}${p.decisao_obs?': '+esc(p.decisao_obs):''}"` : '';
+  return `<span${tip} style="background:${cor[0]};color:${cor[1]};padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">${esc(st)}</span>`
+    + (p.validado_por ? `<div style="font-size:10px;color:#64748b;margin-top:2px">${esc(p.validado_por)}</div>` : '');
+}
+
+function inicializarAtrasos() { carregarParciais(); }
+
 async function carregarParciais() {
   const el = document.getElementById('painelParciais');
   if (!el) return;
-  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
-    .concat(_listas?.funcProjeto||[]).filter((v,i,a)=>a.indexOf(v)===i);
-  const motivos = ['Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
+  const funcs = _funcsAtrasos();
+  const mes = hojeLocal().substring(0,7);
 
   el.innerHTML = `
   <div class="card" style="background:#fefce8;border-color:#fde68a">
-    <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:16px">⏱️ Registrar Ocorrência</div>
+    <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">⏱️ Registrar Ocorrência</div>
+    <div id="parcAvisoAlmoco" style="font-size:12px;color:#92400e;background:#fff;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:12px">
+      🍽️ <b>Almoço:</b> o limite para sair é <b>${LIMITE_ALMOCO}</b>. Quem sair depois desse horário precisa registrar aqui, com <b>justificativa</b>, e a saída fica aguardando aprovação do supervisor. Não altera o banco de horas.
+    </div>
     <div class="form-row">
       <div class="form-group"><label>Técnico *</label><select id="parcFunc"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
-      <div class="form-group"><label>Data *</label><input type="date" id="parcData"></div>
+      <div class="form-group"><label>Data *</label><input type="date" id="parcData" value="${hojeLocal()}"></div>
       <div class="form-group"><label>Saída</label><input type="time" id="parcIni"></div>
       <div class="form-group"><label>Retorno</label><input type="time" id="parcFim"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Motivo *</label><select id="parcMotivo">${motivos.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}</select></div>
-      <div class="form-group" style="flex:2"><label>Observação</label><input type="text" id="parcObs" placeholder="Detalhes adicionais..."></div>
+      <div class="form-group"><label>Motivo *</label><select id="parcMotivo" onchange="_atualizarFormParcial()">${_MOTIVOS_PARCIAL.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}</select></div>
+      <div class="form-group" style="flex:2"><label id="parcObsLabel">Observação</label><input type="text" id="parcObs" placeholder="Detalhes adicionais..."></div>
     </div>
     <div style="border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:16px;background:#fff">
       <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:10px">📎 Anexo / Comprovante (opcional)</div>
@@ -998,54 +1042,178 @@ async function carregarParciais() {
         <div id="parcUploadStatus" style="font-size:12px;color:#64748b;align-self:center"></div>
       </div>
     </div>
-    <button class="btn-warning" onclick="salvarParcial()">+ Registrar Ocorrência</button>
+    <button class="btn-warning" id="btnRegistrarParcial" onclick="salvarParcial()">+ Registrar Ocorrência</button>
   </div>
+
   <div class="card">
-    <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:16px">📋 Registros</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+      <div class="form-group" style="margin:0"><label>Mês</label><input type="month" id="parcFiltroMes" value="${mes}" onchange="_renderizarParciais()"></div>
+      <div class="form-group" style="margin:0"><label>Técnico</label><select id="parcFiltroFunc" onchange="_renderizarParciais()"><option value="">Todos</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
+      <div class="form-group" style="margin:0"><label>Motivo</label><select id="parcFiltroMotivo" onchange="_renderizarParciais()"><option value="">Todos</option>${_MOTIVOS_PARCIAL.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}</select></div>
+      <div class="form-group" style="margin:0"><label>Situação</label><select id="parcFiltroStatus" onchange="_renderizarParciais()"><option value="">Todas</option><option>Pendente</option><option>Aprovado</option><option>Reprovado</option></select></div>
+      ${_ehLiderAtrasos() ? `<button class="btn-secondary" onclick="exportarAtrasosExcel()" style="margin-left:auto">📊 Exportar Excel</button>` : ''}
+    </div>
+    <div id="parcResumoAlmoco"></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Data</th><th>Técnico</th><th>Saída</th><th>Retorno</th><th>Motivo</th><th>Obs</th><th>Anexo</th><th>Ação</th></tr></thead>
-        <tbody id="tbodyParciais"><tr><td colspan="8" class="empty-msg">Carregando...</td></tr></tbody>
+        <thead><tr><th>Data</th><th>Técnico</th><th>Saída</th><th>Retorno</th><th>Motivo</th><th>Justificativa / Obs</th><th>Situação</th><th>Anexo</th><th>Ação</th></tr></thead>
+        <tbody id="tbodyParciais"><tr><td colspan="9" class="empty-msg">Carregando...</td></tr></tbody>
       </table>
     </div>
   </div>`;
 
+  _atualizarFormParcial();
   await _renderizarParciais();
+}
+
+function _atualizarFormParcial() {
+  const m = document.getElementById('parcMotivo')?.value;
+  const lbl = document.getElementById('parcObsLabel');
+  const inp = document.getElementById('parcObs');
+  const almoco = m === MOTIVO_ALMOCO;
+  if (lbl) lbl.innerText = almoco ? 'Justificativa *' : 'Observação';
+  if (inp) inp.placeholder = almoco ? 'Explique por que saiu para almoçar após ' + LIMITE_ALMOCO : 'Detalhes adicionais...';
+}
+
+var _parciaisCarregados = [];
+
+function _filtrarParciaisVisiveis(lista) {
+  const setor = _setorEscopoAtrasos();
+  const f = id => document.getElementById(id)?.value || '';
+  const func = f('parcFiltroFunc'), mot = f('parcFiltroMotivo'), st = f('parcFiltroStatus');
+  return lista.filter(p => {
+    if (setor && (p.setor || _setorDoFuncionario(p.funcionario)) !== setor) return false;
+    if (func && p.funcionario !== func) return false;
+    if (mot && p.motivo !== mot) return false;
+    if (st && (p.motivo !== MOTIVO_ALMOCO || (p.status || 'Pendente') !== st)) return false;
+    return true;
+  });
 }
 
 async function _renderizarParciais() {
   try {
-    const res = await db.listarParciais();
+    const mes = document.getElementById('parcFiltroMes')?.value || hojeLocal().substring(0,7);
+    const res = await db.listarParciais(mes + '-01', mes + '-31');
+    _parciaisCarregados = res;
+    const lista = _filtrarParciaisVisiveis(res);
     const tbody = document.getElementById('tbodyParciais');
     if (!tbody) return;
-    tbody.innerHTML = res.length
-      ? res.map(p=>`<tr>
+    const lider = _ehLiderAtrasos();
+    tbody.innerHTML = lista.length
+      ? lista.map(p=>{
+          const pend = p.motivo === MOTIVO_ALMOCO && (p.status || 'Pendente') === 'Pendente';
+          const meu = p.criado_por && p.criado_por === _sessao?.nome;
+          return `<tr>
           <td><b>${p.data?p.data.split('-').reverse().join('/'):'—'}</b></td>
           <td>${typeof nomeTecnicoClicavel==='function'?nomeTecnicoClicavel(p.funcionario):esc(p.funcionario)}</td>
           <td>${esc(p.inicio?p.inicio.substring(0,5):'—')}</td>
           <td>${esc(p.fim?p.fim.substring(0,5):'—')}</td>
           <td style="color:${esc(p.motivo?.includes('Injustificado')?'#ef4444':'#ca8a04')};font-weight:600">${esc(p.motivo||'—')}</td>
-          <td style="font-size:12px;color:#64748b">${esc(p.obs||'—')}</td>
+          <td style="font-size:12px;color:#64748b;max-width:260px">${esc(p.obs||'—')}${p.decisao_obs?`<div style="color:#475569;margin-top:3px"><b>Decisão:</b> ${esc(p.decisao_obs)}</div>`:''}</td>
+          <td>${_badgeSituacaoAtraso(p)}</td>
           <td>${p.imagem_url
             ? `<a href="${esc(p.imagem_url)}" target="_blank"><img src="${esc(p.imagem_url)}" style="width:48px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer"></a>`
             : '<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
-          <td>
-            <button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoParcial(_obj(${_guardarObj(p)}))">✏️</button>
-            <button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcialConfirm(${p.id})">🗑️</button>
+          <td style="white-space:nowrap">
+            ${pend && _podeDecidirAtraso(p) ? `<button class="btn-primary" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirDecisaoAtraso(${p.id},'Aprovado')">✅ Aprovar</button><button class="btn-danger" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirDecisaoAtraso(${p.id},'Reprovado')">❌ Reprovar</button>` : ''}
+            ${lider ? `<button class="btn-warning" style="padding:4px 8px;font-size:11px;margin-right:4px" onclick="abrirEdicaoParcial(_obj(${_guardarObj(p)}))">✏️</button>` : ''}
+            ${(lider || (meu && pend)) ? `<button class="btn-danger" style="padding:4px 8px;font-size:11px" onclick="excluirParcialConfirm(${p.id})">🗑️</button>` : ''}
           </td>
-        </tr>`).join('')
-      : '<tr><td colspan="8" class="empty-msg">Nenhum registro.</td></tr>';
+        </tr>`; }).join('')
+      : '<tr><td colspan="9" class="empty-msg">Nenhum registro.</td></tr>';
+    _renderizarResumoAlmoco(lista);
   } catch(e) { avisarErro('carregar as ausências parciais', e); }
+}
+
+// Resumo por técnico das saídas de almoço fora do horário (apoio para medidas disciplinares)
+function _resumoAlmocoPorFuncionario(lista) {
+  const por = {};
+  lista.filter(p => p.motivo === MOTIVO_ALMOCO).forEach(p => {
+    const r = por[p.funcionario] = por[p.funcionario] || { nome:p.funcionario, total:0, pend:0, apr:0, rep:0 };
+    r.total++;
+    const st = p.status || 'Pendente';
+    if (st === 'Aprovado') r.apr++; else if (st === 'Reprovado') r.rep++; else r.pend++;
+  });
+  return Object.values(por).sort((a,b) => b.rep - a.rep || b.total - a.total || a.nome.localeCompare(b.nome));
+}
+
+function _renderizarResumoAlmoco(lista) {
+  const box = document.getElementById('parcResumoAlmoco');
+  if (!box) return;
+  const r = _resumoAlmocoPorFuncionario(lista);
+  if (!r.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#1e3a5f;margin:4px 0 8px">🍽️ Almoço fora do horário (após ${LIMITE_ALMOCO}) — resumo do mês</div>
+    <div class="table-wrap" style="margin-bottom:16px"><table>
+      <thead><tr><th>Técnico</th><th>Ocorrências</th><th>Aguardando</th><th>Aprovadas</th><th>Reprovadas</th></tr></thead>
+      <tbody>${r.map(x=>`<tr><td><b>${esc(x.nome)}</b></td><td>${x.total}</td><td>${x.pend||'—'}</td><td>${x.apr||'—'}</td><td style="${x.rep?'color:#991b1b;font-weight:700':''}">${x.rep||'—'}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+// Aprovar / reprovar uma saída de almoço fora do horário
+function abrirDecisaoAtraso(id, status) {
+  const p = _parciaisCarregados.find(x => x.id === id);
+  if (!p) return;
+  const reprova = status === 'Reprovado';
+  const div = document.createElement('div');
+  div.id = 'modalDecisaoAtrasoWrap';
+  div.innerHTML = `
+  <div class="modal-overlay" onclick="fecharDecisaoAtraso()" style="display:block"></div>
+  <div class="modal" style="display:block;max-width:440px">
+    <div class="modal-header"><h3>${reprova?'❌ Reprovar':'✅ Aprovar'} saída de almoço</h3><button onclick="fecharDecisaoAtraso()">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;margin-bottom:10px"><b>${esc(p.funcionario)}</b> — ${p.data?p.data.split('-').reverse().join('/'):''} às ${esc(p.inicio?p.inicio.substring(0,5):'—')}</div>
+      <div style="font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:12px"><b>Justificativa:</b> ${esc(p.obs||'—')}</div>
+      <div class="form-group"><label>Observação da decisão ${reprova?'*':'(opcional)'}</label><textarea id="decAtrasoObs" rows="3" style="width:100%"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="${reprova?'btn-danger':'btn-primary'}" onclick="confirmarDecisaoAtraso(${id},'${status}')">${reprova?'Reprovar':'Aprovar'}</button>
+      <button class="btn-secondary" onclick="fecharDecisaoAtraso()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+function fecharDecisaoAtraso() { document.getElementById('modalDecisaoAtrasoWrap')?.remove(); }
+async function confirmarDecisaoAtraso(id, status) {
+  const obs = document.getElementById('decAtrasoObs')?.value?.trim() || null;
+  if (status === 'Reprovado' && !obs) return toast('Informe o motivo da reprovação.','erro');
+  try {
+    await db._patch('rh_parciais', 'id=eq.' + id, { status, validado_por: _sessao?.nome || null, validado_em: new Date().toISOString(), decisao_obs: obs });
+    toast(status === 'Aprovado' ? 'Saída aprovada.' : 'Saída reprovada.', 'sucesso');
+    fecharDecisaoAtraso();
+    await _renderizarParciais();
+  } catch(e) { toast('Erro ao registrar a decisão.','erro'); console.error(e); }
+}
+
+function exportarAtrasosExcel() {
+  if (typeof XLSX === 'undefined') return toast('Biblioteca do Excel não carregou. Atualize a página (Ctrl+Shift+R).','erro');
+  const lista = _filtrarParciaisVisiveis(_parciaisCarregados);
+  if (!lista.length) return toast('Nenhum registro para exportar.','erro');
+  const mes = document.getElementById('parcFiltroMes')?.value || '';
+  const br = d => d ? String(d).split('-').reverse().join('/') : '';
+  const hm = t => t ? String(t).substring(0,5) : '';
+  const cab = ['Data','Técnico','Setor','Saída','Retorno','Motivo','Justificativa / Obs','Situação','Decidido por','Decisão (obs)','Registrado por'];
+  const linhas = lista.slice().sort((a,b)=>a.funcionario.localeCompare(b.funcionario)||a.data.localeCompare(b.data))
+    .map(p => [br(p.data), p.funcionario, p.setor||_setorDoFuncionario(p.funcionario)||'', hm(p.inicio), hm(p.fim), p.motivo||'', p.obs||'',
+      p.motivo === MOTIVO_ALMOCO ? (p.status||'Pendente') : '', p.validado_por||'', p.decisao_obs||'', p.criado_por||'']);
+  const res = _resumoAlmocoPorFuncionario(lista).map(x => [x.nome, x.total, x.pend, x.apr, x.rep]);
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([['Almoço fora do horário (após ' + LIMITE_ALMOCO + ') — mês ' + mes], [], ['Técnico','Ocorrências','Aguardando','Aprovadas','Reprovadas'], ...res]);
+  ws1['!cols'] = [{wch:40},{wch:13},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumo almoço');
+  const ws2 = XLSX.utils.aoa_to_sheet([cab, ...linhas]);
+  ws2['!cols'] = [{wch:11},{wch:38},{wch:11},{wch:8},{wch:8},{wch:24},{wch:60},{wch:11},{wch:22},{wch:40},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Ocorrências');
+  XLSX.writeFile(wb, `Atrasos_${mes || 'periodo'}.xlsx`);
+  toast('Relatório exportado!','sucesso');
 }
 
 // ==========================================
 // ✏️ EDITAR ATRASO / PARCIAL
 // ==========================================
 function abrirEdicaoParcial(p) {
-  const funcs = (_listas?.funcionarios||[]).concat(_listas?.funcBancada||[])
-    .concat(_listas?.funcProjeto||[]).concat(_listas?.funcProducao||[])
-    .filter((v,i,a)=>a.indexOf(v)===i).sort();
-  const motivos = ['Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
+  const funcs = _funcsAtrasos();
+  if (p.funcionario && !funcs.includes(p.funcionario)) funcs.push(p.funcionario);
   const div = document.createElement('div');
   div.id = 'modalEditParcialWrap';
   div.innerHTML = `
@@ -1062,20 +1230,20 @@ function abrirEdicaoParcial(p) {
         <div class="form-group"><label>Retorno</label><input type="time" id="efParcFim" value="${esc(p.fim?p.fim.substring(0,5):'')}"></div>
       </div>
       <div class="form-group"><label>Motivo *</label>
-        <select id="efParcMotivo">${motivos.map(m=>`<option value="${esc(m)}" ${p.motivo===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
+        <select id="efParcMotivo">${_MOTIVOS_PARCIAL.map(m=>`<option value="${esc(m)}" ${p.motivo===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
       </div>
-      <div class="form-group"><label>Observação</label><input type="text" id="efParcObs" value="${esc(p.obs||'')}"></div>
+      <div class="form-group"><label>Justificativa / Observação</label><input type="text" id="efParcObs" value="${esc(p.obs||'')}"></div>
       ${p.imagem_url ? `<div style="font-size:11px;color:#64748b">📎 Anexo atual será mantido (edição de imagem não suportada aqui — exclua e recrie se precisar trocar).</div>` : ''}
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" onclick="salvarEdicaoParcial(${p.id})">💾 Salvar</button>
+      <button class="btn-primary" onclick="salvarEdicaoParcial(${p.id}, ${p.motivo === MOTIVO_ALMOCO ? 'true' : 'false'})">💾 Salvar</button>
       <button class="btn-secondary" onclick="fecharEdicaoParcial()">Cancelar</button>
     </div>
   </div>`;
   document.body.appendChild(div);
 }
 
-async function salvarEdicaoParcial(id) {
+async function salvarEdicaoParcial(id, eraAlmoco) {
   const funcionario = document.getElementById('efParcFunc')?.value;
   const data        = document.getElementById('efParcData')?.value;
   const inicio      = document.getElementById('efParcIni')?.value || null;
@@ -1083,10 +1251,16 @@ async function salvarEdicaoParcial(id) {
   const motivo      = document.getElementById('efParcMotivo')?.value;
   const obs         = document.getElementById('efParcObs')?.value?.trim() || null;
   if (!funcionario || !data || !motivo) return toast('Preencha técnico, data e motivo.','erro');
+  if (motivo === MOTIVO_ALMOCO && !obs) return toast('Informe a justificativa.','erro');
   try {
-    await db.salvarParcial({ id, funcionario, data, inicio, fim, motivo, obs });
+    const dados = { id, funcionario, data, inicio, fim, motivo, obs, setor: _setorDoFuncionario(funcionario) };
+    if (motivo === MOTIVO_ALMOCO && !eraAlmoco) { dados.status = 'Pendente'; dados.validado_por = null; dados.validado_em = null; dados.decisao_obs = null; }
+    if (motivo !== MOTIVO_ALMOCO) { dados.status = null; dados.validado_por = null; dados.validado_em = null; dados.decisao_obs = null; }
+    await db.salvarParcial(dados);
     toast('Atualizado!','sucesso');
-    if (typeof sincronizarDebitoParcial === 'function') {
+    if (motivo === MOTIVO_ALMOCO) {
+      if (typeof removerDebitoParcial === 'function') await removerDebitoParcial(id);
+    } else if (typeof sincronizarDebitoParcial === 'function') {
       await sincronizarDebitoParcial({ id, funcionario, data, inicio, fim, motivo });
     }
     fecharEdicaoParcial();
@@ -1154,9 +1328,16 @@ async function salvarParcial() {
   const ini=document.getElementById('parcIni')?.value;
   const fim=document.getElementById('parcFim')?.value;
   const motivo=document.getElementById('parcMotivo')?.value;
+  const obs=document.getElementById('parcObs')?.value?.trim()||null;
   if (!func||!dt||!motivo) return toast('Preencha funcionário, data e motivo.','erro');
+  const almoco = motivo === MOTIVO_ALMOCO;
+  if (almoco) {
+    if (!ini) return toast('Informe o horário em que saiu para o almoço.','erro');
+    if (ini <= LIMITE_ALMOCO) return toast('Saída até ' + LIMITE_ALMOCO + ' está dentro do horário — não precisa registrar.','erro');
+    if (!obs || obs.length < 5) return toast('Escreva a justificativa da saída após ' + LIMITE_ALMOCO + '.','erro');
+  }
 
-  const btn=document.querySelector('#painelParciais .btn-warning');
+  const btn=document.getElementById('btnRegistrarParcial');
   if (btn) { btn.disabled=true; btn.innerText='Salvando...'; }
 
   try {
@@ -1167,13 +1348,14 @@ async function salvarParcial() {
       catch(e) { console.error(e); toast('Imagem não enviada, mas registro salvo.','erro'); }
     }
     const res = await db.salvarParcial({ funcionario:func, data:dt, inicio:ini||null, fim:fim||null,
-      motivo, obs:document.getElementById('parcObs')?.value||null, imagem_url:imagemUrl });
-    toast('Registrado!','sucesso');
-    if (typeof sincronizarDebitoParcial === 'function') {
+      motivo, obs, imagem_url:imagemUrl, setor:_setorDoFuncionario(func), criado_por:_sessao?.nome||null,
+      status: almoco ? 'Pendente' : null });
+    toast(almoco ? 'Registrado! Aguardando aprovação do supervisor.' : 'Registrado!','sucesso');
+    if (!almoco && typeof sincronizarDebitoParcial === 'function') {
       const novoId = res && res[0] ? res[0].id : null;
       if (novoId) await sincronizarDebitoParcial({ id:novoId, funcionario:func, data:dt, inicio:ini||null, fim:fim||null, motivo });
     }
-    ['parcFunc','parcData','parcIni','parcFim','parcObs'].forEach(id=>{ const el=document.getElementById(id); if(el){if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';} });
+    ['parcFunc','parcIni','parcFim','parcObs'].forEach(id=>{ const el=document.getElementById(id); if(el){if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';} });
     removerImagemParcial();
     await _renderizarParciais();
   } catch(e) { toast('Erro ao registrar.','erro'); console.error(e); }
