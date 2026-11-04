@@ -75,17 +75,17 @@ function _dmCalcular(ini, fim, lancsSetor) {
     dias.forEach(ds => {
       if (ds < adm || ds > dem) return;
       const aus = ausencias.find(x => ds >= x.inicio && ds <= x.fim);
-      if (aus && aus.motivo === 'Férias') return;
       const doDia = meus.filter(l => l.data === ds);
+      if (aus && aus.motivo === 'Férias') { linhas.push({ d:ds, meta:0, m:0, fer:aus, extra:false, turno:turnoNaData(nome, ds, dados), gaps:[], parc:0, lancs:doDia, ocorr:[], jus:null }); return; }
       const m = doDia.reduce((a,l) => a + (l.minutos || 0), 0);
       const turno = turnoNaData(nome, ds, dados);
       const trabalha = funcTrabalhaEmDia(turno, ds, feriados);
-      if (!trabalha) { if (m > 0) linhas.push({ d:ds, meta:0, m, extra:true, turno, gaps:[], parc:0, jus:null }); return; }
+      if (!trabalha) { if (m > 0) linhas.push({ d:ds, meta:0, m, extra:true, turno, gaps:[], parc:0, jus:null, lancs:doDia, ocorr:parciais.filter(p => p.data === ds) }); return; }
       let meta = capMinutosNaData(turno, f?.setor, ds), parc = 0;
       parciais.filter(p => p.data === ds && p.inicio && p.fim).forEach(p => { parc += Math.max(0, _dmHM(p.fim) - _dmHM(p.inicio)); });
       meta = Math.max(0, meta - parc);
       const fimJanela = (turno === 'Turma A' || turno === 'Turma B') ? 1170 : 1048;
-      linhas.push({ d:ds, meta, m, extra:false, turno, parc, jus: aus ? aus.motivo : null, gaps: _dmBuracos(_dmIntervalos(doDia), 480, fimJanela, 15), fimJanela });
+      linhas.push({ d:ds, meta, m, extra:false, turno, parc, jus: aus ? aus.motivo : null, aus: aus || null, lancs: doDia, ocorr: parciais.filter(p => p.data === ds), gaps: _dmBuracos(_dmIntervalos(doDia), 480, fimJanela, 15), fimJanela });
     });
     if (linhas.length) pessoas.push({ nome, curto: _dmCurto(nome), linhas });
   });
@@ -111,7 +111,7 @@ function _dmCalcular(ini, fim, lancsSetor) {
       const pm = {};
       pars.filter(l => l.data === ds).forEach(l => { const k = l.motivo || 'Sem motivo'; pm[k] = (pm[k] || 0) + (l.minutos || 0); });
       const fimJanela = todos ? 1170 : 1048;
-      linhas.push({ d:ds, meta: reg ? reg.capacidade_min : 598, m, par: pm, gaps: _dmBuracos(_dmIntervalos(doDia), 480, fimJanela, 30), fimJanela });
+      linhas.push({ d:ds, meta: reg ? reg.capacidade_min : 598, m, par: pm, lancs: doDia, pars: pars.filter(l => l.data === ds), gaps: _dmBuracos(_dmIntervalos(doDia), 480, fimJanela, 30), fimJanela });
     });
     maquinas.push({ nome: maq, linhas });
   });
@@ -128,7 +128,7 @@ function _dmLinhasEq() {
   _dm.dados.pessoas.forEach(p => {
     if (_dm.pessoa !== 'todas' && p.nome !== _dm.pessoa) return;
     p.linhas.forEach(r => {
-      if (r.extra) return;
+      if (r.extra || r.fer) return;
       if (_dm.turno !== 'todos' && r.turno !== _dm.turno) return;
       const gap = Math.max(0, r.meta - r.m);
       const seg = { ok: Math.min(r.m, r.meta), dia: 0, lac: 0, jus: 0 };
@@ -158,9 +158,11 @@ function iniciarDiagnosticoMeta(ini, fim, lancsSetor) {
   if (!alvo) return;
   _dmInjetarCss();
   const antigo = _dm;
-  _dm = { ini, fim, aba: antigo?.aba || 'eq', turno:'todos', pessoa:'todas', maq:'todas', limite:100, motivo:null, sel:null,
+  _dm = { ini, fim, aba: antigo?.aba || 'eq', turno: antigo?.turno || 'todos', pessoa: antigo?.pessoa || 'todas', maq: antigo?.maq || 'todas',
+          limite: antigo?.limite || 100, motivo: antigo?.motivo || null, sel: antigo?.reabrir || null, reabrir:null,
           dados: _dmCalcular(ini, fim, lancsSetor) };
   _dmRender();
+  if (_dm.sel) { const id = _dm.sel; _dm.sel = null; _dmAbrir(id); }
 }
 
 function _dmEid(o) { return String(o).replace(/[^a-zA-Z0-9]/g, '_'); }
@@ -237,7 +239,13 @@ function _dmMapa(L, eq) {
     const nome = eq ? o.curto : o.nome.replace(/ - .*/, '');
     const cells = dias.map(d => {
       const x = L.find(y => y.o === o && y.r.d === d);
-      if (!x) return `<td><span class="dm-cell o">·</span></td>`;
+      if (!x) {
+        const raw = o.linhas.find(y => y.d === d);
+        const idr = (eq ? 'p' : 'm') + '|' + o.nome + '|' + d;
+        if (raw && raw.fer) return `<td><button class="dm-cell f" data-id="${esc(idr)}" title="${esc(nome)} · ${_dmFmtD(d)} · de férias" aria-label="${esc(nome)} ${_dmFmtD(d)}: de férias">F</button></td>`;
+        if (raw && raw.extra) return `<td><button class="dm-cell e" data-id="${esc(idr)}" title="${esc(nome)} · ${_dmFmtD(d)} · hora extra de ${_dmDur(raw.m)}" aria-label="${esc(nome)} ${_dmFmtD(d)}: hora extra">+</button></td>`;
+        return `<td><span class="dm-cell o">·</span></td>`;
+      }
       const fora = (_dm.motivo && _dm.motivo !== 'ok' && x.seg[_dm.motivo] === 0) || (_dm.motivo === 'ok' && x.main !== 'ok') || (_dm.limite < 100 && x.pct >= _dm.limite);
       const id = (eq ? 'p' : 'm') + '|' + (eq ? o.nome : o.nome) + '|' + d;
       return `<td><button class="dm-cell ${_dmCls(x)} ${fora ? 'dim' : ''}" data-id="${esc(id)}" title="${esc(nome)} · ${_dmFmtD(d)} · ${_dmDur(x.m)} de ${_dmDur(x.meta)}" aria-label="${esc(nome)} ${_dmFmtD(d)}: ${x.pct}%">${x.pct}</button></td>`;
@@ -248,7 +256,7 @@ function _dmMapa(L, eq) {
   return `<div class="dm-sec"><div class="dm-h">${eq ? 'Mapa por pessoa e dia' : 'Mapa por máquina e dia'}</div>
     <div class="dm-nota">Cada quadrado é um dia, com a % da meta. Clique para ver o horário que faltou.</div>
     <div class="dm-scroll"><table class="dm-hm"><thead><tr><th></th>${th}</tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="dm-key"><span><i style="background:#cdebdd"></i>90% ou mais</span><span><i style="background:#f6e3b4"></i>70% a 89%</span><span><i style="background:#f2c9c3"></i>abaixo de 70%</span>${eq ? '<span><i style="background:repeating-linear-gradient(135deg,#dce2ee 0 3px,#fff 3px 6px)"></i>atestado ou folga</span>' : ''}<span><i style="background:#e6eaee"></i>sem meta no dia</span></div></div>`;
+    <div class="dm-key"><span><i style="background:#cdebdd"></i>90% ou mais</span><span><i style="background:#f6e3b4"></i>70% a 89%</span><span><i style="background:#f2c9c3"></i>abaixo de 70%</span>${eq ? '<span><i style="background:repeating-linear-gradient(135deg,#dce2ee 0 3px,#fff 3px 6px)"></i>atestado ou folga</span>' : ''}${eq ? '<span><i style="background:#cdeceb;border:1px solid #6bbbb6"></i>férias</span><span><i style="background:#fff;border:2px solid #0056b3"></i>hora extra (dia de folga)</span>' : ''}<span><i style="background:#e6eaee"></i>sem meta no dia</span></div></div>`;
 }
 
 function _dmLista(L, eq, MOT) {
@@ -265,47 +273,135 @@ function _dmLista(L, eq, MOT) {
 }
 
 // ---------- detalhe do dia ----------
+function _dmAchar(eq, nome, d) {
+  const L = eq ? _dmLinhasEq() : _dmLinhasMq();
+  const x = L.find(y => y.o.nome === nome && y.r.d === d);
+  if (x) return x;
+  const o = (eq ? _dm.dados.pessoas : _dm.dados.maquinas).find(y => y.nome === nome);
+  const r = o && o.linhas.find(y => y.d === d);
+  if (!r) return null;
+  return { o, r, meta: r.meta, m: r.m, gap: 0, seg: {}, main: r.fer ? 'fer' : 'extra', pct: 0 };
+}
+function _dmDiasEntre(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000) + 1; }
+
 function _dmAbrir(id) {
   const [t, nome, d] = id.split('|');
   const eq = t === 'p';
-  const L = eq ? _dmLinhasEq() : _dmLinhasMq();
-  const x = L.find(y => y.o.nome === nome && y.r.d === d);
+  const x = _dmAchar(eq, nome, d);
   if (!x) return;
+  const L = eq ? _dmLinhasEq() : _dmLinhasMq();
   const S = 480, E = x.r.fimJanela || 1048;
   const gaps = x.r.gaps || [];
   const blocos = []; let c = S;
   gaps.forEach(g => { if (g[0] > c) blocos.push([c, g[0]]); c = g[1]; });
   if (c < E) blocos.push([c, E]);
-  const usados = (gaps.length || x.m > 0) ? blocos : [];
-  const mo = (eq ? _DM_MOT_EQ : _DM_MOT_MQ).find(y => y.k === x.main);
+  const especial = { fer: { n:'De férias', c:'#0f766e' }, extra: { n:'Hora extra', c:'#0056b3' } };
+  const mo = especial[x.main] || (eq ? _DM_MOT_EQ : _DM_MOT_MQ).find(y => y.k === x.main);
+  const titulo = eq ? x.o.curto : x.o.nome.replace(/ - .*/, '');
+  const editar = typeof podeEditar === 'function' && podeEditar();
+  const nomeC = eq ? x.o.curto : x.o.nome;
+  const idDe = dd => (eq ? 'p' : 'm') + '|' + x.o.nome + '|' + dd;
+
+  // vizinhos do mesmo objeto (dia anterior / próximo) e média do período
+  const meus = L.filter(y => y.o === x.o).sort((a,b) => a.r.d.localeCompare(b.r.d));
+  const pos = meus.findIndex(y => y.r.d === d);
+  const ant = pos > 0 ? meus[pos-1] : null, prox = pos >= 0 && pos < meus.length - 1 ? meus[pos+1] : null;
+  const mm = meus.reduce((a,y) => a + y.meta, 0), aa = meus.reduce((a,y) => a + y.m, 0);
+  const media = mm ? Math.round(100 * aa / mm) : null;
+  const outros = L.filter(y => y.r.d === d && y.o !== x.o);
+
+  // ausência
+  let blocoAus = '';
+  const aus = x.r.fer || x.r.aus;
+  if (aus) {
+    const n = _dmDiasEntre(aus.inicio, aus.fim);
+    blocoAus = `<div class="dm-aus"><b>${esc(aus.motivo)}</b><br>de ${_dmFmtD(aus.inicio)} a ${_dmFmtD(aus.fim)} (${n} dia${n > 1 ? 's' : ''})${x.r.fer ? '<br>Fora da meta nesses dias.' : '<br>Hoje o dia continua na meta e baixa a ocupação.'}</div>`;
+  }
+
+  // lançamentos do dia
+  const lancs = (x.r.lancs || []).slice().sort((a,b) => (a.horaInicio || '').localeCompare(b.horaInicio || '')).concat(x.r.pars || []);
+  const linhaL = l => `<li class="dm-lanc"><div class="dm-lh"><b>${esc(l.horaInicio || '—')} às ${esc(l.horaFim || '—')}</b> <span class="dm-mut">${_dmDur(l.minutos || 0)}</span></div>
+    <div class="dm-lb">${l.job ? '<b>' + esc(l.job) + '</b> · ' : ''}${esc(l.tipo === 'Parada de Máquina' ? 'Parada — ' + (l.motivo || 'sem motivo') : (l.tipo || ''))}${!eq && l.funcionario ? ' · ' + esc(l.funcionario) : ''}${eq && l.maquina ? ' · ' + esc(l.maquina) : ''}${l.setor && l.setor !== 'Usinagem' ? ' · ' + esc(l.setor) : ''}
+      ${l.descricao ? '<div class="dm-mut">' + esc(l.descricao) + '</div>' : ''}${l.descontaAlmoco ? '<div class="dm-mut">Almoço descontado</div>' : ''}</div>
+    ${editar ? `<button class="dm-btn" data-ed="${l.id}|${esc(l.data)}|${esc(l.setor || 'Usinagem')}">✏️ Editar</button>` : ''}</li>`;
+  const blocoL = lancs.length ? `<ul class="dm-lancs">${lancs.map(linhaL).join('')}</ul>` : `<div class="dm-nota">${x.r.fer ? 'Sem lançamentos, como esperado nas férias.' : 'Nenhum lançamento neste dia.'}</div>`;
+
+  // ocorrências (Atrasos e Ocorrências)
+  const oc = (x.r.ocorr || []);
+  const blocoO = oc.length ? `<div class="dm-h" style="margin-top:14px">Ocorrências registradas</div><ul class="dm-ocs">${oc.map(p => `<li>${esc(p.motivo || 'Ocorrência')} · ${esc((p.inicio || '').slice(0,5))} às ${esc((p.fim || '').slice(0,5))}${p.status ? ' · ' + esc(p.status) : ''}</li>`).join('')}</ul>` : '';
+
+  // buracos de horário com atalho para lançar
+  const blocoG = (!x.r.fer && (eq ? x.meta > 0 : true)) ? `<div class="dm-h" style="margin-top:14px">Horários sem lançamento</div>${gaps.length ? `<ul class="dm-gaps">${gaps.map(g => `<li>${_dmHH(g[0])} às ${_dmHH(g[1])} · ${_dmDur(g[1]-g[0])}${editar ? ` <button class="dm-lk" data-novo="${esc(eq ? x.o.nome : '')}|${d}|${_dmHH(g[0])}|${_dmHH(g[1])}|${esc(eq ? '' : x.o.nome)}">lançar</button>` : ''}</li>`).join('')}</ul>` : '<div class="dm-nota">Nenhum buraco de horário acima do limite.</div>'}` : '';
+
   let acao;
   if (eq) {
-    const nomeC = x.o.curto;
-    acao = { ok: 'Dia dentro da meta. Nada a cobrar.',
-      dia: `Perguntar a ${nomeC} e ao responsável do turno se houve trabalho em ${_dmFmtD(d)} sem apontar. Se não houve, registrar a ausência em Atrasos e Ocorrências.`,
-      lac: `Pedir a ${nomeC} para conferir os horários em vermelho. O almoço já está descontado da meta.`,
-      jus: `Dia justificado (${x.r.jus || 'atestado ou folga'}). Hoje continua na meta e baixa a ocupação.` }[x.main];
+    acao = { ok: 'Dia dentro da meta. Nada a cobrar.', fer: 'Funcionário de férias. Nada a cobrar.', extra: 'Trabalhou em dia de folga do turno. Esse tempo entra como hora extra.',
+      dia: `Perguntar a ${x.o.curto} e ao responsável do turno se houve trabalho em ${_dmFmtD(d)} sem apontar. Se não houve, registrar a ausência em Atrasos e Ocorrências.`,
+      lac: `Pedir a ${x.o.curto} para conferir os horários em vermelho. O almoço já está descontado da meta.`,
+      jus: `Dia justificado (${(x.r.jus || 'atestado ou folga')}). Hoje continua na meta e baixa a ocupação.` }[x.main];
     if (x.r.parc) acao += ` A meta do dia já descontou ${_dmDur(x.r.parc)} de saída registrada.`;
   } else {
     const pm = Object.entries(x.r.par || {}).map(([k,v]) => `${k} (${_dmDur(v)})`).join(', ');
     acao = x.main === 'ok' ? 'Máquina dentro da meta.' : x.main === 'par' ? `Parada registrada: ${pm}.` : `Máquina sem uso registrado. Confirmar se ficou livre ou se faltou apontar.${pm ? ' Paradas: ' + pm + '.' : ''}`;
   }
+
   const ov = document.getElementById('dmOverlay') || (() => { const e = document.createElement('div'); e.id = 'dmOverlay'; document.body.appendChild(e); return e; })();
-  const titulo = eq ? x.o.curto : x.o.nome.replace(/ - .*/, '');
+  const mostraTempo = !x.r.fer;
   ov.innerHTML = `<div class="dm-scrim" id="dmScrim"></div><aside class="dm-drawer" role="dialog" aria-label="Detalhe do dia"><button class="dm-x" id="dmFechar" aria-label="Fechar">×</button>
-    <div class="dm-dtitulo">${esc(titulo)}</div><div class="dm-mut">${_dmFmtD(d)} · ${_DM_DIAS_LONGOS[_dmWd(d)]}${eq ? ' · ' + esc(x.r.turno) : ''}</div>
-    <div class="dm-dl"><div>Meta do dia</div><div>${_dmDur(x.meta)}</div><div>${eq ? 'Apontado' : 'Em uso'}</div><div>${_dmDur(x.m)}</div><div>Percentual</div><div>${x.pct}%</div><div>Motivo principal</div><div><span class="dm-chip"><i style="background:${mo.c}"></i>${esc(mo.n)}</span></div></div>
-    <div class="dm-h">Linha do tempo do dia</div>
-    <div class="dm-ruler"><div class="bar">${usados.map(b => `<b style="left:${100*(b[0]-S)/(E-S)}%;width:${100*(b[1]-b[0])/(E-S)}%"></b>`).join('')}</div><div class="ticks"><span>${_dmHH(S)}</span><span>${_dmHH(Math.round((S+E)/2))}</span><span>${_dmHH(E)}</span></div></div>
-    <div class="dm-nota"><i class="dm-sw" style="background:#0056b3"></i> lançado &nbsp; <i class="dm-sw" style="background:#f2c9c3"></i> sem lançamento (o almoço aparece aqui)</div>
-    <div class="dm-h" style="margin-top:14px">Horários sem lançamento</div>
-    ${gaps.length ? `<ul class="dm-gaps">${gaps.map(g => `<li>${_dmHH(g[0])} às ${_dmHH(g[1])} · ${_dmDur(g[1]-g[0])}</li>`).join('')}</ul>` : '<div class="dm-nota">Nenhum buraco de horário acima do limite.</div>'}
+    <div class="dm-nav"><button class="dm-btn" ${ant ? `data-id="${esc(idDe(ant.r.d))}"` : 'disabled'}>← ${ant ? _dmFmtD(ant.r.d) : ''}</button><button class="dm-btn" ${prox ? `data-id="${esc(idDe(prox.r.d))}"` : 'disabled'}>${prox ? _dmFmtD(prox.r.d) : ''} →</button></div>
+    <div class="dm-dtitulo">${esc(titulo)}</div><div class="dm-mut">${_dmFmtD(d)} · ${_DM_DIAS_LONGOS[_dmWd(d)]}${eq ? ' · ' + esc(x.r.turno || '') : ''}</div>
+    ${blocoAus}
+    <div class="dm-dl"><div>Meta do dia</div><div>${x.meta ? _dmDur(x.meta) : 'sem meta'}</div><div>${eq ? 'Apontado' : 'Em uso'}</div><div>${_dmDur(x.r.m)}</div>${x.meta ? `<div>Percentual do dia</div><div>${x.pct}%</div>` : ''}${media !== null && x.meta ? `<div>Média ${eq ? 'da pessoa' : 'da máquina'} no período</div><div>${media}%</div>` : ''}
+    <div>Situação</div><div><span class="dm-chip"><i style="background:${mo.c}"></i>${esc(mo.n)}</span></div></div>
+    ${mostraTempo ? `<div class="dm-h">Linha do tempo do dia</div>
+    <div class="dm-ruler"><div class="bar">${(gaps.length || x.m > 0 ? blocos : []).map(b => `<b style="left:${100*(b[0]-S)/(E-S)}%;width:${100*(b[1]-b[0])/(E-S)}%"></b>`).join('')}</div><div class="ticks"><span>${_dmHH(S)}</span><span>${_dmHH(Math.round((S+E)/2))}</span><span>${_dmHH(E)}</span></div></div>
+    <div class="dm-nota"><i class="dm-sw" style="background:#0056b3"></i> lançado &nbsp; <i class="dm-sw" style="background:#f2c9c3"></i> sem lançamento (o almoço aparece aqui)</div>` : ''}
+    <div class="dm-h" style="margin-top:14px">${eq ? 'Lançamentos do dia' : 'Lançamentos nesta máquina'}</div>${blocoL}
+    ${editar && !x.r.fer ? `<button class="dm-btn dm-novo" data-novo="${esc(eq ? x.o.nome : '')}|${d}|||${esc(eq ? '' : x.o.nome)}">+ Novo lançamento neste dia</button>` : ''}
+    ${blocoO}${blocoG}
+    ${outros.length ? `<div class="dm-h" style="margin-top:14px">${eq ? 'Os outros no mesmo dia' : 'As outras máquinas no mesmo dia'}</div><div class="dm-outros">${outros.map(y => `<button class="dm-btn" data-id="${esc((eq ? 'p' : 'm') + '|' + y.o.nome + '|' + d)}">${esc(eq ? y.o.curto : y.o.nome.replace(/ - .*/, ''))} <b>${y.pct}%</b></button>`).join('')}</div><div class="dm-nota">Se todos estão baixos no mesmo dia, o motivo pode ser geral (sistema, falta de energia, reunião).</div>` : ''}
     <div class="dm-acao"><b>Próximo passo</b><br>${esc(acao)}</div></aside>`;
-  const fechar = () => { ov.innerHTML = ''; document.removeEventListener('keydown', esc_); };
-  const esc_ = e => { if (e.key === 'Escape') fechar(); };
-  document.addEventListener('keydown', esc_);
+  const fechar = () => { ov.innerHTML = ''; document.removeEventListener('keydown', onEsc); };
+  const onEsc = e => { if (e.key === 'Escape') fechar(); };
+  document.addEventListener('keydown', onEsc);
   document.getElementById('dmScrim').onclick = fechar;
   const f = document.getElementById('dmFechar'); f.onclick = fechar; f.focus();
+  ov.querySelectorAll('[data-id]').forEach(b => b.onclick = () => _dmAbrir(b.dataset.id));
+  ov.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { const [i, dt, st] = b.dataset.ed.split('|'); fechar(); _dmEditarLanc(+i, dt, st, id); });
+  ov.querySelectorAll('[data-novo]').forEach(b => b.onclick = () => { const [nm, dt, hi, hf, mq] = b.dataset.novo.split('|'); fechar(); _dmNovoLanc(nm, dt, hi, hf, mq, id); });
+}
+
+// Abre o formulário de edição que já existe em Apontamentos. Ao salvar, o dashboard recarrega
+// e o painel do dia reabre atualizado (gancho _aoSalvarLancamento, chamado pelo salvarForm).
+async function _dmEditarLanc(idLanc, data, setor, idDia) {
+  try {
+    _setorAtivo = setor || 'Usinagem';
+    _dadosApontamentos = await db.buscarLancamentosDia(_setorAtivo, data, 'Todas');
+    _dmArmarRecarga(idDia);
+    editarApontamentoPorId(idLanc);
+  } catch (e) { console.error(e); toast('Não foi possível abrir o lançamento.', 'erro'); }
+}
+async function _dmNovoLanc(nome, data, hi, hf, maq, idDia) {
+  try {
+    _setorAtivo = 'Usinagem';
+    _dmArmarRecarga(idDia);
+    abrirNovoApontamento();
+    document.getElementById('formData').value = data;
+    await carregarFuncionariosForm('Usinagem');
+    await new Promise(r => setTimeout(r, 50));
+    if (nome) setSelect('formFunc', nome);
+    if (maq) setSelect('formMaq', maq);
+    if (hi) document.getElementById('formHrIni').value = hi;
+    if (hf) document.getElementById('formHrFim').value = hf;
+  } catch (e) { console.error(e); toast('Não foi possível abrir o formulário.', 'erro'); }
+}
+function _dmArmarRecarga(idDia) {
+  window._aoSalvarLancamento = function () {
+    window._aoSalvarLancamento = null;
+    if (!document.getElementById('diagMeta') || typeof carregarDashboard !== 'function') return;
+    _dm.reabrir = idDia;
+    carregarDashboard();
+  };
 }
 
 // ---------- estilo ----------
@@ -355,6 +451,8 @@ button.dm-cell{cursor:pointer}
 .dm-cell.g{background:#cdebdd}.dm-cell.m{background:#f6e3b4}.dm-cell.l{background:#f2c9c3}
 .dm-cell.j{background:repeating-linear-gradient(135deg,#dce2ee 0 4px,#fff 4px 8px);color:#5b6b8c}
 .dm-cell.o{background:#e6eaee;color:#a0aab5}
+.dm-cell.f{background:#cdeceb;color:#0f766e;border:1px solid #6bbbb6}
+.dm-cell.e{background:#fff;color:#0056b3;border:2px solid #0056b3;line-height:28px}
 .dm-cell.dim{opacity:.2}
 .dm-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:#64748b;margin-top:8px}
 .dm-key i{display:inline-block;width:13px;height:13px;border-radius:3px;vertical-align:-3px;margin-right:4px}
@@ -383,6 +481,18 @@ button.dm-cell{cursor:pointer}
 .dm-gaps li{background:#f2c9c3;border-radius:5px;padding:3px 9px;font-size:12.5px;font-variant-numeric:tabular-nums}
 .dm-acao{margin-top:16px;padding:11px 13px;border-radius:8px;background:#f1f5f9;border-left:4px solid #0056b3;font-size:13.5px}
 .dm button:focus-visible,.dm select:focus-visible,.dm-drawer button:focus-visible,.dm-list tr:focus-visible{outline:2px solid #0056b3;outline-offset:2px}
+
+.dm-nav{display:flex;justify-content:space-between;gap:8px;margin:0 44px 12px 0}
+.dm-btn{font:inherit;font-size:12.5px;border:1px solid #cbd5e1;background:#fff;color:#1e3a5f;border-radius:6px;padding:5px 10px;cursor:pointer;min-height:32px}
+.dm-btn:hover:not(:disabled){background:#f1f5f9}.dm-btn:disabled{opacity:.35;cursor:default}
+.dm-novo{margin-top:10px;width:100%;border-style:dashed}
+.dm-aus{margin:12px 0;padding:10px 12px;border-radius:8px;background:#e3f4f2;border-left:4px solid #0f766e;font-size:13px;color:#134e4a}
+.dm-lancs,.dm-ocs{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.dm-lanc{display:grid;grid-template-columns:1fr auto;gap:2px 10px;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px}
+.dm-lanc .dm-lb{grid-column:1}.dm-lanc .dm-btn{grid-row:1 / span 2;grid-column:2;align-self:center}
+.dm-ocs li{background:#f1f5f9;border-radius:6px;padding:6px 10px;font-size:13px}
+.dm-lk{font:inherit;font-size:12px;border:0;background:none;color:#0056b3;text-decoration:underline;cursor:pointer;padding:0 0 0 4px}
+.dm-outros{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 @media (max-width:560px){.dm-hide{display:none}.dm-kpi .v{font-size:24px}}
 `;
   document.head.appendChild(s);
