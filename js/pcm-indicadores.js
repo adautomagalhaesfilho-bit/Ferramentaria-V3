@@ -26,20 +26,9 @@
   function tonelagem(inj) { const m = /^(\d{2,3})-/.exec(inj || ''); return m ? m[1] + ' t' : 'Sem tonelagem'; }
   const ordTon = t => parseInt(t, 10) || 99999;
 
-  // Cavidades lidas do nome do molde:
-  //  "CAVS 3 E 4" = 2 · "CAVS 1 A 4" = 4 · "CAVS 7 A 12" = 6 · "8 CAVIDADES" = 8 · "8 + 8 CAV" = 16 · "CAV 3" = molde de 1 cavidade (a número 3)
-  const ROM = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10 };
-  const nCav = x => /^\d+$/.test(x) ? +x : (ROM[x.toUpperCase()] || NaN);
-  function cavidades(mol) {
-    const u = (mol || '').toUpperCase();
-    let m = /(\d+)\s*\+\s*(\d+)\s*CAV/.exec(u); if (m) return +m[1] + +m[2];
-    m = /(\d+)\s*CAVIDADES/.exec(u); if (m) return +m[1];
-    m = /CAVS?\s*(\d+|[IVX]+)\s*(E|A)\s*(\d+|[IVX]+)/.exec(u);
-    if (m) { const a = nCav(m[1]), b = nCav(m[3]); if (m[2] === 'E') return 2; if (b >= a) return b - a + 1; }
-    m = /CAV\s*0*([1-9]\d*)\b/.exec(u); if (m) return 1;
-    return null;
-  }
-  const rotCav = n => n === null ? 'Não informado' : n + (n === 1 ? ' cavidade' : ' cavidades');
+  // Cavidades vêm do cadastro do molde (Admin > Jobs), a mesma usada no controle de peso.
+  let cavPorMolde = {};
+  const rotCav = n => !n ? 'Não cadastrado' : n + (n === 1 ? ' cavidade' : ' cavidades');
   const ordCav = t => parseInt(t, 10) || 99999;
 
   function catMolde(m) {
@@ -65,10 +54,14 @@
     carregando = true;
     raiz.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando indicadores...</span></div>';
     try {
-      const rows = await db._get('prod_lancamentos', 'minutos=gt.0&order=data.asc', 'data,injetora,tipo,atividade,minutos,molde,maquina_parada');
+      const [rows, jobs] = await Promise.all([
+        db._get('prod_lancamentos', 'minutos=gt.0&order=data.asc', 'id,data,injetora,tipo,atividade,minutos,molde,maquina_parada,tecnicos,descricao'),
+        db._get('jobs', '', 'nome,num_cavidades')
+      ]);
+      cavPorMolde = {}; (jobs || []).forEach(j => { if (j.num_cavidades) cavPorMolde[j.nome] = j.num_cavidades; });
       D = (rows || []).map(r => {
         const sv = servico(r.tipo || '', r.atividade || 'Sem atividade');
-        return { d: r.data, inj: r.injetora || '—', ton: tonelagem(r.injetora), cav: rotCav(cavidades(r.molde)), tipo: r.tipo || '', min: r.minutos, mol: r.molde || '—', par: r.maquina_parada ? 1 : 0, cat: catMolde(r.molde), g: sv.g, s: sv.s, mes: r.data.slice(0, 7) };
+        return { id: r.id, tec: r.tecnicos || '', desc: r.descricao || '', d: r.data, inj: r.injetora || '—', ton: tonelagem(r.injetora), cav: rotCav(cavPorMolde[r.molde]), tipo: r.tipo || '', min: r.minutos, mol: r.molde || '—', par: r.maquina_parada ? 1 : 0, cat: catMolde(r.molde), g: sv.g, s: sv.s, mes: r.data.slice(0, 7) };
       });
       DMIN = D.length ? D[0].d : hojeLocal(); DMAX = D.length ? D[D.length - 1].d : hojeLocal();
       if (!S.ini) { S.ini = DMIN; S.fim = DMAX; }
@@ -229,8 +222,9 @@
     document.querySelectorAll('#piTabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.t === t));
     if (!rows.length) { q('piTab').innerHTML = '<div class="pi-empty">Nenhum lançamento com esses filtros.</div>'; return; }
     if (t === 'lan') {
+      const pode = typeof podeEditar === 'function' && podeEditar();
       const [k, d] = S.sort.lan, a = [...rows].sort((x, y) => (x[k] > y[k] ? 1 : x[k] < y[k] ? -1 : 0) * d);
-      q('piTab').innerHTML = `<table><thead><tr>${th('lan', 'd', 'Data')}${th('lan', 'inj', 'Injetora')}${th('lan', 'mol', 'Molde')}${th('lan', 's', 'Atividade')}${th('lan', 'min', 'Tempo', 1)}<th>Máquina</th></tr></thead><tbody>${a.slice(0, S.lim).map(x => `<tr><td>${fmtD(x.d)}</td><td>${esc(x.inj)}</td><td>${esc(x.mol)}</td><td>${esc(x.s)}</td><td style="text-align:right"><b>${hm(x.min)}</b></td><td>${x.par ? '<span class="pi-pill st">Parada</span>' : ''}</td></tr>`).join('')}</tbody></table>${a.length > S.lim ? `<button class="btn-secondary" data-pi="lim" style="margin-top:10px">Mostrar mais (${a.length - S.lim} restantes)</button>` : ''}`;
+      q('piTab').innerHTML = `<table><thead><tr>${th('lan', 'd', 'Data')}${th('lan', 'inj', 'Injetora')}${th('lan', 'mol', 'Molde')}${th('lan', 's', 'Atividade')}${th('lan', 'min', 'Tempo', 1)}<th>Técnico</th><th>Observação</th><th>Máquina</th>${pode ? '<th></th>' : ''}</tr></thead><tbody>${a.slice(0, S.lim).map(x => `<tr><td>${fmtD(x.d)}</td><td>${esc(x.inj)}</td><td>${esc(x.mol)}</td><td>${esc(x.s)}</td><td style="text-align:right"><b>${hm(x.min)}</b>${x.min > LIM_EXTREMO ? '<br><span class="pi-pill st">acima de 8 h</span>' : ''}</td><td>${esc(x.tec)}</td><td style="max-width:260px">${esc(x.desc.length > 90 ? x.desc.slice(0, 90) + '…' : x.desc)}</td><td>${x.par ? '<span class="pi-pill st">Parada</span>' : ''}</td>${pode ? `<td><button class="btn-secondary" style="padding:4px 10px;font-size:12px" data-edit="${x.id}">✏️ Editar</button></td>` : ''}</tr>`).join('')}</tbody></table>${a.length > S.lim ? `<button class="btn-secondary" data-pi="lim" style="margin-top:10px">Mostrar mais (${a.length - S.lim} restantes)</button>` : ''}`;
       return;
     }
     const g = group(rows, t === 'cav' ? 'cav' : t === 'ton' ? 'ton' : t === 'inj' ? 'inj' : 'mol'), [k, d] = S.sort[t];
@@ -308,11 +302,22 @@
     toast('Na janela que abriu, escolha "Salvar como PDF".');
   }
 
+  // Abre o mesmo formulário da tela Produção. Ao salvar, os indicadores recarregam com os filtros mantidos.
+  async function editarLancamento(id) {
+    try {
+      if (typeof carregarListasProducao === 'function') await carregarListasProducao();
+      _dadosProducao = await db._get('prod_lancamentos', 'id=eq.' + id, '*');
+      window._aoSalvarProducao = function () { window._aoSalvarProducao = null; if (q('piKpis')) carregar(); };
+      await editarProd(id);
+    } catch (e) { console.error(e); toast('Não foi possível abrir o lançamento.', 'erro'); }
+  }
+
   // ---------- eventos ----------
   function ligarEventos() {
     raiz.addEventListener('click', e => {
       const t = e.target; let b;
       if ((b = t.closest('#piPresets button'))) { preset(b.dataset.p); return render(); }
+      if ((b = t.closest('[data-edit]'))) return editarLancamento(+b.dataset.edit);
       if ((b = t.closest('#piCat button'))) { S.cat = b.dataset.c; return render(); }
       if ((b = t.closest('.pi-chip button'))) { remover(b.dataset.k); return render(); }
       if ((b = t.closest('[data-pi]'))) {
