@@ -35,13 +35,13 @@ function capMinutosPorTurno(turno) {
   return 528;
 }
 
-// Usinagem 5x2: desde 01/09/2026 o trabalho produtivo começa às 08:00 (os primeiros 30 min
+// Usinagem (5x2 e Turma A/B): desde 01/09/2026 o trabalho produtivo começa às 08:00 (os primeiros 30 min
 // são do DDS), então a meta diária da pessoa é 30 min menor. Dias anteriores não mudam.
 // Vale só para a meta da ocupação (dashboard): o banco de horas continua com a jornada contratual.
 const INICIO_08H_USINAGEM = '2026-09-01';
 function capMinutosNaData(turno, setor, ds) {
   const base = capMinutosPorTurno(turno);
-  if (setor === 'Usinagem' && turno === '5x2' && ds >= INICIO_08H_USINAGEM) return base - 30;
+  if (setor === 'Usinagem' && (turno === '5x2' || turno === 'Turma A' || turno === 'Turma B') && ds >= INICIO_08H_USINAGEM) return base - 30;
   return base;
 }
 
