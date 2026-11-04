@@ -35,6 +35,16 @@ function capMinutosPorTurno(turno) {
   return 528;
 }
 
+// Usinagem 5x2: desde 01/09/2026 o trabalho produtivo começa às 08:00 (os primeiros 30 min
+// são do DDS), então a meta diária da pessoa é 30 min menor. Dias anteriores não mudam.
+// Vale só para a meta da ocupação (dashboard): o banco de horas continua com a jornada contratual.
+const INICIO_08H_USINAGEM = '2026-09-01';
+function capMinutosNaData(turno, setor, ds) {
+  const base = capMinutosPorTurno(turno);
+  if (setor === 'Usinagem' && turno === '5x2' && ds >= INICIO_08H_USINAGEM) return base - 30;
+  return base;
+}
+
 // Supervisores/Encarregados são excluídos dos cálculos de ocupação/produtividade
 // (aparecem nas listas de técnico para lançamento, mas não contam na meta da equipe)
 function isSupervisor(nome, dados) {
@@ -54,7 +64,6 @@ function calcularMeta(ini, fim, nome, dados) {
   const feriados = dados.feriados || [];
   const ferias   = (dados.ferias || []).filter(f => f.funcionario === nome);
   const parciais = (dados.parciais || []).filter(p => p.funcionario === nome);
-  const capMin   = capMinutosPorTurno(turno);
   let mins = 0;
   for (let d = new Date(ini + 'T12:00:00'); d <= new Date(fim + 'T12:00:00'); d.setDate(d.getDate() + 1)) {
     const ds = dataLocal(d);
@@ -62,7 +71,7 @@ function calcularMeta(ini, fim, nome, dados) {
     const deFerias = ferias.some(f => ds >= f.inicio && ds <= f.fim && f.motivo === 'Férias');
     if (deFerias) continue;
     if (!funcTrabalhaEmDia(turno, ds, feriados)) continue;
-    let minsDia = capMin;
+    let minsDia = capMinutosNaData(turno, funcRH?.setor, ds);
     parciais.filter(p => p.data === ds).forEach(p => {
       if (p.inicio && p.fim) {
         const toMin = h => { const [hh,mm] = h.split(':'); return parseInt(hh)*60+parseInt(mm); };
