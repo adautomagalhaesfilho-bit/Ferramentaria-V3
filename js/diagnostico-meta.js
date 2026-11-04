@@ -107,7 +107,7 @@ function _dmCalcular(ini, fim, lancsSetor) {
       const funciona = todos || (dow !== 0 && dow !== 6 && !feriados.includes(ds));
       if (!funciona) return;
       const doDia = usos.filter(l => l.data === ds);
-      const m = _minutosMaquina(doDia, maq, hist);
+      const m = _minutosMaquina(doDia);
       const auto = doDia.reduce((a, l) => a + _minutosAutoLanc(l), 0);
       const pm = {};
       pars.filter(l => l.data === ds).forEach(l => { const k = l.motivo || 'Sem motivo'; pm[k] = (pm[k] || 0) + (l.minutos || 0); });
