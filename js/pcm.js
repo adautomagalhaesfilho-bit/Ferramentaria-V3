@@ -126,11 +126,17 @@ async function inicializarPCM() {
   el.innerHTML = `
   <div class="page-header">
     <h1>🗂️ PCM — Controle de Moldes</h1>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="pcmHdrAcoes">
       <input type="text" id="pcmBusca" placeholder="Buscar por molde ou injetora..." oninput="filtrarPCM()" style="width:220px">
       <button class="btn-primary" onclick="abrirModalLocalizacao(null)">+ Registrar Localização</button>
     </div>
   </div>
+  <div class="pcm-abas" role="tablist">
+    <button role="tab" data-aba="moldes" aria-selected="true" onclick="mostrarAbaPCM('moldes')">🗂️ Moldes</button>
+    <button role="tab" data-aba="ind" aria-selected="false" onclick="mostrarAbaPCM('ind')">📊 Indicadores</button>
+  </div>
+  <div id="pcmAbaInd" style="display:none"></div>
+  <div id="pcmAbaMoldes">
   <div class="cards-row" id="pcmResumoCards"></div>
 
   <!-- PAINEL DE PENDÊNCIAS (retraído por padrão — lista completa fica na página dedicada) -->
@@ -170,7 +176,8 @@ async function inicializarPCM() {
         onclick="setPcmFiltro('${escJs(l.id)}',this)">${esc(l.ico)} ${esc(l.id)}</button>`).join('')}
   </div>
   <div id="pcmLoader" class="loader-inline" style="display:none"><div class="spinner-sm"></div><span>Carregando...</span></div>
-  <div id="pcmLista"></div>`;
+  <div id="pcmLista"></div>
+  </div>`;
 
   await carregarPCM();
 }
