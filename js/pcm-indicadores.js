@@ -81,6 +81,12 @@
   const stats = a => { const v = a.map(x => x.min); return { n: a.length, med: mean(v), mediana: med(v), tot: v.reduce((x, y) => x + y, 0), max: v.length ? Math.max(...v) : 0, min: v.length ? Math.min(...v) : 0 }; };
   function group(rows, key) { const m = {}; rows.forEach(x => (m[x[key]] = m[x[key]] || []).push(x)); return Object.entries(m).map(([k, a]) => { const s = stats(a); return { k, n: s.n, med: s.med, mediana: s.mediana, tot: s.tot / 60, max: s.max, min: s.min, a }; }); }
 
+  // Molde × injetora: cada linha é o molde numa injetora específica
+  function groupMolInj(rows) {
+    const m = {}; rows.forEach(x => { const k = x.mol + '\u0001' + x.inj; (m[k] = m[k] || []).push(x); });
+    return Object.entries(m).map(([k, a]) => { const s = stats(a), [mol, inj] = k.split('\u0001'); return { k: mol, mol, inj, n: s.n, med: s.med, mediana: s.mediana, tot: s.tot / 60, max: s.max, min: s.min, a }; });
+  }
+
   // ---------- estrutura ----------
   function desenharBase() {
     raiz.innerHTML = `
@@ -227,11 +233,11 @@
       q('piTab').innerHTML = `<table><thead><tr>${th('lan', 'd', 'Data')}${th('lan', 'inj', 'Injetora')}${th('lan', 'mol', 'Molde')}${th('lan', 's', 'Atividade')}${th('lan', 'min', 'Tempo', 1)}<th>Técnico</th><th>Observação</th><th>Máquina</th>${pode ? '<th></th>' : ''}</tr></thead><tbody>${a.slice(0, S.lim).map(x => `<tr><td>${fmtD(x.d)}</td><td>${esc(x.inj)}</td><td>${esc(x.mol)}</td><td>${esc(x.s)}</td><td style="text-align:right"><b>${hm(x.min)}</b>${x.min > LIM_EXTREMO ? '<br><span class="pi-pill st">acima de 8 h</span>' : ''}</td><td>${esc(x.tec)}</td><td style="max-width:260px">${esc(x.desc.length > 90 ? x.desc.slice(0, 90) + '…' : x.desc)}</td><td>${x.par ? '<span class="pi-pill st">Parada</span>' : ''}</td>${pode ? `<td><button class="btn-secondary" style="padding:4px 10px;font-size:12px" data-edit="${x.id}">✏️ Editar</button></td>` : ''}</tr>`).join('')}</tbody></table>${a.length > S.lim ? `<button class="btn-secondary" data-pi="lim" style="margin-top:10px">Mostrar mais (${a.length - S.lim} restantes)</button>` : ''}`;
       return;
     }
-    const g = group(rows, t === 'cav' ? 'cav' : t === 'ton' ? 'ton' : t === 'inj' ? 'inj' : 'mol'), [k, d] = S.sort[t];
+    const g = t === 'mol' ? groupMolInj(rows) : group(rows, t === 'cav' ? 'cav' : t === 'ton' ? 'ton' : 'inj'), [k, d] = S.sort[t];
     if ((t === 'ton' || t === 'cav') && k === 'k') g.sort((x, y) => (ordTon(x.k) - ordTon(y.k)) * d); else
     g.sort((x, y) => (x[k] > y[k] ? 1 : x[k] < y[k] ? -1 : 0) * d);
     const mx = Math.max(...g.map(x => x.med));
-    q('piTab').innerHTML = `<table><thead><tr>${th(t, 'k', t === 'cav' ? 'Cavidades' : t === 'ton' ? 'Tonelagem' : t === 'inj' ? 'Injetora' : 'Molde')}${th(t, 'med', 'Tempo médio', 1)}${th(t, 'mediana', 'Mediana', 1)}${th(t, 'n', 'Lançam.', 1)}${th(t, 'tot', 'Horas', 1)}${th(t, 'max', 'Maior', 1)}</tr></thead><tbody>${g.slice(0, 25).map(x => `<tr class="pi-click" data-f="${t}" data-v="${esc(x.k)}" title="Filtrar"><td>${esc(x.k)}</td><td style="text-align:right"><span class="pi-bar" style="width:${Math.max(1, 60 * x.med / mx)}px"></span><b>${hm(x.med)}</b></td><td style="text-align:right">${hm(x.mediana)}</td><td style="text-align:right">${x.n}</td><td style="text-align:right">${x.tot.toFixed(1)}</td><td style="text-align:right">${hm(x.max)}</td></tr>`).join('')}</tbody></table>${g.length > 25 ? `<div class="pi-hint" style="margin-top:8px">Mostrando as 25 com mais lançamentos de ${g.length}. Use os filtros para ver as demais.</div>` : ''}`;
+    q('piTab').innerHTML = `<table><thead><tr>${th(t, 'k', t === 'cav' ? 'Cavidades' : t === 'ton' ? 'Tonelagem' : t === 'inj' ? 'Injetora' : 'Molde')}${t === 'mol' ? th(t, 'inj', 'Injetora') : ''}${th(t, 'med', 'Tempo médio', 1)}${th(t, 'mediana', 'Mediana', 1)}${th(t, 'n', 'Lançam.', 1)}${th(t, 'tot', 'Horas', 1)}${th(t, 'max', 'Maior', 1)}</tr></thead><tbody>${g.slice(0, t === 'mol' ? 40 : 25).map(x => `<tr class="pi-click" data-f="${t}" data-v="${esc(x.k)}" data-i="${esc(x.inj || '')}" title="Filtrar"><td>${esc(x.k)}</td>${t === 'mol' ? `<td><b>${esc(x.inj)}</b></td>` : ''}<td style="text-align:right"><span class="pi-bar" style="width:${Math.max(1, 60 * x.med / mx)}px"></span><b>${hm(x.med)}</b></td><td style="text-align:right">${hm(x.mediana)}</td><td style="text-align:right">${x.n}</td><td style="text-align:right">${x.tot.toFixed(1)}</td><td style="text-align:right">${hm(x.max)}</td></tr>`).join('')}</tbody></table>${g.length > (t === 'mol' ? 40 : 25) ? `<div class="pi-hint" style="margin-top:8px">Mostrando as ${t === 'mol' ? 40 : 25} com mais lançamentos de ${g.length}. Use os filtros para ver as demais.</div>` : ''}`;
   }
   function render() {
     if (!raiz || !q('piKpis')) return;
@@ -308,19 +314,21 @@
       if (ats.length) linha += img(graficoPng('h', ats, 'Tempo médio por atividade (10 com mais lançamentos)', '#C55A11'), linha - 1);
 
       // ---- tabelas agrupadas ----
-      const tabela = (nome, titulo, key, letra, itens, rotulo, larg0) => {
+      const tabela = (nome, titulo, key, letra, itens, rotulo, larg0, par) => {
+        const o = par ? 1 : 0;
         const w = wb.addWorksheet(nome, { views: [{ state: 'frozen', ySplit: 3, showGridLines: false }] });
-        w.mergeCells('A1:H1'); w.getCell('A1').value = titulo; w.getCell('A1').font = xlFont({ size: 15, bold: true, color: { argb: XL.NAVY } }); w.getRow(1).height = 26;
-        const cab = [rotulo, 'Tempo médio (min)', 'Tempo médio (h:mm)', 'Mediana (min)', 'Lançamentos', 'Horas somadas', 'Maior (min)', 'Menor (min)'];
-        cab.forEach((t, i) => { const c = w.getCell(3, i + 1); c.value = t; c.font = xlFont({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = xlFill(XL.NAVY); c.border = xlBorda; c.alignment = { horizontal: i ? 'center' : 'left', vertical: 'middle', wrapText: true, indent: i ? 0 : 1 }; });
+        w.mergeCells('A1:' + String.fromCharCode(72 + o) + '1'); w.getCell('A1').value = titulo; w.getCell('A1').font = xlFont({ size: 15, bold: true, color: { argb: XL.NAVY } }); w.getRow(1).height = 26;
+        const cab = [rotulo, ...(par ? ['Injetora'] : []), 'Tempo médio (min)', 'Tempo médio (h:mm)', 'Mediana (min)', 'Lançamentos', 'Horas somadas', 'Maior (min)', 'Menor (min)'];
+        cab.forEach((t, i) => { const c = w.getCell(3, i + 1); c.value = t; c.font = xlFont({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = xlFill(XL.NAVY); c.border = xlBorda; c.alignment = { horizontal: i > o ? 'center' : 'left', vertical: 'middle', wrapText: true, indent: i ? 0 : 1 }; });
         w.getRow(3).height = 32;
-        itens.forEach((g, n) => { const r = 4 + n, fx = (f, v) => ({ formula: f, result: v });
-          const cs = [g.k, fx(`IFERROR(AVERAGEIFS(${col('G')},${col(letra)},A${r}),0)`, g.med), fx(`B${r}/1440`, g.med / 1440), g.mediana, fx(`COUNTIFS(${col(letra)},A${r})`, g.n), fx(`SUMIFS(${col('G')},${col(letra)},A${r})/60`, g.tot), g.max, g.min];
-          cs.forEach((v, i) => { const c = w.getCell(r, i + 1); c.value = v; c.font = xlFont({ bold: i === 1 }); c.border = xlBorda; if (n % 2) c.fill = xlFill(XL.GREY);
-            c.alignment = { horizontal: i ? 'center' : 'left', indent: i ? 0 : 1, wrapText: i === 0 };
-            c.numFmt = i === 2 ? '[h]:mm' : i === 5 ? '0.0' : '0'; }); });
-        [larg0, 16, 16, 14, 13, 14, 13, 13].forEach((x, i) => w.getColumn(i + 1).width = x);
-        w.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + itens.length, column: 8 } };
+        itens.forEach((g, n) => { const r = 4 + n, fx = (f, v) => ({ formula: f, result: v }), L = String.fromCharCode(66 + o), M = String.fromCharCode(67 + o);
+          const crit = par ? `${col('C')},A${r},${col('B')},B${r}` : `${col(letra)},A${r}`;
+          const cs = [g.k, ...(par ? [g.inj] : []), fx(`IFERROR(AVERAGEIFS(${col('G')},${crit}),0)`, g.med), fx(`${L}${r}/1440`, g.med / 1440), g.mediana, fx(`COUNTIFS(${crit})`, g.n), fx(`SUMIFS(${col('G')},${crit})/60`, g.tot), g.max, g.min];
+          cs.forEach((v, i) => { const c = w.getCell(r, i + 1), j = i - o; c.value = v; c.font = xlFont({ bold: j === 1 }); c.border = xlBorda; if (n % 2) c.fill = xlFill(XL.GREY);
+            c.alignment = { horizontal: i > o ? 'center' : 'left', indent: i > o ? 0 : 1, wrapText: i === 0 };
+            c.numFmt = j === 2 ? '[h]:mm' : j === 5 ? '0.0' : '0'; }); });
+        [larg0, ...(par ? [14] : []), 16, 16, 14, 13, 14, 13, 13].forEach((x, i) => w.getColumn(i + 1).width = x);
+        w.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + itens.length, column: 8 + o } };
         return w;
       };
       const ordN = (a, b) => b.n - a.n;
@@ -330,7 +338,7 @@
       tabela('Por tonelagem', 'Tempo por tonelagem da injetora', 'ton', 'J', group(rows, 'ton').sort((a, b) => ordTon(a.k) - ordTon(b.k)), 'Tonelagem', 20);
       tabela('Por mês', 'Tempo por mês', 'mes', 'I', group(rows, 'mes').sort((a, b) => a.k.localeCompare(b.k)), 'Mês (aaaa-mm)', 16);
       tabela('Por injetora', 'Tempo por injetora', 'inj', 'B', group(rows, 'inj').sort(ordN), 'Injetora', 16);
-      tabela('Por molde', 'Tempo por molde', 'mol', 'C', group(rows, 'mol').sort(ordN), 'Molde', 56);
+      tabela('Por molde e injetora', 'Tempo por molde em cada injetora', 'mol', 'C', groupMolInj(rows).sort(ordN), 'Molde', 56, true);
 
       // ---- Lançamentos ----
       const wl = wb.addWorksheet('Lançamentos', { views: [{ state: 'frozen', ySplit: 1 }] });
@@ -379,7 +387,7 @@
       <div class="k"><div><b>${hm(s.med)}</b>tempo médio</div><div><b>${hm(s.mediana)}</b>mediana</div><div><b>${s.n}</b>lançamentos</div><div><b>${(s.tot / 60).toFixed(0)} h</b>somadas</div><div><b>${hm(s.max)}</b>maior</div></div>
       <h3>Faixa de tempos por atividade</h3><div class="leg">Cada ponto é um lançamento. Linha escura: média. Losango: mediana. Escala de 0 a ${xmax / 60} h.</div>${strips}
       <div class="pb"></div>${tab('Por mês', mes, 'Mês', 14)}${tab('Por cavidades do molde', group(rows, 'cav').sort((a, b) => ordCav(a.k) - ordCav(b.k)), 'Cavidades', 14)}${tab('Por tonelagem', group(rows, 'ton').sort((a, b) => ordTon(a.k) - ordTon(b.k)), 'Tonelagem', 14)}${tab('Por tipo de molde', group(rows, 'cat').sort((a, b) => b.n - a.n), 'Molde', 8)}
-      ${tab('Por injetora (25 com mais lançamentos)', group(rows, 'inj').sort((a, b) => b.n - a.n), 'Injetora', 25)}${tab('Por molde (25 com mais lançamentos)', group(rows, 'mol').sort((a, b) => b.n - a.n), 'Molde', 25)}
+      ${tab('Por injetora (25 com mais lançamentos)', group(rows, 'inj').sort((a, b) => b.n - a.n), 'Injetora', 25)}${tab('Por molde e injetora (25 com mais lançamentos)', groupMolInj(rows).sort((a, b) => b.n - a.n).map(x => ({ ...x, k: x.mol + ' — ' + x.inj })), 'Molde — injetora', 25)}
       <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
     const w = window.open('', '_blank');
     if (!w) { toast('O navegador bloqueou a janela. Permita pop-ups e tente de novo.', 'erro'); return; }
@@ -416,7 +424,7 @@
       if ((b = t.closest('.pi-srow'))) { S.s = b.dataset.s; const x = D.find(y => y.s === S.s); if (x) S.g = x.g; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
       if ((b = t.closest('#piTabs button'))) { S.tab = b.dataset.t; return render(); }
       if ((b = t.closest('th.pi-sort'))) { const tt = b.dataset.t, k = b.dataset.k, [sk, sd] = S.sort[tt]; S.sort[tt] = [k, sk === k ? -sd : (['k', 'inj', 'mol', 's', 'ton', 'cav'].includes(k) ? 1 : -1)]; return render(); }
-      if ((b = t.closest('tr.pi-click'))) { if (b.dataset.f === 'cav') S.cav = b.dataset.v; else if (b.dataset.f === 'ton') S.ton = b.dataset.v; else if (b.dataset.f === 'inj') S.inj = b.dataset.v; else S.mol = b.dataset.v; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
+      if ((b = t.closest('tr.pi-click'))) { if (b.dataset.f === 'cav') S.cav = b.dataset.v; else if (b.dataset.f === 'ton') S.ton = b.dataset.v; else if (b.dataset.f === 'inj') S.inj = b.dataset.v; else { S.mol = b.dataset.v; S.inj = b.dataset.i || S.inj; } render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
     });
     raiz.addEventListener('change', e => {
       const id = e.target.id;
