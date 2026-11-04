@@ -242,40 +242,125 @@
 
   // ---------- exportação ----------
   function descFiltros() { const c = [...document.querySelectorAll('#piChips .pi-chip')].map(x => x.firstChild.textContent); return c.length ? c.join(' · ') : 'sem filtros (todos os lançamentos)'; }
-  function exportarExcel() {
+  // ---------- Excel formatado (ExcelJS): mesmo visual da planilha de análise ----------
+  const XL = { NAVY: 'FF1F3864', BLUE: 'FF2F5597', ORG: 'FFC55A11', LIGHT: 'FFD9E2F3', GREY: 'FFF2F2F2', WARN: 'FFFCE4D6' };
+  const xlFont = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
+  const xlFill = c => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: c } });
+  const xlBorda = { top: { style: 'thin', color: { argb: 'FFBFBFBF' } }, bottom: { style: 'thin', color: { argb: 'FFBFBFBF' } }, left: { style: 'thin', color: { argb: 'FFBFBFBF' } }, right: { style: 'thin', color: { argb: 'FFBFBFBF' } } };
+
+  function graficoPng(tipo, itens, titulo, cor) { // itens: [{k, v, n}]
+    const c = document.createElement('canvas'), W = 900, H = tipo === 'h' ? 80 + itens.length * 34 : 360; c.width = W; c.height = H;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#1F3864'; g.font = 'bold 17px Arial'; g.fillText(titulo, 16, 28);
+    const mx = Math.max(1, ...itens.map(x => x.v)), top = Math.ceil(mx / 60) * 60 || 60;
+    if (tipo === 'v') {
+      const L = 50, R = W - 16, T = 50, B = H - 52, bw = Math.min(60, (R - L) / itens.length - 14);
+      g.font = '12px Arial'; g.textAlign = 'right';
+      for (let t = 0; t <= top; t += top > 240 ? 120 : 60) { const y = B - (B - T) * t / top; g.strokeStyle = '#e1e6ec'; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.fillStyle = '#5a6a7b'; g.fillText(t / 60 + ' h', L - 8, y + 4); }
+      g.textAlign = 'center';
+      itens.forEach((x, i) => { const cx = L + (R - L) * (i + .5) / itens.length, y = B - (B - T) * x.v / top;
+        g.fillStyle = cor; g.fillRect(cx - bw / 2, y, bw, B - y);
+        g.fillStyle = '#14202e'; g.font = 'bold 12px Arial'; g.fillText(hm(x.v), cx, y - 6);
+        g.fillStyle = '#5a6a7b'; g.font = '12px Arial'; g.fillText(x.k, cx, H - 32); g.font = '11px Arial'; g.fillText(x.n + ' lanç.', cx, H - 16); });
+    } else {
+      const L = 300, R = W - 200, T = 50, rh = 34;
+      g.font = '13px Arial';
+      itens.forEach((x, i) => { const y = T + i * rh, w = (R - L) * x.v / top;
+        g.fillStyle = '#14202e'; g.textAlign = 'right'; g.fillText(x.k.length > 38 ? x.k.slice(0, 37) + '…' : x.k, L - 10, y + 17);
+        g.fillStyle = cor; g.fillRect(L, y + 4, Math.max(2, w), 20);
+        g.fillStyle = '#14202e'; g.textAlign = 'left'; g.font = 'bold 12px Arial'; g.fillText(hm(x.v) + '  (' + x.n + ')', L + Math.max(2, w) + 8, y + 19); g.font = '13px Arial'; });
+    }
+    return { b64: c.toDataURL('image/png').split(',')[1], w: W, h: H };
+  }
+
+  async function exportarExcel() {
     const rows = base();
     if (!rows.length) { toast('Nenhum lançamento para exportar com esses filtros.', 'erro'); return; }
-    const ord = [...rows].sort((a, b) => a.d.localeCompare(b.d)), N = ord.length + 1;
-    const col = c => `Lançamentos!$${c}$2:$${c}$${N}`;
-    const lan = [['Data', 'Injetora', 'Molde', 'Tipo de molde', 'Tipo de serviço', 'Atividade', 'Minutos', 'Máquina parada', 'Mês', 'Tonelagem', 'Cavidades']]
-      .concat(ord.map(x => [new Date(x.d + 'T12:00:00'), x.inj, x.mol, x.cat, x.g, x.s, x.min, x.par ? 'Sim' : 'Não', x.mes, x.ton, x.cav]));
-    const s = stats(rows), c = (v, f) => ({ t: 'n', v, f });
-    const res = [['Indicadores de PCM — Produção'], ['Filtros: ' + descFiltros()], ['Gerado em ' + new Date().toLocaleString('pt-BR')], [],
-      ['Indicador', 'Valor'],
-      ['Tempo médio (min)', c(s.med, `AVERAGE(${col('G')})`)], ['Mediana (min)', c(s.mediana, `MEDIAN(${col('G')})`)],
-      ['Lançamentos', c(s.n, `COUNT(${col('G')})`)], ['Horas somadas', c(s.tot / 60, `SUM(${col('G')})/60`)],
-      ['Maior lançamento (min)', c(s.max, `MAX(${col('G')})`)], ['Menor lançamento (min)', c(s.min, `MIN(${col('G')})`)]];
-    const tabAgr = (titulo, key, colunaLetra, itens, nome) => [[nome, 'Tempo médio (min)', 'Mediana (min)', 'Lançamentos', 'Horas', 'Maior (min)']]
-      .concat(itens.map(g => [g.k, c(g.med, `IFERROR(AVERAGEIFS(${col('G')},${col(colunaLetra)},A{r}),0)`), g.mediana, c(g.n, `COUNTIFS(${col(colunaLetra)},A{r})`), c(g.tot, `SUMIFS(${col('G')},${col(colunaLetra)},A{r})/60`), g.max]));
-    const fix = aoa => aoa.map((l, i) => l.map(x => x && x.f ? { ...x, f: x.f.replace(/\{r\}/g, i + 1) } : x));
-    const porAt = group(rows, 's').sort((a, b) => b.n - a.n), porCat = group(rows, 'cat').sort((a, b) => b.n - a.n),
-      porMes = group(rows, 'mes').sort((a, b) => a.k.localeCompare(b.k)), porCav = group(rows, 'cav').sort((a, b) => ordCav(a.k) - ordCav(b.k)), porTon = group(rows, 'ton').sort((a, b) => ordTon(a.k) - ordTon(b.k)), porInj = group(rows, 'inj').sort((a, b) => b.n - a.n), porMol = group(rows, 'mol').sort((a, b) => b.n - a.n);
-    const wb = XLSX.utils.book_new(), add = (nome, aoa, w) => { const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }); ws['!cols'] = (w || []).map(x => ({ wch: x })); XLSX.utils.book_append_sheet(wb, ws, nome); return ws; };
-    add('Resumo', res, [30, 18]);
-    add('Por atividade', fix(tabAgr('', 's', 'F', porAt, 'Atividade')), [38, 16, 14, 12, 10, 12]);
-    add('Por tipo de molde', fix(tabAgr('', 'cat', 'D', porCat, 'Tipo de molde')), [20, 16, 14, 12, 10, 12]);
-    add('Por mês', fix(tabAgr('', 'mes', 'I', porMes, 'Mês')), [12, 16, 14, 12, 10, 12]);
-    add('Por cavidades', fix(tabAgr('', 'cav', 'K', porCav, 'Cavidades do molde')), [20, 16, 14, 12, 10, 12]);
-    add('Por tonelagem', fix(tabAgr('', 'ton', 'J', porTon, 'Tonelagem')), [16, 16, 14, 12, 10, 12]);
-    add('Por injetora', fix(tabAgr('', 'inj', 'B', porInj, 'Injetora')), [14, 16, 14, 12, 10, 12]);
-    add('Por molde', fix(tabAgr('', 'mol', 'C', porMol, 'Molde')), [52, 16, 14, 12, 10, 12]);
-    const wl = add('Lançamentos', lan, [12, 12, 52, 13, 16, 32, 10, 15, 9, 13, 16]);
-    wl['!autofilter'] = { ref: `A1:K${N}` };
-    wl['!cols'][0] = { wch: 12 };
-    for (let r = 2; r <= N; r++) if (wl['A' + r]) wl['A' + r].z = 'dd/mm/yyyy';
-    XLSX.writeFile(wb, `Indicadores_PCM_${hojeLocal()}.xlsx`);
-    toast('Excel gerado.');
+    if (typeof ExcelJS === 'undefined') { toast('Biblioteca de Excel não carregou. Recarregue a página (Ctrl+Shift+R).', 'erro'); return; }
+    const btn = document.querySelector('[data-pi=xls]'); if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
+    try {
+      const ord = [...rows].sort((a, b) => a.d.localeCompare(b.d)), N = ord.length + 1, s = stats(rows);
+      const col = c => `Lançamentos!$${c}$2:$${c}$${N}`;
+      const wb = new ExcelJS.Workbook(); wb.creator = 'Ferramentaria V3'; wb.created = new Date();
+
+      // ---- Resumo ----
+      const ws = wb.addWorksheet('Resumo', { views: [{ showGridLines: false }] });
+      [2, 20, 20, 20, 20, 20, 3, 14, 14].forEach((w, i) => ws.getColumn(i + 1).width = w);
+      ws.mergeCells('B2:F2'); Object.assign(ws.getCell('B2'), { value: 'Indicadores de PCM — Produção' });
+      ws.getCell('B2').font = xlFont({ size: 20, bold: true, color: { argb: 'FFFFFFFF' } }); ws.getCell('B2').fill = xlFill(XL.NAVY);
+      ws.getCell('B2').alignment = { vertical: 'middle', indent: 1 }; ws.getRow(2).height = 38;
+      ws.mergeCells('B3:F3'); ws.getCell('B3').value = 'Filtros: ' + descFiltros() + '  ·  Gerado em ' + new Date().toLocaleString('pt-BR');
+      ws.getCell('B3').font = xlFont({ italic: true, color: { argb: 'FF595959' }, size: 9 }); ws.getCell('B3').alignment = { wrapText: true, vertical: 'top', indent: 1 }; ws.getRow(3).height = 30;
+      const cards = [['Tempo médio', { formula: `AVERAGE(${col('G')})`, result: s.med }, 'min por lançamento', XL.BLUE, '0'], ['Mediana', { formula: `MEDIAN(${col('G')})`, result: s.mediana }, 'min (valor do meio)', XL.ORG, '0'],
+        ['Lançamentos', { formula: `COUNT(${col('G')})`, result: s.n }, 'no período filtrado', XL.BLUE, '0'], ['Horas somadas', { formula: `SUM(${col('G')})/60`, result: s.tot / 60 }, 'horas', XL.ORG, '0'], ['Maior lançamento', { formula: `MAX(${col('G')})`, result: s.max }, 'min', XL.BLUE, '0']];
+      cards.forEach(([t, v, u, cor, nf], i) => { const cl = 2 + i;
+        const a = ws.getCell(5, cl), b = ws.getCell(6, cl), c = ws.getCell(7, cl);
+        a.value = t; a.font = xlFont({ bold: true, color: { argb: 'FFFFFFFF' } }); a.fill = xlFill(cor); a.alignment = { horizontal: 'center', vertical: 'middle' };
+        b.value = v; b.numFmt = nf; b.font = xlFont({ size: 26, bold: true, color: { argb: cor } }); b.fill = xlFill(XL.GREY); b.alignment = { horizontal: 'center', vertical: 'middle' };
+        c.value = u; c.font = xlFont({ size: 9, color: { argb: 'FF595959' } }); c.fill = xlFill(XL.GREY); c.alignment = { horizontal: 'center' }; });
+      ws.getRow(5).height = 24; ws.getRow(6).height = 44;
+      // gráficos como imagem
+      const meses = group(rows, 'mes').sort((a, b) => a.k.localeCompare(b.k)).map(x => ({ k: fmtM(x.k), v: x.med, n: x.n }));
+      const ats = group(rows, 's').sort((a, b) => b.n - a.n).slice(0, 10).map(x => ({ k: x.k, v: x.med, n: x.n }));
+      let linha = 9;
+      const img = (g, row) => { const id = wb.addImage({ base64: g.b64, extension: 'png' }); ws.addImage(id, { tl: { col: 1, row }, ext: { width: g.w * 0.85, height: g.h * 0.85 } }); return Math.ceil(g.h * 0.85 / 20) + 2; };
+      if (meses.length) linha += img(graficoPng('v', meses, 'Tempo médio por mês (hora, por lançamento)', '#2F5597'), linha - 1);
+      if (ats.length) linha += img(graficoPng('h', ats, 'Tempo médio por atividade (10 com mais lançamentos)', '#C55A11'), linha - 1);
+
+      // ---- tabelas agrupadas ----
+      const tabela = (nome, titulo, key, letra, itens, rotulo, larg0) => {
+        const w = wb.addWorksheet(nome, { views: [{ state: 'frozen', ySplit: 3, showGridLines: false }] });
+        w.mergeCells('A1:H1'); w.getCell('A1').value = titulo; w.getCell('A1').font = xlFont({ size: 15, bold: true, color: { argb: XL.NAVY } }); w.getRow(1).height = 26;
+        const cab = [rotulo, 'Tempo médio (min)', 'Tempo médio (h:mm)', 'Mediana (min)', 'Lançamentos', 'Horas somadas', 'Maior (min)', 'Menor (min)'];
+        cab.forEach((t, i) => { const c = w.getCell(3, i + 1); c.value = t; c.font = xlFont({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = xlFill(XL.NAVY); c.border = xlBorda; c.alignment = { horizontal: i ? 'center' : 'left', vertical: 'middle', wrapText: true, indent: i ? 0 : 1 }; });
+        w.getRow(3).height = 32;
+        itens.forEach((g, n) => { const r = 4 + n, fx = (f, v) => ({ formula: f, result: v });
+          const cs = [g.k, fx(`IFERROR(AVERAGEIFS(${col('G')},${col(letra)},A${r}),0)`, g.med), fx(`B${r}/1440`, g.med / 1440), g.mediana, fx(`COUNTIFS(${col(letra)},A${r})`, g.n), fx(`SUMIFS(${col('G')},${col(letra)},A${r})/60`, g.tot), g.max, g.min];
+          cs.forEach((v, i) => { const c = w.getCell(r, i + 1); c.value = v; c.font = xlFont({ bold: i === 1 }); c.border = xlBorda; if (n % 2) c.fill = xlFill(XL.GREY);
+            c.alignment = { horizontal: i ? 'center' : 'left', indent: i ? 0 : 1, wrapText: i === 0 };
+            c.numFmt = i === 2 ? '[h]:mm' : i === 5 ? '0.0' : '0'; }); });
+        [larg0, 16, 16, 14, 13, 14, 13, 13].forEach((x, i) => w.getColumn(i + 1).width = x);
+        w.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + itens.length, column: 8 } };
+        return w;
+      };
+      const ordN = (a, b) => b.n - a.n;
+      tabela('Por atividade', 'Tempo por atividade', 's', 'F', group(rows, 's').sort(ordN), 'Atividade', 40);
+      tabela('Por tipo de molde', 'Tempo por tipo de molde (balde, tampa, STX, PMX, alça)', 'cat', 'D', group(rows, 'cat').sort(ordN), 'Tipo de molde', 24);
+      tabela('Por cavidades', 'Tempo por cavidades do molde (cadastro do molde)', 'cav', 'K', group(rows, 'cav').sort((a, b) => ordCav(a.k) - ordCav(b.k)), 'Cavidades', 24);
+      tabela('Por tonelagem', 'Tempo por tonelagem da injetora', 'ton', 'J', group(rows, 'ton').sort((a, b) => ordTon(a.k) - ordTon(b.k)), 'Tonelagem', 20);
+      tabela('Por mês', 'Tempo por mês', 'mes', 'I', group(rows, 'mes').sort((a, b) => a.k.localeCompare(b.k)), 'Mês (aaaa-mm)', 16);
+      tabela('Por injetora', 'Tempo por injetora', 'inj', 'B', group(rows, 'inj').sort(ordN), 'Injetora', 16);
+      tabela('Por molde', 'Tempo por molde', 'mol', 'C', group(rows, 'mol').sort(ordN), 'Molde', 56);
+
+      // ---- Lançamentos ----
+      const wl = wb.addWorksheet('Lançamentos', { views: [{ state: 'frozen', ySplit: 1 }] });
+      const cabL = ['Data', 'Injetora', 'Molde', 'Tipo de molde', 'Tipo de serviço', 'Atividade', 'Minutos', 'Máquina parada', 'Mês', 'Tonelagem', 'Cavidades'];
+      cabL.forEach((t, i) => { const c = wl.getCell(1, i + 1); c.value = t; c.font = xlFont({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = xlFill(XL.NAVY); c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; });
+      wl.getRow(1).height = 28;
+      ord.forEach((x, n) => { const r = n + 2, vals = [new Date(x.d + 'T12:00:00'), x.inj, x.mol, x.cat, x.g, x.s, x.min, x.par ? 'Sim' : 'Não', x.mes, x.ton, x.cav];
+        vals.forEach((v, i) => { const c = wl.getCell(r, i + 1); c.value = v; c.font = xlFont(); if (i === 0) c.numFmt = 'dd/mm/yyyy'; if (x.min > LIM_EXTREMO && i === 6) { c.fill = xlFill(XL.WARN); c.font = xlFont({ bold: true, color: { argb: 'FFC55A11' } }); } }); });
+      [12, 12, 52, 13, 16, 32, 10, 15, 10, 13, 16].forEach((x, i) => wl.getColumn(i + 1).width = x);
+      wl.autoFilter = { from: { row: 1, column: 1 }, to: { row: N, column: 11 } };
+
+      // ---- Como ler ----
+      const wn = wb.addWorksheet('Como ler', { views: [{ showGridLines: false }] });
+      wn.getColumn(1).width = 110;
+      ['Como ler este arquivo',
+       'Tempo médio: média de minutos dos lançamentos de Produção (aba Lançamentos). Mediana: o valor do meio, menos afetado por lançamentos muito longos.',
+       'As abas "Por ..." usam fórmulas sobre a aba Lançamentos. Se você corrigir um valor lá, as médias se atualizam.',
+       'Lançamentos acima de 8 h aparecem destacados em laranja na aba Lançamentos. Podem ser erro de horário.',
+       'Tipo de molde vem do nome do molde (BX balde, TX/TCX tampa, STX tampa de pote, PMX pote, ALÇA alça). Cavidades vêm do cadastro do molde; "Não cadastrado" indica molde sem esse dado.',
+       'Tonelagem vem do número antes do traço no nome da injetora (180-10 é 180 t).'].forEach((t, i) => { const c = wn.getCell(i + 1, 1); c.value = t; c.alignment = { wrapText: true, vertical: 'top' }; c.font = i ? xlFont({ size: 10.5 }) : xlFont({ size: 15, bold: true, color: { argb: XL.NAVY } }); });
+      wb.views = [{ activeTab: 0 }];
+
+      const buf = await wb.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const a = document.createElement('a'); a.href = url; a.download = `Indicadores_PCM_${hojeLocal()}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('Excel gerado.');
+    } catch (e) { console.error(e); toast('Erro ao gerar o Excel.', 'erro'); }
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ Exportar Excel'; }
   }
+
   function exportarPdf() {
     const rows = base();
     if (!rows.length) { toast('Nenhum lançamento para exportar com esses filtros.', 'erro'); return; }
