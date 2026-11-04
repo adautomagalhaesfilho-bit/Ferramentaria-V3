@@ -9,8 +9,8 @@
   const CATS = ['Todos', 'Balde', 'Tampa', 'STX', 'PMX', 'Alça', 'Outros'];
   const LIM_EXTREMO = 480;           // 8 h
   let D = [], DMIN = '', DMAX = '', raiz = null, carregando = false;
-  const S = { ini: '', fim: '', preset: 'tudo', g: '', s: '', cat: 'Todos', inj: '', mol: '', par: '', out: false,
-              tab: 'inj', sort: { inj: ['n', -1], mol: ['n', -1], lan: ['d', -1] }, rows: 12, lim: 50 };
+  const S = { ini: '', fim: '', preset: 'tudo', g: '', s: '', cat: 'Todos', ton: '', cav: '', inj: '', mol: '', par: '', out: false,
+              tab: 'cav', sort: { cav: ['k', 1], ton: ['k', 1], inj: ['n', -1], mol: ['n', -1], lan: ['d', -1] }, rows: 12, lim: 50 };
 
   const q = id => document.getElementById(id);
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -22,6 +22,14 @@
   const hm = m => { m = Math.round(m); const h = Math.floor(m / 60), r = m % 60; return h ? h + ' h ' + String(r).padStart(2, '0') : r + ' min'; };
   const addDays = (d, n) => { const t = new Date(d + 'T12:00:00'); t.setDate(t.getDate() + n); return dataLocal(t); };
   const diffDays = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5) + 1;
+
+  function tonelagem(inj) { const m = /^(\d{2,3})-/.exec(inj || ''); return m ? m[1] + ' t' : 'Sem tonelagem'; }
+  const ordTon = t => parseInt(t, 10) || 99999;
+
+  // Cavidades vêm do cadastro do molde (Admin > Jobs), a mesma usada no controle de peso.
+  let cavPorMolde = {};
+  const rotCav = n => !n ? 'Não cadastrado' : n + (n === 1 ? ' cavidade' : ' cavidades');
+  const ordCav = t => parseInt(t, 10) || 99999;
 
   function catMolde(m) {
     const u = (m || '').toUpperCase();
@@ -46,10 +54,14 @@
     carregando = true;
     raiz.innerHTML = '<div class="loader-inline"><div class="spinner-sm"></div><span>Carregando indicadores...</span></div>';
     try {
-      const rows = await db._get('prod_lancamentos', 'minutos=gt.0&order=data.asc', 'data,injetora,tipo,atividade,minutos,molde,maquina_parada');
+      const [rows, jobs] = await Promise.all([
+        db._get('prod_lancamentos', 'minutos=gt.0&order=data.asc', 'id,data,injetora,tipo,atividade,minutos,molde,maquina_parada,tecnicos,descricao'),
+        db._get('jobs', '', 'nome,num_cavidades')
+      ]);
+      cavPorMolde = {}; (jobs || []).forEach(j => { if (j.num_cavidades) cavPorMolde[j.nome] = j.num_cavidades; });
       D = (rows || []).map(r => {
         const sv = servico(r.tipo || '', r.atividade || 'Sem atividade');
-        return { d: r.data, inj: r.injetora || '—', tipo: r.tipo || '', min: r.minutos, mol: r.molde || '—', par: r.maquina_parada ? 1 : 0, cat: catMolde(r.molde), g: sv.g, s: sv.s, mes: r.data.slice(0, 7) };
+        return { id: r.id, tec: r.tecnicos || '', desc: r.descricao || '', d: r.data, inj: r.injetora || '—', ton: tonelagem(r.injetora), cav: rotCav(cavPorMolde[r.molde]), tipo: r.tipo || '', min: r.minutos, mol: r.molde || '—', par: r.maquina_parada ? 1 : 0, cat: catMolde(r.molde), g: sv.g, s: sv.s, mes: r.data.slice(0, 7) };
       });
       DMIN = D.length ? D[0].d : hojeLocal(); DMAX = D.length ? D[D.length - 1].d : hojeLocal();
       if (!S.ini) { S.ini = DMIN; S.fim = DMAX; }
@@ -63,7 +75,7 @@
     ex = ex || [];
     const t = S.mol.trim().toUpperCase();
     return D.filter(x => (ex.includes('p') || (x.d >= S.ini && x.d <= S.fim)) && (!S.g || x.g === S.g) && (!S.s || x.s === S.s) &&
-      (ex.includes('cat') || S.cat === 'Todos' || x.cat === S.cat) && (!S.inj || x.inj === S.inj) && (!t || x.mol.toUpperCase().includes(t)) &&
+      (ex.includes('cat') || S.cat === 'Todos' || x.cat === S.cat) && (!S.ton || x.ton === S.ton) && (!S.cav || x.cav === S.cav) && (!S.inj || x.inj === S.inj) && (!t || x.mol.toUpperCase().includes(t)) &&
       (S.par === '' || String(x.par) === S.par) && (!S.out || x.min <= LIM_EXTREMO));
   }
   const stats = a => { const v = a.map(x => x.min); return { n: a.length, med: mean(v), mediana: med(v), tot: v.reduce((x, y) => x + y, 0), max: v.length ? Math.max(...v) : 0, min: v.length ? Math.min(...v) : 0 }; };
@@ -83,6 +95,8 @@
         <div class="pi-f"><label for="piGrupo">Tipo de serviço</label><select id="piGrupo"></select></div>
         <div class="pi-f"><label for="piServ">Atividade</label><select id="piServ"></select></div>
         <div class="pi-f"><span class="pi-l">Molde</span><div class="pi-seg" id="piCat"></div></div>
+        <div class="pi-f"><label for="piCav">Cavidades do molde</label><select id="piCav"></select></div>
+        <div class="pi-f"><label for="piTon">Tonelagem</label><select id="piTon"></select></div>
         <div class="pi-f"><label for="piInj">Injetora</label><select id="piInj"></select></div>
         <div class="pi-f"><label for="piMol">Buscar molde</label><input type="text" id="piMol" placeholder="ex.: 23088 ou BX 12"></div>
         <div class="pi-f"><label for="piPar">Máquina parada</label><select id="piPar"><option value="">Todas</option><option value="1">Parada</option><option value="0">Rodando</option></select></div>
@@ -101,7 +115,7 @@
       <div class="card"><h3 class="pi-h">Balde, tampa, STX e PMX</h3><p class="pi-hint">Mesmos filtros, separado por tipo de molde.</p><div class="table-wrap" id="piComp"></div></div>
     </div>
     <div class="card"><div class="pi-tabs" id="piTabs">
-      <button data-t="inj">Por injetora</button><button data-t="mol">Por molde</button><button data-t="lan">Lançamentos</button></div>
+      <button data-t="cav">Por cavidades</button><button data-t="ton">Por tonelagem</button><button data-t="inj">Por injetora</button><button data-t="mol">Por molde</button><button data-t="lan">Lançamentos</button></div>
       <div class="table-wrap" id="piTab"></div></div>`;
     injetarCss();
     ligarEventos();
@@ -112,7 +126,11 @@
     opt(q('piGrupo'), GRUPOS, 'Todos', S.g);
     const cont = {}; D.filter(x => !S.g || x.g === S.g).forEach(x => cont[x.s] = (cont[x.s] || 0) + 1);
     opt(q('piServ'), Object.keys(cont).sort((a, b) => cont[b] - cont[a]), 'Todas', S.s);
-    opt(q('piInj'), [...new Set(D.map(x => x.inj))].sort(), 'Todas', S.inj);
+    const tons = [...new Set(D.map(x => x.ton))].sort((a, b) => ordTon(a) - ordTon(b));
+    q('piTon').innerHTML = '<option value="">Todas</option>' + tons.map(t => `<option value="${esc(t)}"${t === S.ton ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    const cavs = [...new Set(D.map(x => x.cav))].sort((a, b) => ordCav(a) - ordCav(b));
+    q('piCav').innerHTML = '<option value="">Todas</option>' + cavs.map(t => `<option value="${esc(t)}"${t === S.cav ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    opt(q('piInj'), [...new Set(D.filter(x => !S.ton || x.ton === S.ton).map(x => x.inj))].sort(), 'Todas', S.inj);
     q('piCat').innerHTML = CATS.map(c => `<button data-c="${c}" aria-pressed="${S.cat === c}">${c}</button>`).join('');
     q('piIni').value = S.ini; q('piFim').value = S.fim; q('piPar').value = S.par; q('piOut').checked = S.out;
     if (document.activeElement !== q('piMol')) q('piMol').value = S.mol;
@@ -121,7 +139,7 @@
     const c = [];
     if (S.preset !== 'tudo') c.push(['p', 'Período: ' + fmtD(S.ini) + ' a ' + fmtD(S.fim)]);
     if (S.g) c.push(['g', S.g]); if (S.s) c.push(['s', S.s]); if (S.cat !== 'Todos') c.push(['cat', 'Molde: ' + S.cat]);
-    if (S.inj) c.push(['inj', 'Injetora ' + S.inj]); if (S.mol) c.push(['mol', 'Molde contém "' + S.mol + '"']);
+    if (S.cav) c.push(['cav', S.cav]); if (S.ton) c.push(['ton', 'Tonelagem ' + S.ton]); if (S.inj) c.push(['inj', 'Injetora ' + S.inj]); if (S.mol) c.push(['mol', 'Molde contém "' + S.mol + '"']);
     if (S.par !== '') c.push(['par', S.par === '1' ? 'Máquina parada' : 'Máquina rodando']); if (S.out) c.push(['out', 'Sem lançamentos acima de 8 h']);
     q('piChips').innerHTML = c.length ? c.map(([k, t]) => `<span class="pi-chip">${esc(t)}<button data-k="${k}" aria-label="Remover filtro ${esc(t)}">×</button></span>`).join('') + '<button class="pi-clear" data-pi="limpar">Limpar tudo</button>' : '<span class="pi-hint" style="margin:0">Nenhum filtro ativo. Mostrando todos os lançamentos.</span>';
     return c.map(x => x[1]);
@@ -204,14 +222,16 @@
     document.querySelectorAll('#piTabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.t === t));
     if (!rows.length) { q('piTab').innerHTML = '<div class="pi-empty">Nenhum lançamento com esses filtros.</div>'; return; }
     if (t === 'lan') {
+      const pode = typeof podeEditar === 'function' && podeEditar();
       const [k, d] = S.sort.lan, a = [...rows].sort((x, y) => (x[k] > y[k] ? 1 : x[k] < y[k] ? -1 : 0) * d);
-      q('piTab').innerHTML = `<table><thead><tr>${th('lan', 'd', 'Data')}${th('lan', 'inj', 'Injetora')}${th('lan', 'mol', 'Molde')}${th('lan', 's', 'Atividade')}${th('lan', 'min', 'Tempo', 1)}<th>Máquina</th></tr></thead><tbody>${a.slice(0, S.lim).map(x => `<tr><td>${fmtD(x.d)}</td><td>${esc(x.inj)}</td><td>${esc(x.mol)}</td><td>${esc(x.s)}</td><td style="text-align:right"><b>${hm(x.min)}</b></td><td>${x.par ? '<span class="pi-pill st">Parada</span>' : ''}</td></tr>`).join('')}</tbody></table>${a.length > S.lim ? `<button class="btn-secondary" data-pi="lim" style="margin-top:10px">Mostrar mais (${a.length - S.lim} restantes)</button>` : ''}`;
+      q('piTab').innerHTML = `<table><thead><tr>${th('lan', 'd', 'Data')}${th('lan', 'inj', 'Injetora')}${th('lan', 'mol', 'Molde')}${th('lan', 's', 'Atividade')}${th('lan', 'min', 'Tempo', 1)}<th>Técnico</th><th>Observação</th><th>Máquina</th>${pode ? '<th></th>' : ''}</tr></thead><tbody>${a.slice(0, S.lim).map(x => `<tr><td>${fmtD(x.d)}</td><td>${esc(x.inj)}</td><td>${esc(x.mol)}</td><td>${esc(x.s)}</td><td style="text-align:right"><b>${hm(x.min)}</b>${x.min > LIM_EXTREMO ? '<br><span class="pi-pill st">acima de 8 h</span>' : ''}</td><td>${esc(x.tec)}</td><td style="max-width:260px">${esc(x.desc.length > 90 ? x.desc.slice(0, 90) + '…' : x.desc)}</td><td>${x.par ? '<span class="pi-pill st">Parada</span>' : ''}</td>${pode ? `<td><button class="btn-secondary" style="padding:4px 10px;font-size:12px" data-edit="${x.id}">✏️ Editar</button></td>` : ''}</tr>`).join('')}</tbody></table>${a.length > S.lim ? `<button class="btn-secondary" data-pi="lim" style="margin-top:10px">Mostrar mais (${a.length - S.lim} restantes)</button>` : ''}`;
       return;
     }
-    const g = group(rows, t === 'inj' ? 'inj' : 'mol'), [k, d] = S.sort[t];
+    const g = group(rows, t === 'cav' ? 'cav' : t === 'ton' ? 'ton' : t === 'inj' ? 'inj' : 'mol'), [k, d] = S.sort[t];
+    if ((t === 'ton' || t === 'cav') && k === 'k') g.sort((x, y) => (ordTon(x.k) - ordTon(y.k)) * d); else
     g.sort((x, y) => (x[k] > y[k] ? 1 : x[k] < y[k] ? -1 : 0) * d);
     const mx = Math.max(...g.map(x => x.med));
-    q('piTab').innerHTML = `<table><thead><tr>${th(t, 'k', t === 'inj' ? 'Injetora' : 'Molde')}${th(t, 'med', 'Tempo médio', 1)}${th(t, 'mediana', 'Mediana', 1)}${th(t, 'n', 'Lançam.', 1)}${th(t, 'tot', 'Horas', 1)}${th(t, 'max', 'Maior', 1)}</tr></thead><tbody>${g.slice(0, 25).map(x => `<tr class="pi-click" data-f="${t}" data-v="${esc(x.k)}" title="Filtrar"><td>${esc(x.k)}</td><td style="text-align:right"><span class="pi-bar" style="width:${Math.max(1, 60 * x.med / mx)}px"></span><b>${hm(x.med)}</b></td><td style="text-align:right">${hm(x.mediana)}</td><td style="text-align:right">${x.n}</td><td style="text-align:right">${x.tot.toFixed(1)}</td><td style="text-align:right">${hm(x.max)}</td></tr>`).join('')}</tbody></table>${g.length > 25 ? `<div class="pi-hint" style="margin-top:8px">Mostrando as 25 com mais lançamentos de ${g.length}. Use os filtros para ver as demais.</div>` : ''}`;
+    q('piTab').innerHTML = `<table><thead><tr>${th(t, 'k', t === 'cav' ? 'Cavidades' : t === 'ton' ? 'Tonelagem' : t === 'inj' ? 'Injetora' : 'Molde')}${th(t, 'med', 'Tempo médio', 1)}${th(t, 'mediana', 'Mediana', 1)}${th(t, 'n', 'Lançam.', 1)}${th(t, 'tot', 'Horas', 1)}${th(t, 'max', 'Maior', 1)}</tr></thead><tbody>${g.slice(0, 25).map(x => `<tr class="pi-click" data-f="${t}" data-v="${esc(x.k)}" title="Filtrar"><td>${esc(x.k)}</td><td style="text-align:right"><span class="pi-bar" style="width:${Math.max(1, 60 * x.med / mx)}px"></span><b>${hm(x.med)}</b></td><td style="text-align:right">${hm(x.mediana)}</td><td style="text-align:right">${x.n}</td><td style="text-align:right">${x.tot.toFixed(1)}</td><td style="text-align:right">${hm(x.max)}</td></tr>`).join('')}</tbody></table>${g.length > 25 ? `<div class="pi-hint" style="margin-top:8px">Mostrando as 25 com mais lançamentos de ${g.length}. Use os filtros para ver as demais.</div>` : ''}`;
   }
   function render() {
     if (!raiz || !q('piKpis')) return;
@@ -227,8 +247,8 @@
     if (!rows.length) { toast('Nenhum lançamento para exportar com esses filtros.', 'erro'); return; }
     const ord = [...rows].sort((a, b) => a.d.localeCompare(b.d)), N = ord.length + 1;
     const col = c => `Lançamentos!$${c}$2:$${c}$${N}`;
-    const lan = [['Data', 'Injetora', 'Molde', 'Tipo de molde', 'Tipo de serviço', 'Atividade', 'Minutos', 'Máquina parada', 'Mês']]
-      .concat(ord.map(x => [new Date(x.d + 'T12:00:00'), x.inj, x.mol, x.cat, x.g, x.s, x.min, x.par ? 'Sim' : 'Não', x.mes]));
+    const lan = [['Data', 'Injetora', 'Molde', 'Tipo de molde', 'Tipo de serviço', 'Atividade', 'Minutos', 'Máquina parada', 'Mês', 'Tonelagem', 'Cavidades']]
+      .concat(ord.map(x => [new Date(x.d + 'T12:00:00'), x.inj, x.mol, x.cat, x.g, x.s, x.min, x.par ? 'Sim' : 'Não', x.mes, x.ton, x.cav]));
     const s = stats(rows), c = (v, f) => ({ t: 'n', v, f });
     const res = [['Indicadores de PCM — Produção'], ['Filtros: ' + descFiltros()], ['Gerado em ' + new Date().toLocaleString('pt-BR')], [],
       ['Indicador', 'Valor'],
@@ -239,16 +259,18 @@
       .concat(itens.map(g => [g.k, c(g.med, `IFERROR(AVERAGEIFS(${col('G')},${col(colunaLetra)},A{r}),0)`), g.mediana, c(g.n, `COUNTIFS(${col(colunaLetra)},A{r})`), c(g.tot, `SUMIFS(${col('G')},${col(colunaLetra)},A{r})/60`), g.max]));
     const fix = aoa => aoa.map((l, i) => l.map(x => x && x.f ? { ...x, f: x.f.replace(/\{r\}/g, i + 1) } : x));
     const porAt = group(rows, 's').sort((a, b) => b.n - a.n), porCat = group(rows, 'cat').sort((a, b) => b.n - a.n),
-      porMes = group(rows, 'mes').sort((a, b) => a.k.localeCompare(b.k)), porInj = group(rows, 'inj').sort((a, b) => b.n - a.n), porMol = group(rows, 'mol').sort((a, b) => b.n - a.n);
+      porMes = group(rows, 'mes').sort((a, b) => a.k.localeCompare(b.k)), porCav = group(rows, 'cav').sort((a, b) => ordCav(a.k) - ordCav(b.k)), porTon = group(rows, 'ton').sort((a, b) => ordTon(a.k) - ordTon(b.k)), porInj = group(rows, 'inj').sort((a, b) => b.n - a.n), porMol = group(rows, 'mol').sort((a, b) => b.n - a.n);
     const wb = XLSX.utils.book_new(), add = (nome, aoa, w) => { const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }); ws['!cols'] = (w || []).map(x => ({ wch: x })); XLSX.utils.book_append_sheet(wb, ws, nome); return ws; };
     add('Resumo', res, [30, 18]);
     add('Por atividade', fix(tabAgr('', 's', 'F', porAt, 'Atividade')), [38, 16, 14, 12, 10, 12]);
     add('Por tipo de molde', fix(tabAgr('', 'cat', 'D', porCat, 'Tipo de molde')), [20, 16, 14, 12, 10, 12]);
     add('Por mês', fix(tabAgr('', 'mes', 'I', porMes, 'Mês')), [12, 16, 14, 12, 10, 12]);
+    add('Por cavidades', fix(tabAgr('', 'cav', 'K', porCav, 'Cavidades do molde')), [20, 16, 14, 12, 10, 12]);
+    add('Por tonelagem', fix(tabAgr('', 'ton', 'J', porTon, 'Tonelagem')), [16, 16, 14, 12, 10, 12]);
     add('Por injetora', fix(tabAgr('', 'inj', 'B', porInj, 'Injetora')), [14, 16, 14, 12, 10, 12]);
     add('Por molde', fix(tabAgr('', 'mol', 'C', porMol, 'Molde')), [52, 16, 14, 12, 10, 12]);
-    const wl = add('Lançamentos', lan, [12, 12, 52, 13, 16, 32, 10, 15, 9]);
-    wl['!autofilter'] = { ref: `A1:I${N}` };
+    const wl = add('Lançamentos', lan, [12, 12, 52, 13, 16, 32, 10, 15, 9, 13, 16]);
+    wl['!autofilter'] = { ref: `A1:K${N}` };
     wl['!cols'][0] = { wch: 12 };
     for (let r = 2; r <= N; r++) if (wl['A' + r]) wl['A' + r].z = 'dd/mm/yyyy';
     XLSX.writeFile(wb, `Indicadores_PCM_${hojeLocal()}.xlsx`);
@@ -271,7 +293,7 @@
       <h1>Indicadores de PCM — Produção</h1><div class="sub">Filtros: ${esc(descFiltros())}<br>Gerado em ${new Date().toLocaleString('pt-BR')} · ${rows.length} lançamentos</div>
       <div class="k"><div><b>${hm(s.med)}</b>tempo médio</div><div><b>${hm(s.mediana)}</b>mediana</div><div><b>${s.n}</b>lançamentos</div><div><b>${(s.tot / 60).toFixed(0)} h</b>somadas</div><div><b>${hm(s.max)}</b>maior</div></div>
       <h3>Faixa de tempos por atividade</h3><div class="leg">Cada ponto é um lançamento. Linha escura: média. Losango: mediana. Escala de 0 a ${xmax / 60} h.</div>${strips}
-      <div class="pb"></div>${tab('Por mês', mes, 'Mês', 14)}${tab('Por tipo de molde', group(rows, 'cat').sort((a, b) => b.n - a.n), 'Molde', 8)}
+      <div class="pb"></div>${tab('Por mês', mes, 'Mês', 14)}${tab('Por cavidades do molde', group(rows, 'cav').sort((a, b) => ordCav(a.k) - ordCav(b.k)), 'Cavidades', 14)}${tab('Por tonelagem', group(rows, 'ton').sort((a, b) => ordTon(a.k) - ordTon(b.k)), 'Tonelagem', 14)}${tab('Por tipo de molde', group(rows, 'cat').sort((a, b) => b.n - a.n), 'Molde', 8)}
       ${tab('Por injetora (25 com mais lançamentos)', group(rows, 'inj').sort((a, b) => b.n - a.n), 'Injetora', 25)}${tab('Por molde (25 com mais lançamentos)', group(rows, 'mol').sort((a, b) => b.n - a.n), 'Molde', 25)}
       <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
     const w = window.open('', '_blank');
@@ -280,16 +302,27 @@
     toast('Na janela que abriu, escolha "Salvar como PDF".');
   }
 
+  // Abre o mesmo formulário da tela Produção. Ao salvar, os indicadores recarregam com os filtros mantidos.
+  async function editarLancamento(id) {
+    try {
+      if (typeof carregarListasProducao === 'function') await carregarListasProducao();
+      _dadosProducao = await db._get('prod_lancamentos', 'id=eq.' + id, '*');
+      window._aoSalvarProducao = function () { window._aoSalvarProducao = null; if (q('piKpis')) carregar(); };
+      await editarProd(id);
+    } catch (e) { console.error(e); toast('Não foi possível abrir o lançamento.', 'erro'); }
+  }
+
   // ---------- eventos ----------
   function ligarEventos() {
     raiz.addEventListener('click', e => {
       const t = e.target; let b;
       if ((b = t.closest('#piPresets button'))) { preset(b.dataset.p); return render(); }
+      if ((b = t.closest('[data-edit]'))) return editarLancamento(+b.dataset.edit);
       if ((b = t.closest('#piCat button'))) { S.cat = b.dataset.c; return render(); }
       if ((b = t.closest('.pi-chip button'))) { remover(b.dataset.k); return render(); }
       if ((b = t.closest('[data-pi]'))) {
         const a = b.dataset.pi;
-        if (a === 'limpar') { Object.assign(S, { g: '', s: '', cat: 'Todos', inj: '', mol: '', par: '', out: false }); preset('tudo'); return render(); }
+        if (a === 'limpar') { Object.assign(S, { g: '', s: '', cat: 'Todos', ton: '', cav: '', inj: '', mol: '', par: '', out: false }); preset('tudo'); return render(); }
         if (a === 'more') { S.rows = S.rows === 12 ? 999 : 12; return render(); }
         if (a === 'lim') { S.lim += 100; return render(); }
         if (a === 'xls') return exportarExcel();
@@ -297,13 +330,15 @@
       }
       if ((b = t.closest('.pi-srow'))) { S.s = b.dataset.s; const x = D.find(y => y.s === S.s); if (x) S.g = x.g; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
       if ((b = t.closest('#piTabs button'))) { S.tab = b.dataset.t; return render(); }
-      if ((b = t.closest('th.pi-sort'))) { const tt = b.dataset.t, k = b.dataset.k, [sk, sd] = S.sort[tt]; S.sort[tt] = [k, sk === k ? -sd : (['k', 'inj', 'mol', 's'].includes(k) ? 1 : -1)]; return render(); }
-      if ((b = t.closest('tr.pi-click'))) { if (b.dataset.f === 'inj') S.inj = b.dataset.v; else S.mol = b.dataset.v.split(' - ')[0]; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
+      if ((b = t.closest('th.pi-sort'))) { const tt = b.dataset.t, k = b.dataset.k, [sk, sd] = S.sort[tt]; S.sort[tt] = [k, sk === k ? -sd : (['k', 'inj', 'mol', 's', 'ton', 'cav'].includes(k) ? 1 : -1)]; return render(); }
+      if ((b = t.closest('tr.pi-click'))) { if (b.dataset.f === 'cav') S.cav = b.dataset.v; else if (b.dataset.f === 'ton') S.ton = b.dataset.v; else if (b.dataset.f === 'inj') S.inj = b.dataset.v; else S.mol = b.dataset.v.split(' - ')[0]; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
     });
     raiz.addEventListener('change', e => {
       const id = e.target.id;
       if (id === 'piGrupo') { S.g = e.target.value; S.s = ''; }
       else if (id === 'piServ') S.s = e.target.value;
+      else if (id === 'piCav') S.cav = e.target.value;
+      else if (id === 'piTon') { S.ton = e.target.value; if (S.inj && S.ton && D.find(x => x.inj === S.inj).ton !== S.ton) S.inj = ''; }
       else if (id === 'piInj') S.inj = e.target.value;
       else if (id === 'piPar') S.par = e.target.value;
       else if (id === 'piOut') S.out = e.target.checked;

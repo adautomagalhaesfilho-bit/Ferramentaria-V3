@@ -9,7 +9,8 @@ var _categoriasProd = {};
 var _tecnicosSelecionadosProd = [];
 var _statusFormProd = null;
 
-async function inicializarProducao() {
+// Carrega listas usadas pelo formulário (injetoras, técnicos, categorias). Também é usada pelo PCM > Indicadores.
+async function carregarListasProducao() {
   try {
     const [tecs, injs, cats] = await Promise.all([
       db.listarProdTecnicos(),
@@ -35,7 +36,10 @@ async function inicializarProducao() {
     const selInj = document.getElementById('prodFiltroInjetora');
     if (selInj) selInj.innerHTML = '<option value="Todas">Todas</option>' + _injetoras.map(i=>`<option value="${esc(i.nome)}">${esc(i.nome)}</option>`).join('');
   } catch(e) { avisarErro('carregar os filtros da Produção', e); }
+}
 
+async function inicializarProducao() {
+  await carregarListasProducao();
   const elData = document.getElementById('prodData');
   if (elData && !elData.value) elData.value = hojeLocal();
   buscarLancamentosProducao();
@@ -219,7 +223,7 @@ async function editarProd(id) {
   abrirModalFormProd();
 }
 
-function cancelarFormProducao() { fecharModalFormProd(); }
+function cancelarFormProducao() { window._aoSalvarProducao = null; fecharModalFormProd(); }
 
 function preencherFormProducao() {
   // Injetora — clica para escolher OU digita para filtrar (igual Job)
@@ -555,6 +559,7 @@ async function salvarFormProducao() {
       }
       toast('Lançamento atualizado!','sucesso');
       fecharModalFormProd();
+      if (typeof window._aoSalvarProducao === 'function') window._aoSalvarProducao();
     }
     await buscarLancamentosProducao();
   } catch(e) { toast('Erro ao salvar.','erro'); console.error(e); }
