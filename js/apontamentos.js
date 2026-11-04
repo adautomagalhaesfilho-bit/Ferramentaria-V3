@@ -387,7 +387,7 @@ async function editarApontamento(idx) {
   abrirModalForm();
 }
 
-function cancelarForm() { fecharModalForm(); }
+function cancelarForm() { window._aoSalvarLancamento = null; fecharModalForm(); }
 
 function toggleTrocaCopo() {
   const chk = document.getElementById('formTrocaCopo');
@@ -641,6 +641,7 @@ async function salvarForm() {
     const maqF = document.getElementById('apontMaq')?.value || 'Todas';
     _dadosApontamentos = await db.buscarLancamentosDia(setor, dt, maqF);
     atualizarTelaApontamentos();
+    if (typeof window._aoSalvarLancamento === 'function') window._aoSalvarLancamento();   // ex.: dashboard recarrega o Diagnóstico da meta
   } catch(e) {
     toast('Erro ao salvar lançamento.','erro'); console.error(e);
   }
