@@ -98,7 +98,7 @@
         <div class="pi-f"><label for="piCav">Cavidades do molde</label><select id="piCav"></select></div>
         <div class="pi-f"><label for="piTon">Tonelagem</label><select id="piTon"></select></div>
         <div class="pi-f"><label for="piInj">Injetora</label><select id="piInj"></select></div>
-        <div class="pi-f"><label for="piMol">Buscar molde</label><input type="text" id="piMol" placeholder="ex.: 23088 ou BX 12"></div>
+        <div class="pi-f"><label for="piMol">Molde</label><div class="autocomplete-wrap"><input type="text" id="piMol" placeholder="Digite e escolha da lista" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="piMolList" aria-expanded="false"><div class="autocomplete-list" id="piMolList" role="listbox"></div></div></div>
         <div class="pi-f"><label for="piPar">Máquina parada</label><select id="piPar"><option value="">Todas</option><option value="1">Parada</option><option value="0">Rodando</option></select></div>
         <label class="pi-chk"><input type="checkbox" id="piOut"> Ignorar lançamentos acima de 8 h <span class="pi-pill" id="piNOut"></span></label>
       </div>
@@ -139,7 +139,7 @@
     const c = [];
     if (S.preset !== 'tudo') c.push(['p', 'Período: ' + fmtD(S.ini) + ' a ' + fmtD(S.fim)]);
     if (S.g) c.push(['g', S.g]); if (S.s) c.push(['s', S.s]); if (S.cat !== 'Todos') c.push(['cat', 'Molde: ' + S.cat]);
-    if (S.cav) c.push(['cav', S.cav]); if (S.ton) c.push(['ton', 'Tonelagem ' + S.ton]); if (S.inj) c.push(['inj', 'Injetora ' + S.inj]); if (S.mol) c.push(['mol', 'Molde contém "' + S.mol + '"']);
+    if (S.cav) c.push(['cav', S.cav]); if (S.ton) c.push(['ton', 'Tonelagem ' + S.ton]); if (S.inj) c.push(['inj', 'Injetora ' + S.inj]); if (S.mol) c.push(['mol', 'Molde: ' + S.mol]);
     if (S.par !== '') c.push(['par', S.par === '1' ? 'Máquina parada' : 'Máquina rodando']); if (S.out) c.push(['out', 'Sem lançamentos acima de 8 h']);
     q('piChips').innerHTML = c.length ? c.map(([k, t]) => `<span class="pi-chip">${esc(t)}<button data-k="${k}" aria-label="Remover filtro ${esc(t)}">×</button></span>`).join('') + '<button class="pi-clear" data-pi="limpar">Limpar tudo</button>' : '<span class="pi-hint" style="margin:0">Nenhum filtro ativo. Mostrando todos os lançamentos.</span>';
     return c.map(x => x[1]);
@@ -416,7 +416,7 @@
       if ((b = t.closest('.pi-srow'))) { S.s = b.dataset.s; const x = D.find(y => y.s === S.s); if (x) S.g = x.g; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
       if ((b = t.closest('#piTabs button'))) { S.tab = b.dataset.t; return render(); }
       if ((b = t.closest('th.pi-sort'))) { const tt = b.dataset.t, k = b.dataset.k, [sk, sd] = S.sort[tt]; S.sort[tt] = [k, sk === k ? -sd : (['k', 'inj', 'mol', 's', 'ton', 'cav'].includes(k) ? 1 : -1)]; return render(); }
-      if ((b = t.closest('tr.pi-click'))) { if (b.dataset.f === 'cav') S.cav = b.dataset.v; else if (b.dataset.f === 'ton') S.ton = b.dataset.v; else if (b.dataset.f === 'inj') S.inj = b.dataset.v; else S.mol = b.dataset.v.split(' - ')[0]; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
+      if ((b = t.closest('tr.pi-click'))) { if (b.dataset.f === 'cav') S.cav = b.dataset.v; else if (b.dataset.f === 'ton') S.ton = b.dataset.v; else if (b.dataset.f === 'inj') S.inj = b.dataset.v; else S.mol = b.dataset.v; render(); return raiz.scrollIntoView({ behavior: 'smooth' }); }
     });
     raiz.addEventListener('change', e => {
       const id = e.target.id;
@@ -432,7 +432,30 @@
       else return;
       render();
     });
-    let tm; raiz.addEventListener('input', e => { if (e.target.id !== 'piMol') return; clearTimeout(tm); tm = setTimeout(() => { S.mol = e.target.value; render(); }, 200); });
+    // Molde: lista de sugestões (só aceita nome do cadastro, evita erro de digitação)
+    let ativo = -1;
+    const lista = () => q('piMolList'), inp = () => q('piMol');
+    const fechar = () => { if (lista()) { lista().style.display = 'none'; inp().setAttribute('aria-expanded', 'false'); } ativo = -1; };
+    const escolher = nome => { S.mol = nome; inp().value = nome; fechar(); render(); };
+    function sugerir() {
+      const t = inp().value.trim().toUpperCase(); const l = lista(); l.innerHTML = ''; ativo = -1;
+      if (!t) { fechar(); return; }
+      const cont = {}; D.forEach(x => { if (x.mol !== '—' && x.mol.toUpperCase().includes(t)) cont[x.mol] = (cont[x.mol] || 0) + 1; });
+      const nomes = Object.keys(cont).sort((a, b) => cont[b] - cont[a]).slice(0, 30);
+      if (!nomes.length) { l.innerHTML = '<div class="autocomplete-item" style="color:#64748b;cursor:default">Nenhum molde com esse texto</div>'; }
+      nomes.forEach(n => { const d = document.createElement('div'); d.className = 'autocomplete-item'; d.setAttribute('role', 'option'); d.dataset.nome = n; d.textContent = n + '  (' + cont[n] + ')'; d.onclick = () => escolher(n); l.appendChild(d); });
+      l.style.display = 'block'; inp().setAttribute('aria-expanded', 'true');
+    }
+    raiz.addEventListener('input', e => { if (e.target.id !== 'piMol') return; if (!e.target.value.trim() && S.mol) { S.mol = ''; render(); } sugerir(); });
+    raiz.addEventListener('focusin', e => { if (e.target.id === 'piMol' && e.target.value.trim() && e.target.value !== S.mol) sugerir(); });
+    raiz.addEventListener('keydown', e => {
+      if (e.target.id !== 'piMol') return;
+      const itens = [...lista().querySelectorAll('.autocomplete-item[data-nome]')];
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!itens.length) return; ativo = (ativo + (e.key === 'ArrowDown' ? 1 : -1) + itens.length) % itens.length; itens.forEach((x, i) => x.style.background = i === ativo ? '#dbe9f7' : ''); itens[ativo].scrollIntoView({ block: 'nearest' }); }
+      else if (e.key === 'Enter') { e.preventDefault(); const it = itens[ativo >= 0 ? ativo : 0]; if (it) escolher(it.dataset.nome); }
+      else if (e.key === 'Escape') fechar();
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('#piMolList') && e.target.id !== 'piMol') fechar(); });
   }
 
   // ---------- estilo ----------
