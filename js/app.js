@@ -627,8 +627,9 @@ async function abrirEdicaoMaquina(id) {
   try {
     const hoje = hojeLocal();
     const vigente = await db._get('maquina_capacidade_historico',
-      'maquina=eq.'+encodeURIComponent(m.nome)+'&vigente_desde=lte.'+hoje+'&order=vigente_desde.desc&limit=1', 'hora_inicio,hora_fim');
+      'maquina=eq.'+encodeURIComponent(m.nome)+'&vigente_desde=lte.'+hoje+'&order=vigente_desde.desc&limit=1', 'hora_inicio,hora_fim,todos_os_dias');
     if (vigente && vigente[0]) {
+      m._todosDiasAtual = !!vigente[0].todos_os_dias;
       m._horaInicioAtual = vigente[0].hora_inicio.substring(0,5);
       m._horaFimAtual    = vigente[0].hora_fim.substring(0,5);
     }
@@ -650,6 +651,9 @@ async function abrirEdicaoMaquina(id) {
       <div class="form-row">
         <div class="form-group"><label>Início de Operação</label><input type="time" id="editMaqHoraInicio" value="${esc(m._horaInicioAtual||'07:30')}"></div>
         <div class="form-group"><label>Fim de Operação</label><input type="time" id="editMaqHoraFim" value="${esc(m._horaFimAtual||'17:28')}"></div>
+      </div>
+      <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="editMaqTodosDias" ${m._todosDiasAtual?'checked':''}> Opera todos os dias (rodízio 2x2)</label>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Marque quando a Turma A e a Turma B se alternam na máquina: a capacidade passa a contar também sábado, domingo e feriado.</div>
       </div>
       <div style="font-size:11px;color:#94a3b8;margin-bottom:12px">Capacidade calculada automaticamente (não desconta almoço — a máquina fica disponível, só não é usada nesse horário). Alterar aqui só muda a partir de hoje, sem recalcular dias anteriores.</div>
       <div class="form-group"><label>Tipo</label>
@@ -677,6 +681,7 @@ async function salvarEdicaoMaquina(id) {
   const novoTurno = document.getElementById('editMaqTurno')?.value;
   const horaInicio = document.getElementById('editMaqHoraInicio')?.value || '07:30';
   const horaFim     = document.getElementById('editMaqHoraFim')?.value || '17:28';
+  const novoTodosDias = !!document.getElementById('editMaqTodosDias')?.checked;
   const novoTipo  = document.getElementById('editMaqTipo')?.value || 'Principal';
   const novoAtivo = document.getElementById('editMaqAtivo')?.checked;
   if (!novoNome) return toast('Informe o nome.','erro');
@@ -696,14 +701,14 @@ async function salvarEdicaoMaquina(id) {
 
     // Se o horário mudou, cria um NOVO registro de vigência (a partir de hoje) —
     // nunca sobrescreve o antigo, pra não recalcular a ocupação de dias passados
-    if (m._horaInicioAtual !== horaInicio || m._horaFimAtual !== horaFim) {
+    if (m._horaInicioAtual !== horaInicio || m._horaFimAtual !== horaFim || !!m._todosDiasAtual !== novoTodosDias) {
       const hoje = hojeLocal();
       await db._post('maquina_capacidade_historico', {
         maquina: novoNome, hora_inicio: horaInicio, hora_fim: horaFim,
-        capacidade_min: novaCap, vigente_desde: hoje, criado_por: _sessao?.nome || null
+        capacidade_min: novaCap, vigente_desde: hoje, criado_por: _sessao?.nome || null, todos_os_dias: novoTodosDias
       });
       await registrarLog('maquinas', id, 'editar', 'horario_disponibilidade',
-        `${m._horaInicioAtual||'—'}-${m._horaFimAtual||'—'}`, `${horaInicio}-${horaFim} (a partir de ${hoje})`);
+        `${m._horaInicioAtual||'—'}-${m._horaFimAtual||'—'}`, `${horaInicio}-${horaFim}${novoTodosDias?' · todos os dias':''} (a partir de ${hoje})`);
     }
 
     toast('Atualizada!','sucesso');

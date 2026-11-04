@@ -1189,14 +1189,25 @@ function _capacidadeMaquinaNaData(historico, maquina, dataStr) {
   return registros[0].capacidade_min;
 }
 
-// Soma a capacidade dia a dia de UMA máquina no período (mesma regra de "dia útil"
-// já usada no resto do dashboard: sem domingo, sem feriado)
+// Registro de capacidade vigente de uma máquina numa data (null se não houver)
+function _registroCapMaquinaNaData(historico, maquina, dataStr) {
+  const registros = (historico||[]).filter(h => h.maquina === maquina && h.vigente_desde <= dataStr);
+  if (!registros.length) return null;
+  registros.sort((a,b) => b.vigente_desde.localeCompare(a.vigente_desde));
+  return registros[0];
+}
+
+// Soma a capacidade dia a dia de UMA máquina no período. Regra padrão: só dia útil
+// (sem sábado, domingo e feriado). Máquina em rodízio 2x2 ("todos_os_dias" na vigência)
+// conta todos os dias do calendário, pois Turma A e Turma B se alternam.
 function _capTotalPorMaquina(historico, maquina, ini, fim, feriados) {
   let total = 0;
   for (let d = new Date(ini+'T12:00:00'); d <= new Date(fim+'T12:00:00'); d.setDate(d.getDate()+1)) {
     const ds = dataLocal(d);
-    if (d.getDay()===0 || d.getDay()===6 || (feriados||[]).includes(ds)) continue;
-    total += _capacidadeMaquinaNaData(historico, maquina, ds);
+    const reg = _registroCapMaquinaNaData(historico, maquina, ds);
+    const todosDias = !!(reg && reg.todos_os_dias);
+    if (!todosDias && (d.getDay()===0 || d.getDay()===6 || (feriados||[]).includes(ds))) continue;
+    total += reg ? reg.capacidade_min : 598;
   }
   return total;
 }
