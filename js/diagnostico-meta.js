@@ -107,11 +107,12 @@ function _dmCalcular(ini, fim, lancsSetor) {
       const funciona = todos || (dow !== 0 && dow !== 6 && !feriados.includes(ds));
       if (!funciona) return;
       const doDia = usos.filter(l => l.data === ds);
-      const m = _minutosSemSobreposicao(doDia);
+      const m = _minutosMaquina(doDia, maq, hist);
+      const auto = doDia.reduce((a, l) => a + _minutosAutoLanc(l), 0);
       const pm = {};
       pars.filter(l => l.data === ds).forEach(l => { const k = l.motivo || 'Sem motivo'; pm[k] = (pm[k] || 0) + (l.minutos || 0); });
       const fimJanela = todos ? 1170 : 1048;
-      linhas.push({ d:ds, meta: reg ? reg.capacidade_min : 598, m, par: pm, lancs: doDia, pars: pars.filter(l => l.data === ds), gaps: _dmBuracos(_dmIntervalos(doDia), 480, fimJanela, 30), fimJanela });
+      linhas.push({ d:ds, meta: reg ? reg.capacidade_min : 598, m, auto, par: pm, lancs: doDia, pars: pars.filter(l => l.data === ds), gaps: _dmBuracos(_dmIntervalos(doDia), 480, fimJanela, 30), fimJanela });
     });
     maquinas.push({ nome: maq, linhas });
   });
@@ -322,7 +323,7 @@ function _dmAbrir(id) {
   const lancs = (x.r.lancs || []).slice().sort((a,b) => (a.horaInicio || '').localeCompare(b.horaInicio || '')).concat(x.r.pars || []);
   const linhaL = l => `<li class="dm-lanc"><div class="dm-lh"><b>${esc(l.horaInicio || '—')} às ${esc(l.horaFim || '—')}</b> <span class="dm-mut">${_dmDur(l.minutos || 0)}</span></div>
     <div class="dm-lb">${l.job ? '<b>' + esc(l.job) + '</b> · ' : ''}${esc(l.tipo === 'Parada de Máquina' ? 'Parada — ' + (l.motivo || 'sem motivo') : (l.tipo || ''))}${!eq && l.funcionario ? ' · ' + esc(l.funcionario) : ''}${eq && l.maquina ? ' · ' + esc(l.maquina) : ''}${l.setor && l.setor !== 'Usinagem' ? ' · ' + esc(l.setor) : ''}
-      ${l.descricao ? '<div class="dm-mut">' + esc(l.descricao) + '</div>' : ''}${l.descontaAlmoco ? '<div class="dm-mut">Almoço descontado</div>' : ''}</div>
+      ${l.descricao ? '<div class="dm-mut">' + esc(l.descricao) + '</div>' : ''}${l.descontaAlmoco ? '<div class="dm-mut">Almoço descontado</div>' : ''}${_minutosAutoLanc(l) ? '<div class="dm-mut">Máquina em automático: ' + _dmDur(_minutosAutoLanc(l)) + '</div>' : ''}</div>
     ${editar ? `<button class="dm-btn" data-ed="${l.id}|${esc(l.data)}|${esc(l.setor || 'Usinagem')}">✏️ Editar</button>` : ''}</li>`;
   const blocoL = lancs.length ? `<ul class="dm-lancs">${lancs.map(linhaL).join('')}</ul>` : `<div class="dm-nota">${x.r.fer ? 'Sem lançamentos, como esperado nas férias.' : 'Nenhum lançamento neste dia.'}</div>`;
 
@@ -331,7 +332,7 @@ function _dmAbrir(id) {
   const blocoO = oc.length ? `<div class="dm-h" style="margin-top:14px">Ocorrências registradas</div><ul class="dm-ocs">${oc.map(p => `<li>${esc(p.motivo || 'Ocorrência')} · ${esc((p.inicio || '').slice(0,5))} às ${esc((p.fim || '').slice(0,5))}${p.status ? ' · ' + esc(p.status) : ''}</li>`).join('')}</ul>` : '';
 
   // buracos de horário com atalho para lançar
-  const blocoG = (!x.r.fer && (eq ? x.meta > 0 : true)) ? `<div class="dm-h" style="margin-top:14px">Horários sem lançamento</div>${gaps.length ? `<ul class="dm-gaps">${gaps.map(g => `<li>${_dmHH(g[0])} às ${_dmHH(g[1])} · ${_dmDur(g[1]-g[0])}${editar ? ` <button class="dm-lk" data-novo="${esc(eq ? x.o.nome : '')}|${d}|${_dmHH(g[0])}|${_dmHH(g[1])}|${esc(eq ? '' : x.o.nome)}">lançar</button>` : ''}</li>`).join('')}</ul>` : '<div class="dm-nota">Nenhum buraco de horário acima do limite.</div>'}` : '';
+  const blocoG = (!x.r.fer && (eq ? x.meta > 0 : true)) ? `<div class="dm-h" style="margin-top:14px">Horários sem lançamento</div>${gaps.length ? `<ul class="dm-gaps">${gaps.map(g => `<li>${_dmHH(g[0])} às ${_dmHH(g[1])} · ${_dmDur(g[1]-g[0])}${editar ? ` <button class="dm-lk" data-novo="${esc(eq ? x.o.nome : '')}|${d}|${_dmHH(g[0])}|${_dmHH(g[1])}|${esc(eq ? '' : x.o.nome)}">lançar</button>` : ''}</li>`).join('')}</ul>` : '<div class="dm-nota">Nenhum buraco de horário acima do limite.</div>'}${!eq && x.r.auto && gaps.length ? `<div class="dm-nota">Neste dia há ${_dmDur(x.r.auto)} de tempo em automático lançado. Parte desses horários pode estar coberta por ele.</div>` : ''}` : '';
 
   let acao;
   if (eq) {
@@ -351,7 +352,7 @@ function _dmAbrir(id) {
     <div class="dm-nav"><button class="dm-btn" ${ant ? `data-id="${esc(idDe(ant.r.d))}"` : 'disabled'}>← ${ant ? _dmFmtD(ant.r.d) : ''}</button><button class="dm-btn" ${prox ? `data-id="${esc(idDe(prox.r.d))}"` : 'disabled'}>${prox ? _dmFmtD(prox.r.d) : ''} →</button></div>
     <div class="dm-dtitulo">${esc(titulo)}</div><div class="dm-mut">${_dmFmtD(d)} · ${_DM_DIAS_LONGOS[_dmWd(d)]}${eq ? ' · ' + esc(x.r.turno || '') : ''}</div>
     ${blocoAus}
-    <div class="dm-dl"><div>Meta do dia</div><div>${x.meta ? _dmDur(x.meta) : 'sem meta'}</div><div>${eq ? 'Apontado' : 'Em uso'}</div><div>${_dmDur(x.r.m)}</div>${x.meta ? `<div>Percentual do dia</div><div>${x.pct}%</div>` : ''}${media !== null && x.meta ? `<div>Média ${eq ? 'da pessoa' : 'da máquina'} no período</div><div>${media}%</div>` : ''}
+    <div class="dm-dl"><div>Meta do dia</div><div>${x.meta ? _dmDur(x.meta) : 'sem meta'}</div><div>${eq ? 'Apontado' : 'Em uso'}</div><div>${_dmDur(x.r.m)}</div>${x.meta ? `<div>Percentual do dia</div><div>${x.pct}%</div>` : ''}${!eq && x.r.auto ? `<div>Tempo em automático</div><div>${_dmDur(x.r.auto)}</div>` : ''}${media !== null && x.meta ? `<div>Média ${eq ? 'da pessoa' : 'da máquina'} no período</div><div>${media}%</div>` : ''}
     <div>Situação</div><div><span class="dm-chip"><i style="background:${mo.c}"></i>${esc(mo.n)}</span></div></div>
     ${mostraTempo ? `<div class="dm-h">Linha do tempo do dia</div>
     <div class="dm-ruler"><div class="bar">${(gaps.length || x.m > 0 ? blocos : []).map(b => `<b style="left:${100*(b[0]-S)/(E-S)}%;width:${100*(b[1]-b[0])/(E-S)}%"></b>`).join('')}</div><div class="ticks"><span>${_dmHH(S)}</span><span>${_dmHH(Math.round((S+E)/2))}</span><span>${_dmHH(E)}</span></div></div>

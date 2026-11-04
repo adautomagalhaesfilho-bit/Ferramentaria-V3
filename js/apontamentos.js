@@ -1055,8 +1055,10 @@ async function enviarWhatsapp() {
       const capDia = (typeof _capacidadeMaquinaNaData === 'function')
         ? _capacidadeMaquinaNaData(capHistoricoRel, maq, dataApont) : 528;
       // Ocupação = tempo único de máquina trabalhando (2 operadores no mesmo horário contam 1x; parada conta 0)
-      const mins = (typeof _minutosSemSobreposicao === 'function')
-        ? _minutosSemSobreposicao(m.lancsProd) : m.lancsProd.reduce((a,l)=>a+(l.minutos||0),0);
+      const mins = (typeof _minutosMaquina === 'function')
+        ? _minutosMaquina(m.lancsProd, maq, capHistoricoRel)
+        : (typeof _minutosSemSobreposicao === 'function')
+          ? _minutosSemSobreposicao(m.lancsProd) : m.lancsProd.reduce((a,l)=>a+(l.minutos||0),0);
       const pct = Math.min(100, Math.round(mins/capDia*100));
       t+=`\n📍 *${maq}* (Ocupação: ${pct}%)\n`;
       m.itens.forEach(i => t+=`  - ${i.txt}\n`);

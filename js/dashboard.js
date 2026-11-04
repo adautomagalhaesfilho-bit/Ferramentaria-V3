@@ -494,7 +494,7 @@ function desenharSetor(setor, ini, fim) {
   const porMaq = {};
   const lancsPorMaq = {};
   if(setor==='Usinagem') lancsProdutivos.forEach(l=>{ if(!l.maquina||l.maquina==='Sem Máquina') return; (lancsPorMaq[l.maquina] = lancsPorMaq[l.maquina] || []).push(l); });
-  Object.entries(lancsPorMaq).forEach(([maq, arr]) => { porMaq[maq] = _minutosSemSobreposicao(arr); });
+  Object.entries(lancsPorMaq).forEach(([maq, arr]) => { porMaq[maq] = _minutosMaquina(arr, maq); });
 
   // Separa máquinas Principais (seguem meta de ocupação diária) das Secundárias
   // (só medimos quanto tempo foram usadas no período, sem meta/percentual)
@@ -541,7 +541,7 @@ function desenharSetor(setor, ini, fim) {
     });
     Object.entries(extrasPorMaq).forEach(([nomeReal, arr]) => {
       // une com os lançamentos da própria Usinagem nessa máquina, sem contar horário repetido
-      const total = _minutosSemSobreposicao((lancsPorMaq[nomeReal] || []).concat(arr));
+      const total = _minutosMaquina((lancsPorMaq[nomeReal] || []).concat(arr), nomeReal);
       porMaq[nomeReal] = total;
       // as barras/cards leem os grupos Principal/Secundária, então o tempo da Bancada precisa entrar neles também
       if (maquinasTipo[nomeReal] === 'Secundaria') porMaqSecundaria[nomeReal] = total;
@@ -559,7 +559,7 @@ function desenharSetor(setor, ini, fim) {
       const lancBanc = (_dadosDash.lancamentos||[]).filter(l => l.setor==='Bancada' && l.tipo===NOME_SOLDA);
       if (lancUsin.length || lancBanc.length) {
         const soma = arr => arr.reduce((a,l)=>a+(l.minutos||0),0);
-        const total = _minutosSemSobreposicao(lancUsin.concat(lancBanc));
+        const total = _minutosMaquina(lancUsin.concat(lancBanc), NOME_SOLDA);
         porMaqPrincipal[NOME_SOLDA] = total;
         soldaDetalhe = { usinagem: soma(lancUsin), bancada: soma(lancBanc), total };
       }
@@ -1010,6 +1010,31 @@ function _minutosSemSobreposicao(lancs) {
     sobreposto += soma - uniao;
   });
   return Math.max(0, total - sobreposto);
+}
+
+// "Tempo em Automático" do lançamento (campo hh:mm): a máquina seguiu trabalhando sozinha.
+function _minutosAutoLanc(l) {
+  const m = /^(\d{1,2}):(\d{2})/.exec((l && (l.tempoAuto || l.tempo_auto)) || '');
+  return m ? (+m[1]) * 60 + (+m[2]) : 0;
+}
+
+// Tempo de uso da máquina = tempo único dos lançamentos + tempo em automático, dia a dia.
+// O dia nunca passa da capacidade da máquina naquela data (o automático da noite, por exemplo,
+// não gera mais de 100%). Sem automático lançado, o resultado é igual ao de _minutosSemSobreposicao.
+function _minutosMaquina(lancs, maquina, historico) {
+  const hist = historico || (typeof _dadosDash !== 'undefined' && _dadosDash && _dadosDash.capacidadeHistoricoMaquinas) || [];
+  const porDia = {};
+  lancs.forEach(l => (porDia[l.data] = porDia[l.data] || []).push(l));
+  let total = 0;
+  Object.entries(porDia).forEach(([ds, arr]) => {
+    const base = _minutosSemSobreposicao(arr);
+    const auto = arr.reduce((a, l) => a + _minutosAutoLanc(l), 0);
+    if (!auto) { total += base; return; }
+    const reg = _registroCapMaquinaNaData(hist, maquina, ds);
+    const cap = reg ? reg.capacidade_min : null;
+    total += cap ? Math.max(base, Math.min(base + auto, cap)) : base + auto;
+  });
+  return total;
 }
 
 function _ocupacaoPorGrupo(porMaq) {
