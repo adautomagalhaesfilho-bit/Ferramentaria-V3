@@ -35,6 +35,28 @@ function capMinutosPorTurno(turno) {
   return 528;
 }
 
+// Turno vigente da pessoa numa data. Sem histórico: o turno atual. Com histórico: o turno
+// da mudança que cobre o dia; antes da primeira mudança registrada, era 5x2.
+function turnoNaData(nome, ds, dados) {
+  const f = (dados.funcionarios || []).find(x => x.nome === nome);
+  const atual = f?.turno || '5x2';
+  const hist = (dados.turnoHistorico || []).filter(h => f && h.funcionario_id === f.id).sort((a,b) => a.data_inicio.localeCompare(b.data_inicio));
+  if (!hist.length) return atual;
+  if (ds < hist[0].data_inicio) return '5x2';
+  const cobre = hist.filter(h => ds >= h.data_inicio && (!h.data_fim || ds <= h.data_fim));
+  return cobre.length ? cobre[cobre.length-1].turno : atual;
+}
+
+// Usinagem (5x2 e Turma A/B): desde 01/09/2026 o trabalho produtivo começa às 08:00 (os primeiros 30 min
+// são do DDS), então a meta diária da pessoa é 30 min menor. Dias anteriores não mudam.
+// Vale só para a meta da ocupação (dashboard): o banco de horas continua com a jornada contratual.
+const INICIO_08H_USINAGEM = '2026-09-01';
+function capMinutosNaData(turno, setor, ds) {
+  const base = capMinutosPorTurno(turno);
+  if (setor === 'Usinagem' && (turno === '5x2' || turno === 'Turma A' || turno === 'Turma B') && ds >= INICIO_08H_USINAGEM) return base - 30;
+  return base;
+}
+
 // Supervisores/Encarregados são excluídos dos cálculos de ocupação/produtividade
 // (aparecem nas listas de técnico para lançamento, mas não contam na meta da equipe)
 function isSupervisor(nome, dados) {
@@ -54,15 +76,15 @@ function calcularMeta(ini, fim, nome, dados) {
   const feriados = dados.feriados || [];
   const ferias   = (dados.ferias || []).filter(f => f.funcionario === nome);
   const parciais = (dados.parciais || []).filter(p => p.funcionario === nome);
-  const capMin   = capMinutosPorTurno(turno);
   let mins = 0;
   for (let d = new Date(ini + 'T12:00:00'); d <= new Date(fim + 'T12:00:00'); d.setDate(d.getDate() + 1)) {
     const ds = dataLocal(d);
     if (ds < adm || ds > dem) continue;
     const deFerias = ferias.some(f => ds >= f.inicio && ds <= f.fim && f.motivo === 'Férias');
     if (deFerias) continue;
-    if (!funcTrabalhaEmDia(turno, ds, feriados)) continue;
-    let minsDia = capMin;
+    const turnoDia = turnoNaData(nome, ds, dados);
+    if (!funcTrabalhaEmDia(turnoDia, ds, feriados)) continue;
+    let minsDia = capMinutosNaData(turnoDia, funcRH?.setor, ds);
     parciais.filter(p => p.data === ds).forEach(p => {
       if (p.inicio && p.fim) {
         const toMin = h => { const [hh,mm] = h.split(':'); return parseInt(hh)*60+parseInt(mm); };
@@ -631,6 +653,7 @@ function desenharSetor(setor, ini, fim) {
     </div>` : ''}
   </div>`;
 
+  if(setor==='Usinagem') html+='<div id="diagMeta"></div>';
   const opOrdenados = [...opEntries].sort((a,b)=>a.nome.localeCompare(b.nome));
   html+=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
@@ -723,6 +746,7 @@ function desenharSetor(setor, ini, fim) {
   </div>`;
 
   div.innerHTML=html;
+  if(setor==='Usinagem' && typeof iniciarDiagnosticoMeta==='function') iniciarDiagnosticoMeta(ini, fim, lancs);
   setTimeout(()=>{
     criarChart('chart'+sx+'Jobs',{ type:'bar',
       data:{ labels:topJobs.map(e=>e[0]), datasets:[{ data:topJobs.map(e=>Math.round(e[1]/60*10)/10), backgroundColor:paleta, borderRadius:6 }] },

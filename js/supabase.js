@@ -259,7 +259,7 @@ const db = {
 
     const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas, prodLanc,
            lancamentosAnt, prodLancAnt, bancoHoras, moldeLocalizacao, moldeHistorico, capHistorico,
-           ramTodas, ramSetoresTodas, coposTodos, jobsCavidades] = await Promise.all([
+           ramTodas, ramSetoresTodas, coposTodos, jobsCavidades, turnoHistorico] = await Promise.all([
       db._get('lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
       db._get('feriados', '', 'data'),
       db._get('ferias', '', '*'),
@@ -276,7 +276,8 @@ const db = {
       db._get('ram', '', '*').catch(e => (avisarErro('carregar as RAMs', e), [])),
       db._get('ram_setores', '', '*').catch(e => (avisarErro('carregar os setores das RAMs', e), [])),
       db._get('copos', 'ativo=eq.true', '*').catch(e => (avisarErro('carregar os copos', e), [])),
-      db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades').catch(e => (avisarErro('carregar os jobs', e), []))
+      db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades').catch(e => (avisarErro('carregar os jobs', e), [])),
+      db._get('funcionario_turno_historico', 'order=data_inicio.asc', '*').catch(e => (avisarErro('carregar o histórico de turnos', e), []))
     ]);
     const capMaquinas = {};
     (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno, tipo: m.tipo || 'Principal' }; });
@@ -301,6 +302,8 @@ const db = {
       ramSetoresTodas: ramSetoresTodas || [],
       coposTodos:      coposTodos || [],
       jobsCavidades:   jobsCavidades || [],
+      // Histórico de troca de turno (ex.: 5x2 → Turma A) — a meta usa o turno vigente em cada dia
+      turnoHistorico:  turnoHistorico || [],
       // Estado atual de cada molde (pra achar quem está parado na Ferramentaria)
       moldeLocalizacao:    moldeLocalizacao || [],
       // Movimentações de molde no período (pra aba PCM: quem mais andou)
