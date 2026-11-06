@@ -85,6 +85,24 @@ function _parseHorasBH(txt) {
   return neg ? -min : min;
 }
 
+// Campo de horas em "horas:minutos" (sem decimal). Aceita "8:30", "08:30", "8h30", "8h" e "830" (= 8:30).
+// Devolve os minutos, ou null se estiver vazio/inválido (minutos precisam ser de 00 a 59).
+function _parseHHMM(txt) {
+  let t = String(txt || '').trim().toLowerCase().replace(/\s+/g, '').replace('h', ':');
+  if (!t) return null;
+  if (/^\d{3,4}$/.test(t)) t = t.slice(0, -2) + ':' + t.slice(-2);
+  if (/^\d+:?$/.test(t)) t = t.replace(':', '') + ':00';
+  const m = /^(\d{1,3}):(\d{1,2})$/.exec(t);
+  if (!m || +m[2] > 59) return null;
+  return (+m[1]) * 60 + (+m[2]);
+}
+// Ajusta o campo ao sair dele: "830" vira "8:30", "8h30" vira "8:30"
+function formatarHHMM(el) {
+  const min = _parseHHMM(el.value);
+  if (min === null) return;
+  el.value = Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0');
+}
+
 // ==========================================
 // 🔄 CRÉDITO AUTOMÁTICO — Sincroniza Horas Extras
 // ==========================================
@@ -445,7 +463,7 @@ async function inicializarBancoHoras() {
           <option value="Debito">➖ Débito</option>
         </select>
       </div>
-      <div class="form-group"><label>Horas *</label><input type="number" id="bhManHoras" step="0.25" min="0" placeholder="Ex: 2.5"></div>
+      <div class="form-group"><label>Horas *</label><input type="text" id="bhManHoras" inputmode="numeric" autocomplete="off" placeholder="horas:minutos — ex.: 8:30" onblur="formatarHHMM(this)"></div>
       <div class="form-group"><label>Data *</label><input type="date" id="bhManData" value="${esc(hojeStr)}"></div>
     </div>
     <div class="form-group"><label>Descrição</label><input type="text" id="bhManDesc" placeholder="Motivo do ajuste..."></div>
@@ -576,18 +594,18 @@ function _renderizarTabelaExtratoBH(lista) {
 async function salvarBancoHorasManual() {
   const funcionario = document.getElementById('bhManFunc')?.value;
   const tipo         = document.getElementById('bhManTipo')?.value;
-  const horas        = parseFloat(document.getElementById('bhManHoras')?.value);
+  const minutos      = _parseHHMM(document.getElementById('bhManHoras')?.value);
   const data         = document.getElementById('bhManData')?.value;
   const descricao    = document.getElementById('bhManDesc')?.value?.trim() || null;
 
   if (!funcionario) return toast('Selecione o técnico.','erro');
-  if (!horas || horas <= 0) return toast('Informe a quantidade de horas.','erro');
+  if (!minutos || minutos <= 0) return toast('Informe as horas e minutos, por exemplo 8:30 (os minutos vão de 00 a 59).','erro');
   if (!data) return toast('Informe a data.','erro');
 
   try {
     await db.salvarBancoHoras({
       funcionario, data, tipo, origem: 'Ajuste Manual',
-      minutos: Math.round(horas*60), descricao,
+      minutos, descricao,
       criado_por: _sessao?.nome || null
     });
     toast('Lançamento registrado!','sucesso');
@@ -605,7 +623,7 @@ function abrirEdicaoBancoHoras(r) {
     .filter((v,i,a)=>a.indexOf(v)===i).sort();
   const div = document.createElement('div');
   div.id = 'modalEditBHWrap';
-  const horasAtual = (r.minutos/60).toFixed(2);
+  const horasAtual = Math.floor(r.minutos/60) + ':' + String(r.minutos%60).padStart(2,'0');
   div.innerHTML = `
   <div class="modal-overlay" onclick="fecharEdicaoBancoHoras()" style="display:block"></div>
   <div class="modal" style="display:block;max-width:440px">
@@ -621,7 +639,7 @@ function abrirEdicaoBancoHoras(r) {
             <option value="Debito" ${r.tipo==='Debito'?'selected':''}>➖ Débito</option>
           </select>
         </div>
-        <div class="form-group"><label>Horas *</label><input type="number" id="efBHHoras" step="0.25" min="0" value="${esc(horasAtual)}"></div>
+        <div class="form-group"><label>Horas *</label><input type="text" id="efBHHoras" inputmode="numeric" autocomplete="off" placeholder="horas:minutos — ex.: 8:30" value="${esc(horasAtual)}" onblur="formatarHHMM(this)"></div>
       </div>
       <div class="form-group"><label>Data *</label><input type="date" id="efBHData" value="${esc(r.data||'')}"></div>
       <div class="form-group"><label>Descrição</label><input type="text" id="efBHDesc" value="${esc(r.descricao||'')}"></div>
@@ -637,12 +655,12 @@ function abrirEdicaoBancoHoras(r) {
 async function salvarEdicaoBancoHoras(id) {
   const funcionario = document.getElementById('efBHFunc')?.value;
   const tipo         = document.getElementById('efBHTipo')?.value;
-  const horas        = parseFloat(document.getElementById('efBHHoras')?.value);
+  const minutos      = _parseHHMM(document.getElementById('efBHHoras')?.value);
   const data         = document.getElementById('efBHData')?.value;
   const descricao    = document.getElementById('efBHDesc')?.value?.trim() || null;
-  if (!funcionario || !horas || horas<=0 || !data) return toast('Preencha todos os campos.','erro');
+  if (!funcionario || !minutos || minutos<=0 || !data) return toast('Preencha todos os campos. As horas vão no formato 8:30 (minutos de 00 a 59).','erro');
   try {
-    await db.salvarBancoHoras({ id, funcionario, tipo, data, minutos: Math.round(horas*60), descricao });
+    await db.salvarBancoHoras({ id, funcionario, tipo, data, minutos, descricao });
     toast('Atualizado!','sucesso');
     fecharEdicaoBancoHoras();
     await renderizarBancoHoras();
