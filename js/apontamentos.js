@@ -275,7 +275,7 @@ function renderizarApontamentos() {
 // ==========================================
 // ➕ NOVO / EDITAR
 // ==========================================
-function abrirNovoApontamento() {
+function abrirNovoApontamento(formularioCompleto) {
   document.getElementById('formId').value = '';
   document.getElementById('formSetor').value = _setorAtivo;
   _statusForm = null;
@@ -287,6 +287,8 @@ function abrirNovoApontamento() {
   document.getElementById('formData').value = document.getElementById('apontData')?.value || hojeLocal();
   document.getElementById('tituloForm').innerText = 'Novo Lançamento — ' + _setorAtivo;
   document.getElementById('btnSalvarForm').innerText = '💾 Salvar Lançamento';
+  // Usinagem: novos lançamentos usam o passo a passo (perguntas uma por vez). A edição segue no formulário de sempre.
+  if (_setorAtivo === 'Usinagem' && !formularioCompleto && typeof wizardUsinagemAbrir === 'function') { wizardUsinagemAbrir(); return; }
   abrirModalForm();
 }
 

@@ -386,7 +386,7 @@ async function _dmNovoLanc(nome, data, hi, hf, maq, idDia) {
   try {
     _setorAtivo = 'Usinagem';
     _dmArmarRecarga(idDia);
-    abrirNovoApontamento();
+    abrirNovoApontamento(true);
     document.getElementById('formData').value = data;
     await carregarFuncionariosForm('Usinagem');
     await new Promise(r => setTimeout(r, 50));
