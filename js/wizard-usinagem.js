@@ -4,7 +4,7 @@
 // então todas as regras de salvamento continuam sendo as mesmas. A edição não usa este arquivo.
 // ==========================================
 (function () {
-  var A = {}, idx = 0, ordemTipos = null, rams = [], confirmando = false, salvando = false, feito = false;
+  var jobPend = null, A = {}, retorno = false, idx = 0, ordemTipos = null, rams = [], confirmando = false, salvando = false, feito = false;
   var $ = function (id) { return document.getElementById(id); };
   var E = function (s) { return (typeof esc === 'function') ? esc(s == null ? '' : String(s)) : String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
   var L = function () { return (typeof _listas !== 'undefined' && _listas) ? _listas : {}; };
@@ -63,18 +63,29 @@
     { id: 'fim', t: 'Que horas terminou?', h: 'Digite a hora do fim. Se ainda está rodando, coloque a hora de agora.' },
     { id: 'alm', t: 'Passou pelo horário de almoço?', h: 'O sistema desconta 1h10 de almoço. Responda Sim se parou para almoçar nesse intervalo.', se: cruzaAlmoco },
     { id: 'auto', t: 'A máquina ficou rodando sozinha?', h: 'Responda Sim se ela trabalhou em automático (ex.: durante o almoço ou à noite).' },
-    { id: 'job', t: 'Qual molde / job?', h: 'Digite parte do nome e escolha na lista. Assim não tem erro de digitação.', se: function () { return !ehParada(); } },
-    { id: 'ram', t: 'É referente a alguma RAM?', h: 'Esse molde tem RAM aberta. Escolha qual, ou toque em “Nenhuma”.', se: function () { return !ehParada() && rams.length > 0; } },
-    { id: 'st', t: 'Como ficou o job?', h: 'Escolha a situação do molde depois desse lançamento.', se: function () { return !ehParada(); } },
+    { id: 'job', t: 'Qual molde / job?', h: 'Digite parte do nome e escolha na lista. Assim não tem erro de digitação. Se o serviço não tem molde, toque em “Sem job”.', se: function () { return !ehParada(); } },
+    { id: 'ram', t: 'É referente a alguma RAM?', h: 'Esse molde tem RAM aberta. Escolha qual, ou toque em “Nenhuma”.', se: function () { return !ehParada() && !A.semJob && rams.length > 0; } },
+    { id: 'st', t: 'Como ficou o job?', h: 'Escolha a situação do molde depois desse lançamento.', se: function () { return !ehParada() && !A.semJob; } },
     { id: 'desc', t: 'Descreva o que foi feito', h: 'Escreva em poucas palavras. Ex.: “Desbaste da cavidade 2 e acabamento”.' },
     { id: 'rev', t: 'Confira antes de salvar', h: 'Se algo estiver errado, toque em Alterar ao lado da linha.' }
   ];
   function lista() { return P.filter(function (p) { return !p.se || p.se(); }); }
   function atual() { return P[idx]; }
   function pos() { return lista().indexOf(atual()); }
-  function prox() { var l = lista(), c = pos(); idx = P.indexOf(l[Math.min(c + 1, l.length - 1)]); draw(); }
-  function volta() { var l = lista(), c = pos(); if (c > 0) { idx = P.indexOf(l[c - 1]); draw(); } }
-  function ir(id) { idx = P.findIndex(function (p) { return p.id === id; }); draw(); }
+  function prox() {
+    var l = lista(), c = pos();
+    if (retorno) {   // veio da conferência: volta direto para ela, passando só por perguntas que ficaram sem resposta
+      var falta = l.filter(function (p) { return p.id !== 'rev' && !okStep(p); })[0];
+      if (!falta) { retorno = false; idx = P.findIndex(function (p) { return p.id === 'rev'; }); return draw(); }
+      idx = P.indexOf(falta); return draw();
+    }
+    idx = P.indexOf(l[Math.min(c + 1, l.length - 1)]); draw();
+  }
+  function volta() {
+    if (retorno) { retorno = false; idx = P.findIndex(function (p) { return p.id === 'rev'; }); return draw(); }
+    var l = lista(), c = pos(); if (c > 0) { idx = P.indexOf(l[c - 1]); draw(); }
+  }
+  function ir(id) { retorno = true; idx = P.findIndex(function (p) { return p.id === id; }); draw(); }
 
   // ---------- tipos por mais usados ----------
   async function carregarOrdemTipos() {
@@ -95,7 +106,7 @@
 
   // ---------- entrada ----------
   window.wizardUsinagemAbrir = function () {
-    A = {}; idx = 0; rams = []; confirmando = false; salvando = false; feito = false;
+    A = {}; retorno = false; idx = 0; rams = []; confirmando = false; salvando = false; feito = false;
     var o = overlay(); o.classList.add('on'); document.body.style.overflow = 'hidden';
     carregarOrdemTipos();
     draw();
@@ -124,7 +135,7 @@
     if (p.id === 'fim') h = '<input type="time" id="wzFim" value="' + E(A.fim || '') + '"><div id="wzDur" class="wz-av" hidden></div>';
     if (p.id === 'alm') h = '<div class="wz-opts g2">' + opt('alm', 'Sim', 'Descontar 1h10') + opt('alm', 'Não', 'Trabalhou direto') + '</div>';
     if (p.id === 'auto') h = '<div class="wz-opts g2">' + opt('auto', 'Sim', 'Informar quanto tempo') + opt('auto', 'Não', 'Só trabalho com operador') + '</div>' + (A.auto === 'Sim' ? '<div><div class="wz-aj" style="margin-bottom:6px">Quanto tempo ficou em automático? (horas:minutos)</div><input type="time" id="wzAuto" value="' + E(A.autoT || '') + '"></div>' : '');
-    if (p.id === 'job') h = '<div><input type="text" id="wzJob" placeholder="Digite o molde..." value="' + E(A.job || '') + '" autocomplete="off"><div class="wz-lista" id="wzJobL" hidden></div></div><div class="wz-aj" style="font-size:13px">Só aceita moldes que já existem no cadastro.</div>';
+    if (p.id === 'job') h = '<div><input type="text" id="wzJob" placeholder="Digite o molde..." value="' + E(A.job || '') + '" autocomplete="off"><div class="wz-lista" id="wzJobL" hidden></div></div><div class="wz-aj" style="font-size:13px">Só aceita moldes que já existem no cadastro.</div><div class="wz-opts"><button type="button" class="wz-opt' + (A.semJob ? ' sel' : '') + '" data-k="semjob" data-v="1">Sem job<small>Este serviço não tem molde</small></button></div>';
     if (p.id === 'ram') h = '<div class="wz-opts"><button type="button" class="wz-opt' + (!A.ram ? ' sel' : '') + '" data-k="ram" data-v="">Nenhuma<small>Apontamento comum</small></button>' + rams.map(function (r) { return '<button type="button" class="wz-opt' + (A.ram === String(r.id) ? ' sel' : '') + '" data-k="ram" data-v="' + E(r.id) + '">RAM ' + E(r.numero) + '<small>' + E((r.descricao || '').slice(0, 80)) + '</small></button>'; }).join('') + '</div>';
     if (p.id === 'st') h = '<div class="wz-opts">' + opt('st', 'Em andamento', 'Ainda vai continuar') + opt('st', 'Pausado', 'Parou e vai voltar depois') + opt('st', 'Finalizado', 'Terminou o serviço do molde') + '</div>';
     if (p.id === 'desc') h = (A.descAuto ? '<div class="wz-av">Já preenchi com a descrição do último lançamento deste molde. Ajuste se precisar.</div>' : '') + '<textarea id="wzDesc" placeholder="O que foi feito?">' + E(A.desc || '') + '</textarea>';
@@ -134,14 +145,14 @@
       R.push(['Horário', A.ini + ' às ' + (A.fim || '—') + (A.alm === 'Sim' && cruzaAlmoco() ? ' (almoço descontado)' : ''), 'ini']);
       R.push(['Tempo trabalhado', hhmm(dur()), 'fim']);
       if (A.auto === 'Sim') R.push(['Em automático', A.autoT || '00:00', 'auto']);
-      if (!ehParada()) { R.push(['Molde', A.job, 'job']); if (A.ram) { var rr = rams.filter(function (r) { return String(r.id) === A.ram; })[0]; R.push(['RAM', rr ? 'RAM ' + rr.numero : A.ram, 'ram']); } R.push(['Situação', A.st, 'st']); }
+      if (!ehParada()) { R.push(['Molde', A.semJob ? 'Sem job' : A.job, 'job']); if (A.ram && !A.semJob) { var rr = rams.filter(function (r) { return String(r.id) === A.ram; })[0]; R.push(['RAM', rr ? 'RAM ' + rr.numero : A.ram, 'ram']); } if (!A.semJob) R.push(['Situação', A.st, 'st']); }
       R.push(['Descrição', A.desc, 'desc']);
       h = '<div class="wz-rev">' + R.map(function (r) { return '<div class="k">' + r[0] + '</div><div class="v">' + E(r[1] || '—') + '</div><button type="button" data-go="' + r[2] + '">Alterar</button>'; }).join('') + '</div>';
     }
     return h;
   }
-  function ok() {
-    var p = atual();
+  function ok() { return okStep(atual()); }
+  function okStep(p) {
     switch (p.id) {
       case 'data': return !!A.data;
       case 'maq': return A.maq !== undefined;
@@ -152,7 +163,8 @@
       case 'fim': return !!A.fim;
       case 'alm': return !!A.alm;
       case 'auto': return A.auto === 'Não' || (A.auto === 'Sim' && !!A.autoT);
-      case 'job': return (L().jobs || []).indexOf(A.job) > -1;
+      case 'job': return !!A.semJob || (L().jobs || []).indexOf(A.job) > -1;
+      case 'ram': return A.ram !== undefined;
       case 'st': return !!A.st;
       case 'desc': return !!(A.desc && A.desc.trim());
       default: return true;
@@ -171,8 +183,8 @@
       '<div class="wz-prog"><div class="wz-bar"><i style="width:' + ((c + 1) / l.length * 100) + '%"></i></div><div class="wz-cnt">Passo ' + (c + 1) + '/' + l.length + '</div></div>' +
       '<div class="wz-card">' + (ch.length && !fim ? '<div class="wz-chips">' + ch.map(function (x) { return '<span class="wz-chip">' + E(x) + '</span>'; }).join('') + '</div>' : '') +
       '<div><h1>' + p.t + '</h1><p class="wz-aj">' + p.h + '</p></div>' + corpo(p) +
-      '<div class="wz-nav">' + (c > 0 ? '<button type="button" class="wz-btn" data-a="voltar">← Voltar</button>' : '') +
-      (fim ? '<button type="button" class="wz-btn ok" data-a="salvar"' + (salvando ? ' disabled' : '') + '>' + (salvando ? 'Salvando...' : '💾 Salvar lançamento') + '</button>' : '<button type="button" class="wz-btn pri" data-a="prox"' + (ok() ? '' : ' disabled') + '>Continuar →</button>') + '</div></div>' +
+      '<div class="wz-nav">' + (retorno ? '<button type="button" class="wz-btn" data-a="voltar">← Voltar à conferência</button>' : c > 0 ? '<button type="button" class="wz-btn" data-a="voltar">← Voltar</button>' : '') +
+      (fim ? '<button type="button" class="wz-btn ok" data-a="salvar"' + (salvando ? ' disabled' : '') + '>' + (salvando ? 'Salvando...' : '💾 Salvar lançamento') + '</button>' : '<button type="button" class="wz-btn pri" data-a="prox"' + (ok() ? '' : ' disabled') + '>' + (retorno ? 'Salvar alteração ✓' : 'Continuar →') + '</button>') + '</div></div>' +
       '<button type="button" class="wz-full" data-a="completo">Prefiro usar o formulário completo</button></div>';
     o.innerHTML = html; o.scrollTop = 0; ligar(p);
   }
@@ -193,16 +205,18 @@
     if (p.id === 'job') {
       var j = g('wzJob'), li = g('wzJobL'), jobs = L().jobs || [];
       var show = function () { var q = j.value.toLowerCase().trim(); var r = q ? jobs.filter(function (x) { return x.toLowerCase().indexOf(q) > -1; }).slice(0, 8) : []; li.hidden = !r.length || (r.length === 1 && r[0] === j.value); li.innerHTML = r.map(function (x) { return '<button type="button" data-j="' + E(x) + '">' + E(x) + '</button>'; }).join(''); };
-      j.oninput = function () { A.job = j.value; btnProx(); show(); };
-      li.onclick = function (e) { var b = e.target.closest('button'); if (!b) return; A.job = b.dataset.j; j.value = A.job; li.hidden = true; btnProx(); aoEscolherJob(); };
+      j.oninput = function () { A.job = j.value; A.semJob = false; btnProx(); show(); };
+      li.onclick = function (e) { var b = e.target.closest('button'); if (!b) return; A.job = b.dataset.j; A.semJob = false; j.value = A.job; li.hidden = true; btnProx(); jobPend = aoEscolherJob(); };
       if (A.job && jobs.indexOf(A.job) > -1) li.hidden = true; else show();
       setTimeout(function () { try { j.focus(); } catch (e) {} }, 50);
     }
     if (p.id === 'desc') { var s = g('wzDesc'); s.oninput = function () { A.desc = s.value; A.descAuto = false; btnProx(); }; }
   }
   async function aoEscolherJob() {
-    rams = []; A.ram = ''; A.descSug = null;
+    if (A.semJob) return;
+    rams = []; A.ram = undefined; A.descSug = null;
     try { if (typeof buscarRAMsAbertasPorJob === 'function') rams = (await buscarRAMsAbertasPorJob(A.job)) || []; } catch (e) { rams = []; }
+    if (!rams.length) A.ram = '';
     try { var d = await db.buscarDescricaoJob(A.job, A.maq || ''); if (d) A.descSug = d; } catch (e) {}
   }
   async function aoEscolherMaquina() {
@@ -215,7 +229,7 @@
     if (b.dataset.go) return ir(b.dataset.go);
     var a = b.dataset.a;
     if (a) {
-      if (a === 'prox') return ok() && prox();
+      if (a === 'prox') { if (!ok()) return; if (atual().id === 'job' && jobPend) { b.disabled = true; b.textContent = 'Buscando...'; var jp = jobPend; jobPend = null; return jp.then(function () { prox(); }); } return prox(); }
       if (a === 'voltar') return volta();
       if (a === 'cancelar') { var tem = A.data || A.maq !== undefined; if (!tem) return fechar(); confirmando = true; return draw(); }
       if (a === 'continuar') { confirmando = false; return draw(); }
@@ -228,7 +242,8 @@
     var k = b.dataset.k; if (k === undefined) return; var v = b.dataset.v;
     if (k === 'data') { A.data = v; return prox(); }
     if (k === 'maq') { A.maq = v; A.ini = A.iniTocado ? A.ini : ''; aoEscolherMaquina(); return prox(); }
-    if (k === 'tipo') { A.tipo = v; if (v === PARADA) { A.op = null; A.extras = []; A.job = null; A.st = null; A.ram = ''; rams = []; } else A.motivo = null; return prox(); }
+    if (k === 'tipo') { A.tipo = v; if (v === PARADA) { A.op = null; A.extras = []; A.job = null; A.semJob = false; A.st = null; A.ram = ''; rams = []; } else A.motivo = null; return prox(); }
+    if (k === 'semjob') { A.semJob = true; jobPend = null; A.job = ''; A.ram = ''; A.st = null; rams = []; A.descSug = null; return prox(); }
     if (k === 'op') { A.op = v; A.extras = (A.extras || []).filter(function (x) { return x !== v; }); return draw(); }
     if (k === 'extra') { A.extras = A.extras || []; var i = A.extras.indexOf(v); if (i > -1) A.extras.splice(i, 1); else A.extras.push(v); return draw(); }
     if (k === 'auto') { A.auto = v; if (v === 'Não') { A.autoT = null; return prox(); } return draw(); }
@@ -249,13 +264,13 @@
     $('formHrIni').value = A.ini || ''; $('formHrFim').value = A.fim || '';
     $('formAlmoco').checked = A.alm === 'Sim';
     $('formTempoAuto').value = A.auto === 'Sim' ? (A.autoT || '') : '';
-    $('formJob').value = ehParada() ? '' : (A.job || '');
+    $('formJob').value = (ehParada() || A.semJob) ? '' : (A.job || '');
     $('formDesc').value = A.desc || '';
-    _statusForm = ehParada() ? null : (A.st || null);
+    _statusForm = (ehParada() || A.semJob) ? null : (A.st || null);
     if (typeof atualizarBotoesStatus === 'function') atualizarBotoesStatus();
     if (typeof atualizarCamposParadaMaquina === 'function') atualizarCamposParadaMaquina();
     var selRam = $('formRamSelect');
-    if (selRam && rams.length && !ehParada()) {
+    if (selRam && rams.length && !ehParada() && !A.semJob) {
       selRam.innerHTML = '<option value="">Nenhuma — apontamento comum</option>' + rams.map(function (r) { return '<option value="' + E(r.id) + '" data-numero="' + E(r.numero) + '">RAM ' + E(r.numero) + '</option>'; }).join('');
       selRam.value = A.ram || '';
     }
