@@ -577,7 +577,7 @@ const db = {
     // Créditos/débitos automáticos (hora extra, saída antecipada, atraso no banco) nascem
     // "Pendente" até o supervisor validar. Manual, folga compensatória e acerto já nascem validados.
     if (!dados.id && !dados.status) {
-      const precisaValidar = ['Hora Extra Automática','Saída Antecipada','Banco de Horas'].includes(dados.origem);
+      const precisaValidar = ['Hora Extra Automática','Saída Antecipada','Banco de Horas','Falta (dia todo)'].includes(dados.origem);
       dados.status = precisaValidar ? 'Pendente' : 'Validado';
     }
     if (dados.id) return await db._patch('banco_horas', 'id=eq.' + dados.id, dados);
