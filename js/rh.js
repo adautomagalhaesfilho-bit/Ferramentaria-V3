@@ -964,8 +964,14 @@ function fecharEdicaoFerias() { document.getElementById('modalEditFeriasWrap')?.
 // Regra: sair para almoçar depois do limite exige justificativa e aprovação (não mexe no banco de horas)
 var LIMITE_ALMOCO = '13:30';
 var MOTIVO_ALMOCO = 'Almoço fora do horário';
+var _TIPOS_REG = [
+  { id:'atraso', icone:'🕒', nome:'Chegou atrasado',        desc:'Entrou depois do horário. Informe só a hora que chegou.',          motivos:['Atraso de roteiro','Problema no relógio de ponto','Atraso Justificado','Atraso Injustificado','Banco de Horas','Outros'] },
+  { id:'cedo',   icone:'🚪', nome:'Saiu mais cedo',         desc:'Foi embora antes do fim do expediente e não voltou.',              motivos:['Saída Antecipada','Exame / Médico','Banco de Horas','Outros'] },
+  { id:'volta',  icone:'↔️', nome:'Saiu e voltou no dia',   desc:'Ficou ausente um tempo (médico, almoço fora do horário...).',     motivos:['Almoço fora do horário','Exame / Médico','Banco de Horas','Outros'] },
+  { id:'dia',    icone:'🚫', nome:'Faltou o dia todo',      desc:'Não veio trabalhar. Entra como débito no banco de horas.',        motivos:['Falta Injustificada','Falta Justificada','Exame / Médico','Banco de Horas','Outros'] }
+];
 var _MOTIVOS_FALTA = ['Falta Injustificada','Falta Justificada','Exame / Médico','Banco de Horas','Outros'];   // faltou o dia todo
-var _MOTIVOS_PARCIAL = ['Almoço fora do horário','Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
+var _MOTIVOS_PARCIAL = ['Almoço fora do horário','Atraso de roteiro','Problema no relógio de ponto','Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
 
 function _setorDoFuncionario(nome) {
   const L = _listas || {};
@@ -1014,22 +1020,21 @@ async function carregarParciais() {
   el.innerHTML = `
   <div class="card" style="background:#fefce8;border-color:#fde68a">
     <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">⏱️ Registrar Ocorrência</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-      <label id="parcTipoParcialLbl" style="flex:1;min-width:200px;cursor:pointer;border:2px solid #d97706;background:#fef3c7;border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px;color:#92400e">
-        <input type="radio" name="parcTipoReg" value="parcial" checked onchange="_atualizarFormParcial()"> ⏱️ Atraso, saída ou ausência no dia
-        <div style="font-weight:400;font-size:12px">A pessoa veio, mas chegou tarde ou saiu em algum momento</div></label>
-      <label id="parcTipoDiaLbl" style="flex:1;min-width:200px;cursor:pointer;border:2px solid #e2e8f0;background:#fff;border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px;color:#475569">
-        <input type="radio" name="parcTipoReg" value="dia" onchange="_atualizarFormParcial()"> 🚫 Faltou o dia todo
-        <div style="font-weight:400;font-size:12px">Não veio trabalhar. Entra como débito no banco de horas</div></label>
+    <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">1. O que aconteceu?</div>
+    <div id="parcTipos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px">
+      ${_TIPOS_REG.map((t,i)=>`<label data-tipo="${t.id}" style="cursor:pointer;border:2px solid #e2e8f0;background:#fff;border-radius:10px;padding:10px 14px;font-weight:700;font-size:14px">
+        <input type="radio" name="parcTipoReg" value="${t.id}" ${i===0?'checked':''} onchange="_atualizarFormParcial()"> ${t.icone} ${t.nome}
+        <div style="font-weight:400;font-size:12px;color:#64748b">${t.desc}</div></label>`).join('')}
     </div>
+    <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">2. Preencha os dados</div>
     <div id="parcAvisoAlmoco" style="font-size:12px;color:#92400e;background:#fff;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:12px">
       🍽️ <b>Almoço:</b> o limite para sair é <b>${LIMITE_ALMOCO}</b>. Quem sair depois desse horário precisa registrar aqui, com <b>justificativa</b>, e a saída fica aguardando aprovação do supervisor. Não altera o banco de horas.
     </div>
     <div class="form-row">
       <div class="form-group"><label>Técnico *</label><select id="parcFunc" onchange="_atualizarFormParcial()"><option value="">Selecione...</option>${funcs.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('')}</select></div>
       <div class="form-group"><label>Data *</label><input type="date" id="parcData" value="${hojeLocal()}"></div>
-      <div class="form-group" id="parcGrpIni"><label>Saída</label><input type="time" id="parcIni"></div>
-      <div class="form-group" id="parcGrpFim"><label>Retorno</label><input type="time" id="parcFim"></div>
+      <div class="form-group" id="parcGrpIni" style="display:none"><label>Saiu às *</label><input type="time" id="parcIni"></div>
+      <div class="form-group" id="parcGrpFim"><label>Chegou às *</label><input type="time" id="parcFim"></div>
     </div>
     <div id="parcAvisoDia" style="display:none;font-size:13px;color:#7f1d1d;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:9px 12px;margin-bottom:12px"></div>
     <div class="form-row">
@@ -1076,33 +1081,47 @@ async function carregarParciais() {
   await _renderizarParciais();
 }
 
-function _parcModoDia() { return document.querySelector('input[name="parcTipoReg"]:checked')?.value === 'dia'; }
+function _parcTipo() { return document.querySelector('input[name="parcTipoReg"]:checked')?.value || 'atraso'; }
+function _parcModoDia() { return _parcTipo() === 'dia'; }
 
 function _atualizarFormParcial() {
-  const dia = _parcModoDia();
+  const tipo = _parcTipo(), dia = tipo === 'dia';
+  const cfg = _TIPOS_REG.find(t => t.id === tipo);
   const selM = document.getElementById('parcMotivo');
-  // troca a lista de motivos conforme o tipo de registro (mantém a escolha se ela existir na nova lista)
-  const lista = dia ? _MOTIVOS_FALTA : _MOTIVOS_PARCIAL;
-  if (selM && selM.dataset.modo !== (dia ? 'dia' : 'parcial')) {
-    selM.innerHTML = lista.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
-    selM.dataset.modo = dia ? 'dia' : 'parcial';
+  if (selM && selM.dataset.modo !== tipo) {   // troca a lista de motivos conforme o tipo
+    selM.innerHTML = cfg.motivos.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    selM.dataset.modo = tipo;
   }
   const m = selM?.value;
-  const lbl = document.getElementById('parcObsLabel');
-  const inp = document.getElementById('parcObs');
-  const almoco = !dia && m === MOTIVO_ALMOCO;
+  const almoco = tipo === 'volta' && m === MOTIVO_ALMOCO;
+  const lbl = document.getElementById('parcObsLabel'), inp = document.getElementById('parcObs');
   if (lbl) lbl.innerText = (almoco || dia) ? 'Justificativa *' : 'Observação';
   if (inp) inp.placeholder = dia ? 'Explique o motivo da falta' : almoco ? 'Explique por que saiu para almoçar após ' + LIMITE_ALMOCO : 'Detalhes adicionais...';
   const show = (id, v) => { const el = document.getElementById(id); if (el) el.style.display = v ? '' : 'none'; };
-  show('parcGrpIni', !dia); show('parcGrpFim', !dia);
-  show('parcAvisoAlmoco', !dia);
-  const tp = document.getElementById('parcTipoParcialLbl'), td = document.getElementById('parcTipoDiaLbl');
-  if (tp && td) {
-    tp.style.cssText += dia ? ';border-color:#e2e8f0;background:#fff;color:#475569' : ';border-color:#d97706;background:#fef3c7;color:#92400e';
-    td.style.cssText += dia ? ';border-color:#dc2626;background:#fee2e2;color:#991b1b' : ';border-color:#e2e8f0;background:#fff;color:#475569';
-  }
+  show('parcGrpIni', tipo === 'cedo' || tipo === 'volta');
+  show('parcGrpFim', tipo === 'atraso' || tipo === 'volta');
+  const li = document.querySelector('#parcGrpIni label'), lf = document.querySelector('#parcGrpFim label');
+  if (li) li.innerText = 'Saiu às *';
+  if (lf) lf.innerText = tipo === 'atraso' ? 'Chegou às *' : 'Voltou às *';
+  show('parcAvisoAlmoco', almoco);
+  document.querySelectorAll('#parcTipos label').forEach(l => {
+    const ativo = l.dataset.tipo === tipo, t = l.dataset.tipo === 'dia';
+    l.style.borderColor = ativo ? (t ? '#dc2626' : '#d97706') : '#e2e8f0';
+    l.style.background  = ativo ? (t ? '#fee2e2' : '#fef3c7') : '#fff';
+    l.style.color       = ativo ? (t ? '#991b1b' : '#92400e') : '#475569';
+  });
   const av = document.getElementById('parcAvisoDia');
   if (av) { av.style.display = dia ? '' : 'none'; if (dia) _avisoDebitoDia(av); }
+}
+
+// Entrada do turno da pessoa (usada no "Chegou atrasado": o atraso vai da entrada até a hora que chegou)
+async function _entradaTurno(func) {
+  try {
+    const f = await db._get('funcionarios', 'nome=eq.'+encodeURIComponent(func), 'turno');
+    const nome = (f && f[0] && f[0].turno) || '5x2';
+    const t = await db._get('turnos', 'nome=eq.'+encodeURIComponent(nome)+'&ativo=eq.true', 'hora_entrada');
+    return (t && t[0] && t[0].hora_entrada) ? String(t[0].hora_entrada).substring(0,5) : '07:30';
+  } catch (e) { return '07:30'; }
 }
 
 // Mostra quanto será debitado (jornada do turno da pessoa)
@@ -1139,7 +1158,8 @@ function _filtrarParciaisVisiveis(lista) {
 async function _renderizarParciais() {
   try {
     const mes = document.getElementById('parcFiltroMes')?.value || hojeLocal().substring(0,7);
-    const res = await db.listarParciais(mes + '-01', mes + '-31');
+    const _ym = mes.split('-'); const _ult = new Date(+_ym[0], +_ym[1], 0).getDate();   // último dia real do mês (nov tem 30)
+    const res = await db.listarParciais(mes + '-01', mes + '-' + String(_ult).padStart(2,'0'));
     _parciaisCarregados = res;
     const lista = _filtrarParciaisVisiveis(res);
     const tbody = document.getElementById('tbodyParciais');
@@ -1272,6 +1292,7 @@ function abrirEdicaoParcial(p) {
       </div>
       <div class="form-group"><label>Data *</label><input type="date" id="efParcData" value="${esc(p.data||'')}"></div>
       <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="efParcDia" ${p.dia_todo?'checked':''} onchange="_efParcAlternarDia()"> 🚫 Faltou o dia todo</label></div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:6px">Chegou atrasado: Saída = horário de entrada do turno e Retorno = hora que chegou. Saiu mais cedo e não voltou: só a Saída.</div>
       <div class="form-row" id="efParcHorarios" style="${p.dia_todo?'display:none':''}">
         <div class="form-group"><label>Saída</label><input type="time" id="efParcIni" value="${esc(p.inicio?p.inicio.substring(0,5):'')}"></div>
         <div class="form-group"><label>Retorno</label><input type="time" id="efParcFim" value="${esc(p.fim?p.fim.substring(0,5):'')}"></div>
@@ -1381,13 +1402,23 @@ async function _uploadImagemParcial(file, funcionario, data) {
 async function salvarParcial() {
   const func=document.getElementById('parcFunc')?.value;
   const dt=document.getElementById('parcData')?.value;
-  const dia=_parcModoDia();
-  const ini=dia ? '' : document.getElementById('parcIni')?.value;
-  const fim=dia ? '' : document.getElementById('parcFim')?.value;
+  const tipoReg=_parcTipo(); const dia=tipoReg==='dia';
+  let ini=(tipoReg==='cedo'||tipoReg==='volta') ? document.getElementById('parcIni')?.value : '';
+  let fim=(tipoReg==='atraso'||tipoReg==='volta') ? document.getElementById('parcFim')?.value : '';
   const motivo=document.getElementById('parcMotivo')?.value;
   const obs=document.getElementById('parcObs')?.value?.trim()||null;
   if (!func||!dt||!motivo) return toast('Preencha funcionário, data e motivo.','erro');
-  const almoco = !dia && motivo === MOTIVO_ALMOCO;
+  const almoco = tipoReg==='volta' && motivo === MOTIVO_ALMOCO;
+  if (tipoReg==='atraso') {
+    if (!fim) return toast('Informe a hora em que chegou.','erro');
+    ini = await _entradaTurno(func);
+    if (fim <= ini) return toast('A hora de chegada precisa ser depois da entrada do turno (' + ini + ').','erro');
+  }
+  if (tipoReg==='cedo' && !ini) return toast('Informe a hora em que saiu.','erro');
+  if (tipoReg==='volta') {
+    if (!ini || !fim) return toast('Informe a hora que saiu e a hora que voltou.','erro');
+    if (fim <= ini) return toast('O retorno precisa ser depois da saída.','erro');
+  }
   if (dia) {
     const obsF = document.getElementById('parcObs')?.value?.trim() || '';
     if (obsF.length < 3) return toast('Escreva a justificativa da falta.','erro');
@@ -1412,7 +1443,7 @@ async function salvarParcial() {
     const res = await db.salvarParcial({ funcionario:func, data:dt, inicio:ini||null, fim:fim||null,
       motivo, obs, imagem_url:imagemUrl, setor:_setorDoFuncionario(func), criado_por:_sessao?.nome||null,
       dia_todo: dia, status: almoco ? 'Pendente' : null });
-    toast(almoco ? 'Registrado! Aguardando aprovação do supervisor.' : dia ? 'Falta registrada e lançada no banco de horas!' : 'Registrado!','sucesso');
+    toast(almoco ? 'Registrado! Aguardando aprovação do supervisor.' : tipoReg==='atraso' ? 'Atraso registrado!' : dia ? 'Falta registrada e lançada no banco de horas!' : 'Registrado!','sucesso');
     if (!almoco && typeof sincronizarDebitoParcial === 'function') {
       const novoId = res && res[0] ? res[0].id : null;
       if (novoId) await sincronizarDebitoParcial({ id:novoId, funcionario:func, data:dt, inicio:ini||null, fim:fim||null, motivo, dia_todo:dia });
