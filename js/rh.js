@@ -965,13 +965,13 @@ function fecharEdicaoFerias() { document.getElementById('modalEditFeriasWrap')?.
 var LIMITE_ALMOCO = '13:30';
 var MOTIVO_ALMOCO = 'Almoço fora do horário';
 var _TIPOS_REG = [
-  { id:'atraso', icone:'🕒', nome:'Chegou atrasado',        desc:'Entrou depois do horário. Informe só a hora que chegou.',          motivos:['Atraso Justificado','Atraso Injustificado','Banco de Horas','Outros'] },
+  { id:'atraso', icone:'🕒', nome:'Chegou atrasado',        desc:'Entrou depois do horário. Informe só a hora que chegou.',          motivos:['Atraso de roteiro','Problema no relógio de ponto','Atraso Justificado','Atraso Injustificado','Banco de Horas','Outros'] },
   { id:'cedo',   icone:'🚪', nome:'Saiu mais cedo',         desc:'Foi embora antes do fim do expediente e não voltou.',              motivos:['Saída Antecipada','Exame / Médico','Banco de Horas','Outros'] },
   { id:'volta',  icone:'↔️', nome:'Saiu e voltou no dia',   desc:'Ficou ausente um tempo (médico, almoço fora do horário...).',     motivos:['Almoço fora do horário','Exame / Médico','Banco de Horas','Outros'] },
   { id:'dia',    icone:'🚫', nome:'Faltou o dia todo',      desc:'Não veio trabalhar. Entra como débito no banco de horas.',        motivos:['Falta Injustificada','Falta Justificada','Exame / Médico','Banco de Horas','Outros'] }
 ];
 var _MOTIVOS_FALTA = ['Falta Injustificada','Falta Justificada','Exame / Médico','Banco de Horas','Outros'];   // faltou o dia todo
-var _MOTIVOS_PARCIAL = ['Almoço fora do horário','Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
+var _MOTIVOS_PARCIAL = ['Almoço fora do horário','Atraso de roteiro','Problema no relógio de ponto','Atraso Justificado','Atraso Injustificado','Saída Antecipada','Exame / Médico','Banco de Horas','Outros'];
 
 function _setorDoFuncionario(nome) {
   const L = _listas || {};
