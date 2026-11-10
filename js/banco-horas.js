@@ -306,13 +306,31 @@ async function sincronizarHorasExtras() {
 async function sincronizarDebitoParcial(parcial) {
   try {
     const motivosComDebito = ['Saída Antecipada', 'Banco de Horas'];
-    if (!parcial || !motivosComDebito.includes(parcial.motivo) || !parcial.id || !parcial.inicio) return;
+    if (!parcial || !parcial.id) return;
+    const aplica = parcial.dia_todo || (motivosComDebito.includes(parcial.motivo) && parcial.inicio);
+    if (!aplica) { await removerDebitoParcial(parcial.id); return; }   // editou para um motivo sem débito: tira o débito antigo
 
     const refId = 'PARC-' + parcial.id;
     // Remove débito anterior deste registro (caso de edição) antes de recalcular
     const existentes = await db._get('banco_horas', 'referencia_id=eq.'+encodeURIComponent(refId), 'id,status,validado_por,validado_em');
     const anterior = (existentes||[])[0] || null; // mantém a validação já feita pelo supervisor
     for (const ex of (existentes||[])) await db.excluirBancoHoras(ex.id);
+
+    // Faltou o dia todo: débito = jornada inteira do turno (capacidade do turno)
+    if (parcial.dia_todo) {
+      const funcRow = await db._get('funcionarios', 'nome=eq.'+encodeURIComponent(parcial.funcionario), 'turno');
+      const turnoNome = (funcRow && funcRow[0] && funcRow[0].turno) || '5x2';
+      const turnoRow = await db._get('turnos', 'nome=eq.'+encodeURIComponent(turnoNome)+'&ativo=eq.true', 'capacidade_min');
+      const jornada = (turnoRow && turnoRow[0] && turnoRow[0].capacidade_min) ? Number(turnoRow[0].capacidade_min) : 528;
+      await db.salvarBancoHoras({
+        funcionario: parcial.funcionario, data: parcial.data, tipo: 'Debito',
+        origem: 'Falta (dia todo)', minutos: jornada,
+        descricao: 'Falta o dia todo — ' + parcial.motivo + ' (débito automático da jornada do turno ' + turnoNome + ')',
+        referencia_id: refId, criado_por: _sessao?.nome || null,
+        ...(anterior ? { status: anterior.status || 'Pendente', validado_por: anterior.validado_por || null, validado_em: anterior.validado_em || null } : {})
+      });
+      return;
+    }
 
     const iniMin = _paraMinutosDoDia(parcial.inicio);
     if (iniMin === null) return;
