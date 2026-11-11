@@ -135,7 +135,7 @@ const db = {
 
   obterListas: async function() {
     const [funcionarios, maquinas, jobs, categorias, motivos, injetoras] = await Promise.all([
-      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'id,nome,setor,turno,cargo,setor_apontamento_extra'),
+      db._get('funcionarios', 'ativo=eq.true&order=nome.asc', 'id,nome,setor,turno,cargo,setor_apontamento_extra,matricula'),
       db._get('maquinas', 'ativo=eq.true&order=nome.asc', 'nome,turno,cap_liquida,tipo'),
       db._get('jobs', 'ativo=eq.true&order=nome.asc', 'nome'),
       db._get('prod_categorias', 'ativo=eq.true&order=setor.asc,tipo.asc,atividade.asc', '*'),
@@ -184,6 +184,8 @@ const db = {
     // horas/faltas/férias — assim, renomear um funcionário não perde o histórico
     const mapaFuncionarioId = {};
     funcionarios.forEach(f => { mapaFuncionarioId[f.nome] = f.id; });
+    const mapaMatricula = {};   // nome -> matrícula (mostrada ao lado do nome nos lançamentos)
+    funcionarios.forEach(f => { if (f.matricula) mapaMatricula[f.nome] = f.matricula; });
 
     return {
       funcionarios:    funcUsina,
@@ -192,6 +194,7 @@ const db = {
       funcProducao:    funcProducao,
       funcSupervisores: funcSupervisores,
       mapaFuncionarioId: mapaFuncionarioId,
+      mapaMatricula:   mapaMatricula,
       maquinas:        maquinas.map(m => m.nome),
       maquinasTipo:    Object.fromEntries(maquinas.map(m => [m.nome, m.tipo || 'Principal'])),
       jobs:            jobs.map(j => j.nome),

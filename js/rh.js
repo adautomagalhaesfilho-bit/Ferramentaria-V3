@@ -307,12 +307,17 @@ function abrirFichaTecnico(nome) {
 }
 
 // Retorna o nome como span clicável (se o usuário tiver permissão) ou texto simples
+// Matrícula ao lado do nome (pequena, cinza). Vazio se a pessoa não tem matrícula cadastrada.
+function matriculaBadge(nome) {
+  const m = (typeof _listas !== 'undefined' && _listas && _listas.mapaMatricula) ? _listas.mapaMatricula[String(nome||'').trim()] : null;
+  return m ? ` <span style="font-size:11px;font-weight:600;color:#64748b;white-space:nowrap">#${esc(m)}</span>` : '';
+}
 function nomeTecnicoClicavel(nome) {
   if (!nome) return '—';
   const nomeUpper = String(nome).toUpperCase();
   if (nomeUpper.includes('SEM OPERADOR') || nomeUpper === '—') return esc(nome);
-  if (!_podeVerFichaFuncionario()) return esc(nome);
-  return `<span style="cursor:pointer;color:#0056b3;text-decoration:underline dotted" onclick="event.stopPropagation();abrirFichaTecnico('${escJs(nome)}')">${esc(nome)}</span>`;
+  if (!_podeVerFichaFuncionario()) return esc(nome) + matriculaBadge(nome);
+  return `<span style="cursor:pointer;color:#0056b3;text-decoration:underline dotted" onclick="event.stopPropagation();abrirFichaTecnico('${escJs(nome)}')">${esc(nome)}</span>` + matriculaBadge(nome);
 }
 
 // Chamada pela lista de Funcionários (mantém compatibilidade com onclick existente)
