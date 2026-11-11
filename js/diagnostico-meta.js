@@ -322,7 +322,7 @@ function _dmAbrir(id) {
   // lançamentos do dia
   const lancs = (x.r.lancs || []).slice().sort((a,b) => (a.horaInicio || '').localeCompare(b.horaInicio || '')).concat(x.r.pars || []);
   const linhaL = l => `<li class="dm-lanc"><div class="dm-lh"><b>${esc(l.horaInicio || '—')} às ${esc(l.horaFim || '—')}</b> <span class="dm-mut">${_dmDur(l.minutos || 0)}</span></div>
-    <div class="dm-lb">${l.job ? '<b>' + esc(l.job) + '</b> · ' : ''}${esc(l.tipo === 'Parada de Máquina' ? 'Parada — ' + (l.motivo || 'sem motivo') : (l.tipo || ''))}${!eq && l.funcionario ? ' · ' + esc(l.funcionario) : ''}${eq && l.maquina ? ' · ' + esc(l.maquina) : ''}${l.setor && l.setor !== 'Usinagem' ? ' · ' + esc(l.setor) : ''}
+    <div class="dm-lb">${l.job ? '<b>' + esc(l.job) + '</b> · ' : ''}${esc(l.tipo === 'Parada de Máquina' ? 'Parada — ' + (l.motivo || 'sem motivo') : (l.tipo || ''))}${!eq && l.funcionario ? ' · ' + esc(l.funcionario) + (typeof matriculaBadge === 'function' ? matriculaBadge(l.funcionario) : '') : ''}${eq && l.maquina ? ' · ' + esc(l.maquina) : ''}${l.setor && l.setor !== 'Usinagem' ? ' · ' + esc(l.setor) : ''}
       ${l.descricao ? '<div class="dm-mut">' + esc(l.descricao) + '</div>' : ''}${l.descontaAlmoco ? '<div class="dm-mut">Almoço descontado</div>' : ''}${_minutosAutoLanc(l) ? '<div class="dm-mut">Máquina em automático: ' + _dmDur(_minutosAutoLanc(l)) + '</div>' : ''}</div>
     ${editar ? `<button class="dm-btn" data-ed="${l.id}|${esc(l.data)}|${esc(l.setor || 'Usinagem')}">✏️ Editar</button>` : ''}</li>`;
   const blocoL = lancs.length ? `<ul class="dm-lancs">${lancs.map(linhaL).join('')}</ul>` : `<div class="dm-nota">${x.r.fer ? 'Sem lançamentos, como esperado nas férias.' : 'Nenhum lançamento neste dia.'}</div>`;
