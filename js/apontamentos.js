@@ -295,8 +295,11 @@ function _perguntarSetorApontamento(formularioCompleto) {
     const setor = b ? b.dataset.setor : '';
     o.remove();
     if (!setor) return;
-    if (_setorAtivo !== setor || _telaAtual !== setor.toLowerCase()) irPara(setor.toLowerCase(), document.getElementById('menu' + setor));
-    abrirNovoApontamento(formularioCompleto, true);
+    if (_setorAtivo === setor && _telaAtual === setor.toLowerCase()) return abrirNovoApontamento(formularioCompleto, true);
+    // Troca de tela primeiro. A tela só define o setor ativo (abrirSetor) ~50 ms depois,
+    // então o formulário só pode abrir depois disso, senão abre o setor da tela anterior.
+    irPara(setor.toLowerCase(), document.getElementById('menu' + setor));
+    setTimeout(function () { _setorAtivo = setor; abrirNovoApontamento(formularioCompleto, true); }, 120);
   };
   document.body.appendChild(o);
 }
