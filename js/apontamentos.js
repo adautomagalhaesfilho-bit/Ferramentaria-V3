@@ -275,7 +275,34 @@ function renderizarApontamentos() {
 // ==========================================
 // ➕ NOVO / EDITAR
 // ==========================================
-function abrirNovoApontamento(formularioCompleto) {
+// Usuário de apontamento compartilhado: pergunta o setor antes de abrir o formulário de sempre
+function _perguntarSetorApontamento(formularioCompleto) {
+  let o = document.getElementById('modalSetorApont');
+  if (o) o.remove();
+  o = document.createElement('div');
+  o.id = 'modalSetorApont';
+  o.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10100;display:flex;align-items:center;justify-content:center;padding:16px';
+  o.innerHTML = `<div style="background:#fff;border-radius:16px;padding:22px 18px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:22px;font-weight:800;color:#14202b">Esse lançamento é de qual setor?</div>
+      <div style="font-size:14px;color:#5a6b7a">Escolha o setor para abrir o formulário certo.</div>
+      <button type="button" data-setor="Usinagem" style="font:700 20px inherit;padding:18px;border-radius:12px;border:2px solid #0b5cab;background:#e3eefa;color:#0b5cab;cursor:pointer">⚙️ Usinagem</button>
+      <button type="button" data-setor="Bancada" style="font:700 20px inherit;padding:18px;border-radius:12px;border:2px solid #0b5cab;background:#e3eefa;color:#0b5cab;cursor:pointer">🛠️ Bancada</button>
+      <button type="button" data-setor="" style="font:600 15px inherit;padding:10px;border:0;background:none;color:#5a6b7a;cursor:pointer">Cancelar</button>
+    </div>`;
+  o.onclick = function (e) {
+    const b = e.target.closest('button');
+    if (!b && e.target !== o) return;
+    const setor = b ? b.dataset.setor : '';
+    o.remove();
+    if (!setor) return;
+    if (_setorAtivo !== setor || _telaAtual !== setor.toLowerCase()) irPara(setor.toLowerCase(), document.getElementById('menu' + setor));
+    abrirNovoApontamento(formularioCompleto, true);
+  };
+  document.body.appendChild(o);
+}
+
+function abrirNovoApontamento(formularioCompleto, setorJaEscolhido) {
+  if (!setorJaEscolhido && typeof ehApontamentoCompartilhado === 'function' && ehApontamentoCompartilhado()) return _perguntarSetorApontamento(formularioCompleto);
   document.getElementById('formId').value = '';
   document.getElementById('formSetor').value = _setorAtivo;
   _statusForm = null;
