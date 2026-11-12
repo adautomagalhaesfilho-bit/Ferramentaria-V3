@@ -58,6 +58,11 @@ function podeVerDash()    { return _temPermissao('dashboard'); }
 function podeVerRH()      { return _temPermissao('rh'); }
 function podeVerMoldes()  { return _temPermissao('moldes'); }
 function isAdmin()        { return _sessao?.perfil === 'admin'; }
+// Usuário de apontamento compartilhado: operador com permissão de Usinagem E Bancada ao mesmo tempo.
+// Ele vê os dois setores e, ao criar um lançamento, escolhe qual setor.
+function ehApontamentoCompartilhado() {
+  return _sessao?.perfil === 'operador' && _sessao?.permissoes?.usinagem === true && _sessao?.permissoes?.bancada === true;
+}
 function isPCM()          { return _sessao?.perfil === 'pcm' || isAdmin(); }
 
 async function fazerLogout() {
@@ -107,8 +112,8 @@ function aplicarPermissoes() {
   // Menus: visibilidade baseada em permissões customizadas
   const menus = {
     menuDashboard:    _temPermissao('dashboard'),
-    menuUsinagem:     _temPermissao('usinagem') && (p!=='operador' || s==='Usinagem'),
-    menuBancada:      _temPermissao('bancada')  && (p!=='operador' || s==='Bancada'),
+    menuUsinagem:     _temPermissao('usinagem') && (p!=='operador' || s==='Usinagem' || ehApontamentoCompartilhado()),
+    menuBancada:      _temPermissao('bancada')  && (p!=='operador' || s==='Bancada'  || ehApontamentoCompartilhado()),
     menuProjeto:      _temPermissao('projeto')  && (p!=='operador' || s==='Projeto'),
     menuProducao:     _temPermissao('producao') && (p!=='operador' || s==='Producao'),
     // menuMoldes removido — tela de moldes descontinuada
