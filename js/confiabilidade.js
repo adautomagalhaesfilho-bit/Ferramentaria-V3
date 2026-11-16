@@ -104,7 +104,8 @@ function confCalcular(dados) {
     ocorrencias: ocs, leituras: leit, intervalos: ints,
     mtbfDias: media(dm), mtbfCiclos: media(cc), nDias: dm.length, nCiclos: cc.length,
     mttrTotal: media(ocs.map(o => o.total)), mttrMaq: media(maq), mttrBanc: media(ban),
-    tendencia, suficiente: ocs.length >= 3
+    tendencia, suficiente: ocs.length >= 3,
+    montado, hojeDia: hoje, inicioHist: isFinite(inicioHist) ? inicioHist : null
   };
 }
 
@@ -121,6 +122,32 @@ async function confiabilidadeCarregar(job) {
 
 function _confNum(n, dec) { return n == null ? '—' : Number(n).toLocaleString('pt-BR', { maximumFractionDigits: dec || 0 }); }
 
+
+// Linha do tempo da vida do molde: verde = montado na injetora, cinza = fora da máquina, vermelho = ocorrência de corretiva
+function _confSvgLinhaTempo(r) {
+  if (!r.montado || !r.montado.length || !r.ocorrencias.length) return '';
+  const ocD = r.ocorrencias.map(o => ({ ini: _confDia(o.ini), fim: _confDia(o.fim), o }));
+  const d0 = Math.min(r.montado[0][0], ...ocD.map(x => x.ini)), d1 = Math.max(r.hojeDia, ...ocD.map(x => x.fim));
+  const W = 640, ml = 12, mr = 12, yb = 46, hb = 22, span = Math.max(1, d1 - d0);
+  const x = d => ml + (d - d0) / span * (W - ml - mr);
+  const mont = r.montado.map(([a, b]) => `<rect x="${x(a).toFixed(1)}" y="${yb}" width="${Math.max(2, x(Math.min(b, d1)) - x(a)).toFixed(1)}" height="${hb}" fill="#10b981" rx="3"><title>Montado na injetora: ${_confBr(_confIso(a))} a ${_confBr(_confIso(Math.min(b, d1)))} (${Math.min(b, d1) - a} dias)</title></rect>`).join('');
+  // meses no eixo
+  const ticks = []; const dt = new Date(d0 * 86400000); dt.setUTCDate(1); dt.setUTCMonth(dt.getUTCMonth() + 1);
+  for (; dt.getTime() / 86400000 < d1; dt.setUTCMonth(dt.getUTCMonth() + 1)) ticks.push(Math.round(dt.getTime() / 86400000));
+  const eixo = ticks.map(t => `<line x1="${x(t).toFixed(1)}" x2="${x(t).toFixed(1)}" y1="${yb + hb}" y2="${yb + hb + 5}" stroke="#94a3b8"/><text x="${x(t).toFixed(1)}" y="${yb + hb + 16}" text-anchor="middle" font-size="9" fill="#64748b">${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][new Date(t * 86400000).getUTCMonth()]}</text>`).join('');
+  const marc = ocD.map((m, k) => {
+    const cx = x((m.ini + m.fim) / 2), alto = k % 2 === 0;
+    return `<rect x="${(x(m.ini) - 1).toFixed(1)}" y="${yb - 4}" width="${Math.max(3, x(m.fim) - x(m.ini) + 2).toFixed(1)}" height="${hb + 8}" fill="#ef4444" rx="2"><title>Corretiva ${_confBr(m.o.ini)}: ${_confNum(m.o.total)} min da Ferramentaria (${esc(m.o.onde)})</title></rect>` +
+      `<line x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${alto ? 22 : 30}" y2="${yb - 4}" stroke="#ef4444" stroke-width="1"/>` +
+      `<text x="${cx.toFixed(1)}" y="${alto ? 18 : 28}" text-anchor="${cx > W - 70 ? 'end' : cx < 70 ? 'start' : 'middle'}" font-size="9.5" font-weight="700" fill="#b91c1c">${_confBr(m.o.ini).substring(0, 5)} · ${_confNum(m.o.total)} min</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${yb + hb + 22}" style="width:100%;height:auto" role="img" aria-label="Linha do tempo do molde">
+    <rect x="${ml}" y="${yb}" width="${W - ml - mr}" height="${hb}" fill="#e2e8f0" rx="3"/>${mont}${marc}${eixo}</svg>
+    <div style="font-size:11px;color:#64748b;display:flex;gap:14px;flex-wrap:wrap;margin-top:2px">
+      <span><i style="display:inline-block;width:10px;height:10px;background:#10b981;border-radius:2px"></i> montado na injetora</span>
+      <span><i style="display:inline-block;width:10px;height:10px;background:#e2e8f0;border-radius:2px;border:1px solid #cbd5e1"></i> fora da máquina</span>
+      <span><i style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px"></i> corretiva (minutos da Ferramentaria)</span></div>`;
+}
 
 // Gráfico de barras em SVG. itens: [{rot, partes:[{v,cor}]}]; barras empilhadas; linha tracejada = média
 function _confSvgBarras(itens, op) {
@@ -140,10 +167,10 @@ function _confSvgBarras(itens, op) {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:230px" role="img" aria-label="Gráfico de barras em ${esc(op.un)}">${grade}${bars}${med}</svg>`;
 }
 
-function confiabilidadeHTML(job, r) {
+function confiabilidadePartes(job, r) {
   if (!r.ocorrencias.length && !r.leituras.length) {
-    return `<div class="card" style="border-left:4px solid #f59e0b"><div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:6px">📈 Confiabilidade da Ferramentaria</div>
-      <div style="font-size:13px;color:#64748b">Este molde ainda não tem corretivas nem leituras do contador de ciclos.</div></div>`;
+    return { topo: `<div class="card" style="border-left:4px solid #f59e0b"><div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:6px">📈 Confiabilidade da Ferramentaria</div>
+      <div style="font-size:13px;color:#64748b">Este molde ainda não tem corretivas nem leituras do contador de ciclos.</div></div>`, base: '' };
   }
   const insuf = !r.suficiente;
   const aviso = insuf ? `<span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px">dados insuficientes: ${r.ocorrencias.length} de 3 ocorrências</span>` : '';
@@ -160,7 +187,9 @@ function confiabilidadeHTML(job, r) {
   const totMaq = r.ocorrencias.reduce((a, o) => a + (o.minMaq || 0), 0), totBanc = r.ocorrencias.reduce((a, o) => a + (o.minBanc || 0), 0);
   const pctMaq = totMaq + totBanc ? Math.round(totMaq / (totMaq + totBanc) * 100) : null;
   const legenda = '<span style="font-size:11px;color:#64748b;font-weight:400;margin-left:6px"><span style="display:inline-block;width:10px;height:10px;background:#0056b3;border-radius:2px;margin-right:3px"></span>máquina <span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin:0 3px 0 8px"></span>bancada</span>';
+  const linhaTempo = _confSvgLinhaTempo(r);
   const barras =
+    (linhaTempo ? `${grafTit('🕒 Linha do tempo do molde: onde ficou e quando falhou')}${linhaTempo}` : '') +
     ((serieDias.length || serieCic.length) ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
       ${serieDias.length ? `<div>${grafTit('📆 MTBF: dias montado entre ocorrências', pillT)}${_confSvgBarras(serieDias, { media: r.mtbfDias, un: 'dias', ok: !insuf })}</div>` : ''}
       ${serieCic.length ? `<div>${grafTit('🔢 MTBF: ciclos entre ocorrências', serieDias.length ? '' : pillT)}${_confSvgBarras(serieCic, { media: r.mtbfCiclos, un: 'ciclos', ok: !insuf })}</div>` : ''}
@@ -184,7 +213,7 @@ function confiabilidadeHTML(job, r) {
       <td>${esc(l.registrado_por || '—')}</td><td>${esc(l.origem || '')}${l.tipo ? ' · ' + esc(l.tipo) : ''}</td>
       ${admin ? `<td><button class="btn-secondary" style="font-size:11px;padding:2px 8px" onclick="confiabilidadeExcluirLeitura(${Number(l.id)}, '${escJs(job)}')">🗑</button></td>` : ''}</tr>`).join('');
 
-  return `
+  const topo = `
   <div class="card" style="border-left:4px solid #0056b3">
     <div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:4px">📈 Confiabilidade da Ferramentaria ${aviso}</div>
     <div style="font-size:12px;color:#64748b;margin-bottom:12px">Corretivas da Produção e da Bancada. Uma falha que passou da máquina para a bancada conta uma vez.</div>
@@ -196,14 +225,20 @@ function confiabilidadeHTML(job, r) {
     </div>
     <div style="font-size:12px;color:#64748b;margin-top:8px">Do MTTR: <b>${_confNum(r.mttrMaq)} min</b> em média na máquina (Produção) · <b>${_confNum(r.mttrBanc)} min</b> em média na bancada.</div>
     ${barras}
-    ${r.ocorrencias.length ? `<div style="margin:16px 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Ocorrências de corretiva</div>
+  </div>`;
+  const base = `
+  <div class="card" style="border-left:4px solid #0056b3">
+    ${r.ocorrencias.length ? `<div style="margin:0 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Ocorrências de corretiva</div>
     <div class="table-wrap"><table><thead><tr><th>Início</th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th></tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
     ${r.leituras.length ? `<div style="margin:16px 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Leituras do contador</div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th style="text-align:right">Ciclos</th><th style="text-align:right">Desde a anterior</th><th>Registrou</th><th>Origem</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>${linhasLeit}</tbody></table></div>` : ''}
     <div style="background:#e8f0fa;border-radius:8px;padding:10px 12px;font-size:12px;color:#5a6a7b;margin-top:14px"><b style="color:#14202e">Como é calculado.</b>
       Ocorrência = corretivas do mesmo molde sem o molde voltar para a máquina no meio (usa o histórico do PCM). MTTR = tempo de trabalho da Ferramentaria ÷ ocorrências. MTBF = dias montado na injetora, ou ciclos do contador, entre uma ocorrência e a próxima, em média. Não usa tempo de máquina parada, que é da produção. Com menos de 3 ocorrências os números não aparecem.</div>
   </div>`;
+  return { topo, base };
 }
+
+function confiabilidadeHTML(job, r) { const p = confiabilidadePartes(job, r); return p.topo + p.base; }
 
 async function confiabilidadeRenderizar(job) {
   const el = document.getElementById('fichaConfiab');
@@ -211,7 +246,9 @@ async function confiabilidadeRenderizar(job) {
   try {
     const dados = await confiabilidadeCarregar(job);
     if (document.getElementById('fichaConfiab') !== el) return;
-    el.innerHTML = confiabilidadeHTML(job, confCalcular(dados));
+    const p = confiabilidadePartes(job, confCalcular(dados));
+    el.innerHTML = p.topo;
+    const base = document.getElementById('fichaConfiabBase'); if (base) base.innerHTML = p.base;
   } catch (e) {
     console.error(e);
     el.innerHTML = '<div class="card"><div style="font-size:13px;color:#b91c1c">Não foi possível carregar a confiabilidade deste molde.</div></div>';
