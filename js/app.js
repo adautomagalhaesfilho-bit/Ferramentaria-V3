@@ -542,6 +542,12 @@ function abrirEdicaoJob(id) {
         <div style="font-size:11px;color:#94a3b8;margin-top:4px">Usado no controle de peso e balanceamento (uma medição por cavidade)</div>
       </div>
       <div class="form-group">
+        <label>Sistema de injeção</label>
+        <input type="text" id="editJobSistema" list="listaSistemasInj" value="${esc(job.sistema_injecao||'')}" placeholder="Ex: Husky">
+        <datalist id="listaSistemasInj">${[...new Set(['TGM','Husky','Moldmaster','Plastisud','Yudo','Direta com canal',..._todosJobsAdmin.map(x=>x.sistema_injecao).filter(Boolean)])].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Aparece na ficha do molde</div>
+      </div>
+      <div class="form-group">
         <label class="checkbox-label"><input type="checkbox" id="editJobAtivo" ${job.ativo?'checked':''}> Ativo</label>
       </div>
     </div>
@@ -561,13 +567,15 @@ async function salvarEdicaoJob(id) {
   const novoAtivo     = document.getElementById('editJobAtivo')?.checked;
   const cavidadesVal  = document.getElementById('editJobCavidades')?.value;
   const novasCavidades = cavidadesVal ? parseInt(cavidadesVal) : null;
+  const novoSistema = document.getElementById('editJobSistema')?.value?.trim() || null;
   if (!novoNome) return toast('Informe o nome.','erro');
   if (novasCavidades !== null && novasCavidades < 1) return toast('Número de cavidades deve ser pelo menos 1.','erro');
   try {
-    await db._patch('jobs', 'id=eq.'+id, { nome: novoNome, ativo: novoAtivo, num_cavidades: novasCavidades });
+    await db._patch('jobs', 'id=eq.'+id, { nome: novoNome, ativo: novoAtivo, num_cavidades: novasCavidades, sistema_injecao: novoSistema });
     if (job.nome !== novoNome) await registrarLog('jobs', id, 'editar', 'nome', job.nome, novoNome);
     if (job.ativo !== novoAtivo) await registrarLog('jobs', id, 'editar', 'ativo', job.ativo?'Ativo':'Inativo', novoAtivo?'Ativo':'Inativo');
     if ((job.num_cavidades||null) !== novasCavidades) await registrarLog('jobs', id, 'editar', 'num_cavidades', job.num_cavidades||'—', novasCavidades||'—');
+    if ((job.sistema_injecao||null) !== novoSistema) await registrarLog('jobs', id, 'editar', 'sistema_injecao', job.sistema_injecao||'—', novoSistema||'—');
     toast('Atualizado!','sucesso');
     fecharEdicaoJob();
     if (_listas) { _listas.jobs = (_listas.jobs||[]).map(j => j===job.nome ? novoNome : j); inicializarAutocompletes(); }
