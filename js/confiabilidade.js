@@ -121,6 +121,25 @@ async function confiabilidadeCarregar(job) {
 
 function _confNum(n, dec) { return n == null ? '—' : Number(n).toLocaleString('pt-BR', { maximumFractionDigits: dec || 0 }); }
 
+
+// Gráfico de barras em SVG. itens: [{rot, partes:[{v,cor}]}]; barras empilhadas; linha tracejada = média
+function _confSvgBarras(itens, op) {
+  const W = 420, H = 190, ml = 44, mr = 10, mt = 16, mb = 38;
+  const tot = i => i.partes.reduce((a, p) => a + p.v, 0);
+  const maxV = Math.max(1, ...itens.map(tot), op.media || 0) * 1.12;
+  const n = itens.length, bw = Math.min(46, (W - ml - mr) / n * 0.62), passo = (W - ml - mr) / n;
+  const y = v => mt + (H - mt - mb) * (1 - v / maxV);
+  const grade = [0, 0.5, 1].map(f => { const v = maxV / 1.12 * f; return `<line x1="${ml}" x2="${W - mr}" y1="${y(v)}" y2="${y(v)}" stroke="#e2e8f0"/><text x="${ml - 5}" y="${y(v) + 3}" text-anchor="end" font-size="9" fill="#94a3b8">${_confNum(v)}</text>`; }).join('');
+  const bars = itens.map((it, k) => {
+    const x = ml + passo * k + (passo - bw) / 2; let acc = 0;
+    const segs = it.partes.filter(p => p.v > 0).map(p => { const y0 = y(acc + p.v), h = y(acc) - y0; acc += p.v; return `<rect x="${x.toFixed(1)}" y="${y0.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" fill="${p.cor}" rx="3"><title>${esc((p.nome ? p.nome + ': ' : '') + _confNum(p.v) + ' ' + op.un)}</title></rect>`; }).join('');
+    return segs + `<text x="${(x + bw / 2).toFixed(1)}" y="${(y(acc) - 4).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#1e3a5f">${_confNum(acc)}</text>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${H - mb + 13}" text-anchor="middle" font-size="9" fill="#64748b">${esc(it.rot)}</text>`;
+  }).join('');
+  const med = op.media != null && op.ok ? `<line x1="${ml}" x2="${W - mr}" y1="${y(op.media)}" y2="${y(op.media)}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3"/><text x="${W - mr}" y="${y(op.media) - 4}" text-anchor="end" font-size="9.5" font-weight="700" fill="#ef4444" stroke="#fff" stroke-width="3" paint-order="stroke">média ${_confNum(op.media)}</text>` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:230px" role="img" aria-label="Gráfico de barras em ${esc(op.un)}">${grade}${bars}${med}</svg>`;
+}
+
 function confiabilidadeHTML(job, r) {
   if (!r.ocorrencias.length && !r.leituras.length) {
     return `<div class="card" style="border-left:4px solid #f59e0b"><div style="font-weight:700;color:#1e3a5f;font-size:15px;margin-bottom:6px">📈 Confiabilidade da Ferramentaria</div>
@@ -132,10 +151,23 @@ function confiabilidadeHTML(job, r) {
               : r.tendencia === 'melhorando' ? '<span style="font-size:11px;background:#10b981;color:#fff;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:6px">melhorando</span>' : '';
   const mostra = (v, dec) => insuf ? '—' : _confNum(v, dec);
 
-  const serie = r.intervalos.map(x => ({ ...x, v: x.ciclos != null ? x.ciclos : null })).filter(x => x.v != null);
-  const maxV = Math.max(1, ...serie.map(x => x.v));
-  const barras = serie.length ? `<div style="margin:14px 0 4px;font-weight:700;font-size:13px;color:#1e3a5f">Ciclos entre ocorrências ${pillT}</div>` +
-    serie.map(x => `<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px"><span style="width:130px;color:#64748b">${_confBr(x.de).substring(0, 5)} → ${_confBr(x.ate).substring(0, 5)}</span><i style="display:block;height:16px;border-radius:4px;background:#0056b3;width:${Math.max(4, Math.round(x.v / maxV * 60))}%"></i><span>${_confNum(x.v)}</span></div>`).join('') : '';
+  // Gráficos (SVG, sem biblioteca): MTBF em dias e em ciclos, MTTR por ocorrência e onde o tempo foi gasto
+  const grafTit = (t, extra) => `<div style="margin:18px 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">${t} ${extra || ''}</div>`;
+  const dd = x => _confBr(x.de).substring(0, 5) + '→' + _confBr(x.ate).substring(0, 5);
+  const serieDias = r.intervalos.filter(x => x.diasMontado != null).map(x => ({ rot: dd(x), partes: [{ v: x.diasMontado, cor: '#0056b3' }] }));
+  const serieCic = r.intervalos.filter(x => x.ciclos != null).map(x => ({ rot: dd(x), partes: [{ v: x.ciclos, cor: '#10b981' }] }));
+  const serieMttr = r.ocorrencias.map(o => ({ rot: _confBr(o.ini).substring(0, 5), partes: [{ v: o.minMaq || 0, cor: '#0056b3', nome: 'máquina' }, { v: o.minBanc || 0, cor: '#f59e0b', nome: 'bancada' }] }));
+  const totMaq = r.ocorrencias.reduce((a, o) => a + (o.minMaq || 0), 0), totBanc = r.ocorrencias.reduce((a, o) => a + (o.minBanc || 0), 0);
+  const pctMaq = totMaq + totBanc ? Math.round(totMaq / (totMaq + totBanc) * 100) : null;
+  const legenda = '<span style="font-size:11px;color:#64748b;font-weight:400;margin-left:6px"><span style="display:inline-block;width:10px;height:10px;background:#0056b3;border-radius:2px;margin-right:3px"></span>máquina <span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin:0 3px 0 8px"></span>bancada</span>';
+  const barras =
+    ((serieDias.length || serieCic.length) ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+      ${serieDias.length ? `<div>${grafTit('📆 MTBF: dias montado entre ocorrências', pillT)}${_confSvgBarras(serieDias, { media: r.mtbfDias, un: 'dias', ok: !insuf })}</div>` : ''}
+      ${serieCic.length ? `<div>${grafTit('🔢 MTBF: ciclos entre ocorrências', serieDias.length ? '' : pillT)}${_confSvgBarras(serieCic, { media: r.mtbfCiclos, un: 'ciclos', ok: !insuf })}</div>` : ''}
+    </div>` : `<div style="font-size:12px;color:#64748b;margin-top:14px">O gráfico de MTBF aparece a partir de 2 ocorrências.</div>`) +
+    (serieMttr.length ? `${grafTit('🛠️ MTTR: tempo da Ferramentaria em cada ocorrência (min)', legenda)}${_confSvgBarras(serieMttr, { media: r.mttrTotal, un: 'min', ok: !insuf })}` : '') +
+    (pctMaq != null ? `${grafTit('⚖️ Onde o tempo foi gasto')}<div style="display:flex;height:22px;border-radius:6px;overflow:hidden;font-size:11px;font-weight:700;color:#fff"><div style="width:${pctMaq}%;background:#0056b3;display:flex;align-items:center;justify-content:center;min-width:${pctMaq ? 28 : 0}px">${pctMaq}%</div><div style="width:${100 - pctMaq}%;background:#f59e0b;display:flex;align-items:center;justify-content:center;min-width:${100 - pctMaq ? 28 : 0}px">${100 - pctMaq}%</div></div>
+      <div style="font-size:11px;color:#64748b;margin-top:3px">Máquina (Produção): ${_confNum(totMaq)} min · Bancada: ${_confNum(totBanc)} min</div>` : '');
 
   const linhasOc = r.ocorrencias.slice().reverse().map(o => `<tr>
       <td>${_confBr(o.ini)}${o.fim !== o.ini ? ' <span style="color:#94a3b8">→ ' + _confBr(o.fim).substring(0, 5) + '</span>' : ''}</td>
