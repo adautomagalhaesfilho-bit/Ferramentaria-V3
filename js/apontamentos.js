@@ -598,6 +598,7 @@ async function salvarForm() {
           if (i > 0) { dadosTecnico.trocaCopo=false; dadosTecnico.tipoCopo=null; dadosTecnico.descricaoCopo=null; dadosTecnico.copoId=null; dadosTecnico.temObservacao=false; dadosTecnico.observacao=null; }
           const resSalvo = await db.salvarLancamento(dadosTecnico);
           if (i === 0) {
+            await ciclosSalvar(dados.ciclosLeitura, { job: dados.job, data: dados.data, origem: 'Bancada', tipo: dados.tipo, res: resSalvo });
             await _processarAnexoApontamento(dados.job, dados.ramNumero, dados.descricao, resSalvo);
             if (dados.copoId && dados.tipoCopo && typeof baixarEstoqueCopo === 'function') await baixarEstoqueCopo(dados.copoId, dados.tipoCopo);
           }
@@ -605,6 +606,7 @@ async function salvarForm() {
         toast(`${_tecnicosSelecionados.length} lançamentos salvos!`, 'sucesso');
       } else {
         const resSalvo = await db.salvarLancamento(dados);
+        if (setor === 'Bancada') await ciclosSalvar(dados.ciclosLeitura, { job: dados.job, data: dados.data, origem: 'Bancada', tipo: dados.tipo, res: resSalvo });
         await _processarAnexoApontamento(dados.job, dados.ramNumero, dados.descricao, resSalvo);
         if (dados.copoId && dados.tipoCopo && typeof baixarEstoqueCopo === 'function') await baixarEstoqueCopo(dados.copoId, dados.tipoCopo);
         // Usinagem com segundo operador: cria uma cópia do lançamento para cada um (sem repetir RAM/copo/observação)
@@ -782,6 +784,10 @@ function coletarDadosForm(setor) {
     if (!tipo)  { toast('Selecione a atividade.','erro');    return null; }
     if (!hrIni) { toast('Informe a hora de início.','erro'); return null; }
     if (!hrFim) { toast('Informe a hora de fim.','erro');    return null; }
+    // Corretiva/preventiva: molde e contador de ciclos obrigatórios (só em lançamento novo)
+    const _ciclosB = ciclosValidar('Banc', tipo, job);
+    if (!_ciclosB.ok) return null;
+    dados.ciclosLeitura = _ciclosB.leitura;
     const trocaCopo  = document.getElementById('formTrocaCopo')?.checked || false;
     // Lê do campo interno e, se vier vazio, do botão que estiver marcado na tela
     const tipoCopo   = trocaCopo ? (document.getElementById('formTipoCopo')?.value
@@ -981,6 +987,7 @@ function atualizarBotoesStatus() {
 }
 
 function resetarForm() {
+  if (typeof ciclosLimpar === 'function') ciclosLimpar('Banc');
   _operadoresExtras = [];
   if (typeof _renderizarOperadoresExtras === 'function') _renderizarOperadoresExtras();
   _tecnicoEditadoManualmente = false;

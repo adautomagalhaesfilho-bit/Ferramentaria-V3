@@ -643,11 +643,18 @@
           Job / Status
         </div>
         <div class="form-group">
-          <label>Job / Molde</label>
+          <label id="rotuloJobBanc">Job / Molde</label>
           <div class="autocomplete-wrap">
             <input type="text" id="formJob" placeholder="Busque ou digite o job..." onchange="if(typeof aoSelecionarJob==='function') aoSelecionarJob(this.value)">
             <div class="autocomplete-list" id="formJobList"></div>
           </div>
+        </div>
+        <div class="form-group" id="grupoCiclosBanc" style="display:none;border:2px solid #0056b3;border-radius:10px;padding:10px 12px;background:#e8f0fa">
+          <label>🔢 Contador de ciclos do molde <span id="ciclosReqBanc"></span></label>
+          <input type="text" id="formCiclos" inputmode="numeric" autocomplete="off" placeholder="Ex.: 408337">
+          <div id="ciclosDicaBanc" style="font-size:12px;color:#5a6a7b;margin-top:4px"></div>
+          <label class="checkbox-label" style="margin-top:8px"><input type="checkbox" id="formCiclosZerado"> O contador foi trocado ou zerado</label>
+          <label class="checkbox-label"><input type="checkbox" id="formCiclosSem"> Sem leitura (contador ilegível ou ausente)</label>
         </div>
         <div id="avisoMapeamentoCalcos" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#b91c1c"></div>
         <div class="form-group" id="grupoRamApontamento" style="display:none">
@@ -720,11 +727,18 @@
       </div>
 
       <!-- 4. MOLDE -->
-      <div class="form-group"><label>Molde</label>
+      <div class="form-group"><label id="rotuloMoldeProd">Molde</label>
         <div class="autocomplete-wrap">
           <input type="text" id="prodFormMolde" placeholder="Opcional..." onchange="if(typeof aoSelecionarMoldeProd==='function') aoSelecionarMoldeProd(this.value)">
           <div class="autocomplete-list" id="prodFormMoldeList"></div>
         </div>
+      </div>
+      <div class="form-group" id="grupoCiclosProd" style="display:none;border:2px solid #0056b3;border-radius:10px;padding:10px 12px;background:#e8f0fa">
+        <label>🔢 Contador de ciclos do molde <span id="ciclosReqProd"></span></label>
+        <input type="text" id="prodFormCiclos" inputmode="numeric" autocomplete="off" placeholder="Ex.: 408337">
+        <div id="ciclosDicaProd" style="font-size:12px;color:#5a6a7b;margin-top:4px"></div>
+        <label class="checkbox-label" style="margin-top:8px"><input type="checkbox" id="prodFormCiclosZerado"> O contador foi trocado ou zerado</label>
+        <label class="checkbox-label"><input type="checkbox" id="prodFormCiclosSem"> Sem leitura (contador ilegível ou ausente)</label>
       </div>
       <div class="form-group" id="grupoRamProd" style="display:none">
         <label>Este apontamento é referente a alguma RAM?</label>
@@ -859,9 +873,11 @@
 <script src="js/util.js?v=20261009"></script>
 <script src="js/supabase.js?v=20261111a"></script>
 <script src="js/auth.js?v=20261112a"></script>
-<script src="js/apontamentos.js?v=20261112b"></script>
+<script src="js/apontamentos.js?v=20261116a"></script>
 <script src="js/wizard-usinagem.js?v=20261110a"></script>
-<script src="js/ficha.js?v=20261009"></script>
+<script src="js/ciclos.js?v=20261116a"></script>
+<script src="js/confiabilidade.js?v=20261116a"></script>
+<script src="js/ficha.js?v=20261116a"></script>
 <script src="js/anexos.js?v=20261009"></script>
 <script src="js/peso.js?v=20261016"></script>
 <script src="js/ram.js?v=20261021b"></script>
@@ -871,7 +887,7 @@
 <script src="js/dashboard.js?v=20261104f"></script>
 <script src="js/diagnostico-meta.js?v=20261111a"></script>
 <script src="js/rh.js?v=20261111a"></script>
-<script src="js/producao.js?v=20261104b"></script>
+<script src="js/producao.js?v=20261116a"></script>
 <script src="js/usuarios.js?v=20261009"></script>
 <script src="js/pcm.js?v=20261104b"></script>
 <script src="js/pcm-indicadores.js?v=20261104g"></script>

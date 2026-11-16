@@ -225,6 +225,8 @@ function renderizarFicha(job, res) {
     ${typeof renderizarGaleriaAnexosMolde === 'function' ? renderizarGaleriaAnexosMolde(res.anexos||[]) : ''}
   </div>
 
+  <div id="fichaConfiab"><div class="loader-inline"><div class="spinner-sm"></div><span>Calculando confiabilidade...</span></div></div>
+
   <div class="card" style="border-left:4px solid #059669">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">🛠️ Histórico de Intervenções</div>
@@ -323,6 +325,7 @@ function renderizarFicha(job, res) {
   }, 100);
 
   renderizarTimeline(hist, lancs, res.pendencias||[], res.localizacao||null, res.histLoc||[]);
+  if (typeof confiabilidadeRenderizar === 'function') confiabilidadeRenderizar(job);
   renderizarTabelaFicha(_lancsFicha, _lancsProdFicha);
 }
 

@@ -488,6 +488,10 @@ async function salvarFormProducao() {
   if (!injetora) return toast('Selecione a injetora.','erro');
   if (!tipo)     return toast('Selecione o tipo de manutenção.','erro');
 
+  // Corretiva/preventiva: molde e contador de ciclos obrigatórios (só em lançamento novo)
+  const _ciclosP = ciclosValidar('Prod', tipo, document.getElementById('prodFormMolde')?.value?.trim());
+  if (!_ciclosP.ok) return;
+
   const moldeAtual     = document.getElementById('prodFormMoldeAtual')?.value?.trim() || null;
   const moldeNovo      = document.getElementById('prodFormMoldeNovo')?.value?.trim()  || null;
   const outraInjetora  = document.getElementById('prodFormOutraInjetora')?.value?.trim() || null;
@@ -538,7 +542,8 @@ async function salvarFormProducao() {
   btn.disabled = true; btn.innerText = 'Salvando...';
   try {
     if (!id) {
-      await db.salvarProdLancamento(dados);
+      const resProd = await db.salvarProdLancamento(dados);
+      await ciclosSalvar(_ciclosP.leitura, { job: dados.molde, data: dados.data, origem: 'Produção', tipo: dados.tipo, res: resProd });
       // Movimentação automática de molde no PCM — em lançamentos novos
       await processarMovimentacaoSetupPCM(dados);
       if (dados.molde) await _processarAnexoProd(dados.molde, dados.ramNumero, dados.descricao);
@@ -573,6 +578,7 @@ async function excluirProd(id) {
 }
 
 function resetarFormProducao() {
+  if (typeof ciclosLimpar === 'function') ciclosLimpar('Prod');
   ['prodFormData','prodFormHrIni','prodFormHrFim','prodFormInjetora','prodFormMolde',
    'prodFormTipo','prodFormAtividade','prodFormDesc','prodFormNumOS','prodFormObs','prodTecnicoInput',
    'prodFormMoldeAtual','prodFormMoldeNovo','prodFormOutraInjetora','prodFormMoldeOutraInjetora']
