@@ -262,7 +262,7 @@ const db = {
 
     const [lancamentos, feriados, ferias, funcionarios, parciais, maquinas, prodLanc,
            lancamentosAnt, prodLancAnt, bancoHoras, moldeLocalizacao, moldeHistorico, capHistorico,
-           ramTodas, ramSetoresTodas, coposTodos, jobsCavidades, turnoHistorico] = await Promise.all([
+           ramTodas, ramSetoresTodas, coposTodos, jobsCavidades, turnoHistorico, moldeHistoricoTodo, injetorasProd] = await Promise.all([
       db._get('lancamentos', 'data=gte.' + dataIni + '&data=lte.' + dataFim, '*'),
       db._get('feriados', '', 'data'),
       db._get('ferias', '', '*'),
@@ -280,7 +280,9 @@ const db = {
       db._get('ram_setores', '', '*').catch(e => (avisarErro('carregar os setores das RAMs', e), [])),
       db._get('copos', 'ativo=eq.true', '*').catch(e => (avisarErro('carregar os copos', e), [])),
       db._get('jobs', 'ativo=eq.true', 'nome,num_cavidades').catch(e => (avisarErro('carregar os jobs', e), [])),
-      db._get('funcionario_turno_historico', 'order=data_inicio.asc', '*').catch(e => (avisarErro('carregar o histórico de turnos', e), []))
+      db._get('funcionario_turno_historico', 'order=data_inicio.asc', '*').catch(e => (avisarErro('carregar o histórico de turnos', e), [])),
+      db._get('molde_localizacao_historico', 'order=movido_em.asc', 'id,job,localizacao,maquina,movido_em').catch(e => (avisarErro('carregar o histórico de moldes', e), [])),
+      db._get('prod_injetoras', 'ativo=eq.true&order=nome.asc', 'nome,producao').catch(e => (avisarErro('carregar as injetoras', e), []))
     ]);
     const capMaquinas = {};
     (maquinas || []).forEach(m => { capMaquinas[m.nome] = { capLiquida: m.cap_liquida || 508, turno: m.turno, tipo: m.tipo || 'Principal' }; });
@@ -310,7 +312,11 @@ const db = {
       // Estado atual de cada molde (pra achar quem está parado na Ferramentaria)
       moldeLocalizacao:    moldeLocalizacao || [],
       // Movimentações de molde no período (pra aba PCM: quem mais andou)
-      moldeHistorico:      moldeHistorico || []
+      moldeHistorico:      moldeHistorico || [],
+      // Histórico completo de localização (todas as datas) — tempo que cada molde ficou instalado em cada máquina
+      moldeHistoricoTodo:  moldeHistoricoTodo || [],
+      // Injetoras ativas com a Produção a que pertencem (filtro do PCM)
+      injetorasProd:       injetorasProd || []
     };
   },
 

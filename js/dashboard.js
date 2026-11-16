@@ -168,14 +168,84 @@ function _calcularMoldesParados() {
 }
 
 // ==========================================
+// 📦 PCM — tempo instalado por máquina e molde
+// ==========================================
+let _pcmProducao = '';      // '' = todas | '__sem__' = injetoras sem produção | nome da produção
+let _pcmChartTodos = false; // false = mostra só as 25 maiores barras
+
+// Transforma o histórico de localização em "permanências": cada vez que o molde entrou numa máquina
+// até sair (outra máquina, Ferramentaria, Sala de Molde...). Se ainda está lá, conta até hoje.
+function pcmPermanencias(hist, loc, hoje) {
+  const dia = v => String(v || '').slice(0, 10);
+  const diff = (a, b) => Math.max(0, Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000));
+  const porJob = {};
+  (hist || []).forEach(h => { if (h.job && dia(h.movido_em)) (porJob[h.job] = porJob[h.job] || []).push(h); });
+  const atual = {}; (loc || []).forEach(l => { atual[l.job] = l; });
+  const out = [];
+  Object.keys(porJob).forEach(job => {
+    const ev = porJob[job].slice().sort((a, b) => dia(a.movido_em).localeCompare(dia(b.movido_em)) || (a.id || 0) - (b.id || 0));
+    let cur = null;
+    ev.forEach(e => {
+      const emMaq = e.localizacao === 'Em Máquina' && e.maquina;
+      if (cur) {
+        if (emMaq && e.maquina === cur.maquina) return; // lançamento repetido na mesma máquina
+        out.push({ job, maquina: cur.maquina, ini: cur.ini, fim: dia(e.movido_em), dias: diff(cur.ini, dia(e.movido_em)), aberta: false });
+        cur = null;
+      }
+      if (emMaq) cur = { maquina: e.maquina, ini: dia(e.movido_em) };
+    });
+    if (cur) {
+      const l = atual[job];
+      const aindaLa = l && l.localizacao === 'Em Máquina' && l.maquina === cur.maquina;
+      const fim = aindaLa ? hoje : (l && l.atualizado_em ? dia(l.atualizado_em) : cur.ini);
+      out.push({ job, maquina: cur.maquina, ini: cur.ini, fim, dias: diff(cur.ini, fim), aberta: !!aindaLa });
+    }
+  });
+  return out;
+}
+
+// Soma por máquina + molde: dias instalado, saídas (permanências encerradas) e dias seguidos atuais
+function pcmAgruparInstalado(perms) {
+  const m = {};
+  perms.forEach(p => {
+    const k = p.maquina + '||' + p.job;
+    const o = m[k] = m[k] || { maquina: p.maquina, job: p.job, dias: 0, saidas: 0, atualDias: null, desde: null };
+    o.dias += p.dias;
+    if (p.aberta) { o.atualDias = p.dias; o.desde = p.ini; } else o.saidas++;
+  });
+  return Object.values(m).sort((a, b) => b.dias - a.dias || a.saidas - b.saidas);
+}
+
+function pcmMudarProducao(v) { _pcmProducao = v; _pcmChartTodos = false; renderizarDashAtivo('pcm'); }
+function pcmAlternarTodos() { _pcmChartTodos = !_pcmChartTodos; renderizarDashAtivo('pcm'); }
+if (typeof module !== 'undefined') module.exports = Object.assign(module.exports || {}, { pcmPermanencias, pcmAgruparInstalado });
+
+// ==========================================
 // 📦 PCM — Movimentação de Moldes / Setups
 // ==========================================
 function desenharPCM(ini, fim) {
   const div = document.getElementById('dashPcm');
   if (!div || !_dadosDash) return;
-  const prod    = (_dadosDash.prodLancamentos||[]).filter(p=>p.tipo==='Setup');
-  const prodAnt = (_dadosDash.prodLancamentosAnteriores||[]).filter(p=>p.tipo==='Setup');
-  const historico = _dadosDash.moldeHistorico || [];
+  // Produção de cada injetora (filtro). Injetora sem produção cadastrada = '__sem__'
+  const injProd = {}; (_dadosDash.injetorasProd||[]).forEach(i => { injProd[i.nome] = i.producao || '__sem__'; });
+  const producoes = [...new Set((_dadosDash.injetorasProd||[]).map(i=>i.producao).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}));
+  const semProd = (_dadosDash.injetorasProd||[]).some(i=>!i.producao);
+  if (_pcmProducao && _pcmProducao !== '__sem__' && !producoes.includes(_pcmProducao)) _pcmProducao = '';
+  const passa = inj => !_pcmProducao || (injProd[inj] || '__sem__') === _pcmProducao;
+  const prod    = (_dadosDash.prodLancamentos||[]).filter(p=>p.tipo==='Setup' && passa(p.injetora));
+  const prodAnt = (_dadosDash.prodLancamentosAnteriores||[]).filter(p=>p.tipo==='Setup' && passa(p.injetora));
+  const historico = (_dadosDash.moldeHistorico || []).filter(h => !_pcmProducao || (h.localizacao === 'Em Máquina' && passa(h.maquina)));
+
+  // Moldes que a fábrica possui: tudo menos Desativado/LOG (que é separado, pode ter itens que não são molde)
+  const locs = _dadosDash.moldeLocalizacao || [];
+  const cont = {}; locs.forEach(l => { cont[l.localizacao] = (cont[l.localizacao]||0) + 1; });
+  const totalMoldes = (cont['Em Máquina']||0) + (cont['Sala de Molde']||0) + (cont['Na Ferramentaria']||0);
+  const emMaqFiltro = locs.filter(l => l.localizacao === 'Em Máquina' && passa(l.maquina)).length;
+
+  // Tempo instalado por máquina e molde (histórico completo)
+  const perms = pcmPermanencias(_dadosDash.moldeHistoricoTodo, locs, hojeLocal()).filter(p => passa(p.maquina));
+  const instalado = pcmAgruparInstalado(perms);
+  const primeiraData = (_dadosDash.moldeHistoricoTodo||[]).reduce((m,h)=>{ const d=String(h.movido_em||'').slice(0,10); return d && (!m || d<m) ? d : m; }, '');
 
   const tempoMedio = prod.length ? Math.round(prod.reduce((a,p)=>a+(p.minutos||0),0)/prod.length) : 0;
   const moldesParados = _calcularMoldesParados();
@@ -195,7 +265,17 @@ function desenharPCM(ini, fim) {
   prod.forEach(p => { if(!p.injetora) return; porInjetora[p.injetora]=(porInjetora[p.injetora]||0)+1; });
   const injetoras = Object.entries(porInjetora).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
-  let html = `<div class="cards-row">
+  const opts = `<option value="">Todas as produções</option>` + producoes.map(p=>`<option value="${esc(p)}"${_pcmProducao===p?' selected':''}>${esc(p)}</option>`).join('')
+    + (semProd ? `<option value="__sem__"${_pcmProducao==='__sem__'?' selected':''}>Injetoras sem produção</option>` : '');
+  let html = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+    <label style="font-weight:600;font-size:13px">🏭 Produção:</label>
+    <select id="pcmProducao" onchange="pcmMudarProducao(this.value)" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">${opts}</select>
+    ${producoes.length ? '' : '<span style="font-size:12px;color:#b45309">Nenhuma injetora tem produção cadastrada ainda (Administração → Injetoras → ✏️).</span>'}
+    ${_pcmProducao ? '<span style="font-size:12px;color:#64748b">O filtro vale para os setups e gráficos (Moldes parados e total da fábrica não dependem de produção).</span>' : ''}
+  </div>
+  <div class="cards-row">
+    ${metricCard('🏭','Moldes na Fábrica',totalMoldes,`${cont['Em Máquina']||0} em máquina · ${cont['Sala de Molde']||0} sala de molde · ${cont['Na Ferramentaria']||0} ferramentaria${cont['Desativado/LOG']?` <br><span style="color:#94a3b8">+ ${cont['Desativado/LOG']} desativados/LOG (não contam)</span>`:''}`,'#0f766e')}
+    ${_pcmProducao ? metricCard('⚙️','Moldes em Máquina (filtro)',emMaqFiltro,esc(_pcmProducao==='__sem__'?'injetoras sem produção':_pcmProducao),'#0891b2') : ''}
     ${metricCard('🔁','Setups no Período',prod.length,_deltaHtml(prod.length, prodAnt.length),'#0056b3')}
     ${metricCard('⏱️','Tempo Médio por Setup',tempoMedio+'min','todos os tipos','#8b5cf6')}
     ${metricCard('⚠️','Parados na Ferramentaria',moldesParados.length,'há 5+ dias','#ef4444')}
@@ -223,6 +303,18 @@ function desenharPCM(ini, fim) {
       </div>
     </div>`;
   }
+  const MAXB = 25;
+  const barras = _pcmChartTodos ? instalado : instalado.slice(0, MAXB);
+  html += `<div class="grafico-card" style="margin-bottom:16px">
+    <div class="grafico-titulo">⏳ Tempo Instalado por Máquina e Molde (dias)</div>
+    <div style="font-size:12px;color:#64748b;margin:2px 0 8px">Quanto mais comprida a barra, mais tempo o molde ficou montado produzindo naquela máquina. Entre parênteses: quantas vezes saiu (setup, corretiva ou preventiva). Contado desde ${primeiraData ? esc(primeiraData.split('-').reverse().join('/')) : '—'}, quando começou o histórico de localização. Barra cinza = o molde não está mais nessa máquina.</div>
+    ${barras.length ? `<div style="height:${Math.max(160, barras.length*26+40)}px"><canvas id="chartPcmInstalado"></canvas></div>
+      ${instalado.length > MAXB ? `<button class="btn-secondary" style="margin-top:8px" onclick="pcmAlternarTodos()">${_pcmChartTodos ? 'Mostrar só os 25 primeiros' : 'Mostrar todos ('+instalado.length+')'}</button>` : ''}
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;font-weight:600">Ver em tabela</summary>
+      <div style="overflow-x:auto"><table class="tabela" style="width:100%;font-size:13px;margin-top:6px"><thead><tr><th>Máquina</th><th>Molde</th><th style="text-align:right">Dias instalado</th><th style="text-align:right">Saídas</th><th style="text-align:right">Dias seguidos agora</th></tr></thead><tbody>
+      ${instalado.map(x=>`<tr><td>${esc(x.maquina)}</td><td><span style="cursor:pointer;text-decoration:underline" onclick="abrirFichaMolde('${escJs(x.job)}')">${esc(x.job)}</span></td><td style="text-align:right">${x.dias}</td><td style="text-align:right">${x.saidas}</td><td style="text-align:right">${x.atualDias==null?'—':x.atualDias}</td></tr>`).join('')}
+      </tbody></table></div></details>` : '<div class="empty-msg">Sem histórico de moldes em máquina para este filtro.</div>'}
+  </div>`;
   div.innerHTML = html;
 
   const paleta = ['#0056b3','#10b981','#f59e0b','#8b5cf6','#ef4444','#0891b2','#6366f1','#ec4899'];
@@ -231,6 +323,17 @@ function desenharPCM(ini, fim) {
       criarChart('chartPcmTipo', { type:'doughnut',
         data:{ labels:atividades.map(a=>a[0]), datasets:[{ data:atividades.map(a=>a[1]), backgroundColor:paleta }] },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'bottom', labels:{boxWidth:10,font:{size:11}}} } }
+      });
+    }
+    if (barras.length) {
+      criarChart('chartPcmInstalado', { type:'bar',
+        data:{ labels:barras.map(x=>x.maquina+' · '+x.job), datasets:[{ data:barras.map(x=>x.dias), backgroundColor:barras.map(x=>x.atualDias==null?'#94a3b8':'#0f766e'), borderRadius:4 }] },
+        options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+          plugins:{ legend:{display:false},
+            tooltip:{ callbacks:{ label:c => { const x=barras[c.dataIndex]; return x.dias+' dias instalado · '+x.saidas+' saída(s)'+(x.atualDias!=null?' · montado agora há '+x.atualDias+' dias':' · não está mais lá'); } } },
+            datalabels:{ anchor:'end', align:'end', color:'#1e3a5f', font:{weight:'bold',size:11}, formatter:(v,c)=>v+' d ('+barras[c.dataIndex].saidas+')' } },
+          scales:{ x:{ beginAtZero:true, grace:'15%' }, y:{ ticks:{ font:{size:11} } } }
+        }
       });
     }
     if (injetoras.length) {

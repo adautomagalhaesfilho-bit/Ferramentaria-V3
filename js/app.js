@@ -741,7 +741,7 @@ async function _carregarInjetorasLista() {
     el.innerHTML = _todasInjetorasAdmin.map(i=>`<div class="lista-item">
       <div class="lista-item-info">
         <div class="lista-item-nome" style="cursor:pointer" onclick="abrirFichaInjetora('${escJs(i.nome)}')">${esc(i.nome)}</div>
-        <div class="lista-item-sub">${esc(i.tonelagem?i.tonelagem+' ton':'—')} | ${esc(i.fabricante||'—')}</div>
+        <div class="lista-item-sub">${esc(i.tonelagem?i.tonelagem+' ton':'—')} | ${esc(i.fabricante||'—')} | ${i.producao?'Produção: '+esc(i.producao):'<span style="color:#b45309">sem produção</span>'}</div>
       </div>
       <div class="lista-item-acoes">
         <span class="badge-ativo">ATIVO</span>
@@ -757,8 +757,9 @@ async function abrirFormInjetora() {
   if (!nome||!nome.trim()) return;
   const ton = prompt('Tonelagem (opcional):');
   const fab = prompt('Fabricante (opcional):');
+  const prd = prompt('Produção onde a injetora está instalada (opcional):');
   try {
-    const res = await db.salvarProdInjetora({nome:nome.trim(),tonelagem:ton?parseInt(ton):null,fabricante:fab||null});
+    const res = await db.salvarProdInjetora({nome:nome.trim(),tonelagem:ton?parseInt(ton):null,fabricante:fab||null,producao:(prd||'').trim()||null});
     toast('Adicionada!','sucesso'); carregarInjetoras();
     await registrarLog('prod_injetoras', res?.[0]?.id || nome.trim(), 'criar', null, null, nome.trim());
   } catch(e){ toast('Erro.','erro'); }
@@ -777,6 +778,9 @@ function abrirEdicaoInjetora(id) {
       <div class="form-group"><label>Nome *</label><input type="text" id="editInjNome" value="${esc(i.nome)}"></div>
       <div class="form-group"><label>Tonelagem</label><input type="number" id="editInjTon" value="${esc(i.tonelagem||'')}"></div>
       <div class="form-group"><label>Fabricante</label><input type="text" id="editInjFab" value="${esc(i.fabricante||'')}"></div>
+      <div class="form-group"><label>Produção</label><input type="text" id="editInjProd" list="listaProducoesInj" value="${esc(i.producao||'')}" placeholder="ex.: Produção 1">
+        <datalist id="listaProducoesInj">${[...new Set(_todasInjetorasAdmin.map(x=>x.producao).filter(Boolean))].map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+        <small style="color:#64748b">Usada para filtrar o Dashboard PCM. Escreva sempre igual para agrupar.</small></div>
     </div>
     <div class="modal-footer">
       <button class="btn-primary" onclick="salvarEdicaoInjetora(${id})">💾 Salvar</button>
@@ -793,10 +797,12 @@ async function salvarEdicaoInjetora(id) {
   const novoNome = document.getElementById('editInjNome')?.value?.trim();
   const novoTon  = document.getElementById('editInjTon')?.value;
   const novoFab  = document.getElementById('editInjFab')?.value?.trim();
+  const novaProd = document.getElementById('editInjProd')?.value?.trim() || null;
   if (!novoNome) return toast('Informe o nome.','erro');
   try {
-    await db.salvarProdInjetora({ id, nome: novoNome, tonelagem: novoTon?parseInt(novoTon):null, fabricante: novoFab||null });
+    await db.salvarProdInjetora({ id, nome: novoNome, tonelagem: novoTon?parseInt(novoTon):null, fabricante: novoFab||null, producao: novaProd });
     if (i.nome !== novoNome) await registrarLog('prod_injetoras', id, 'editar', 'nome', i.nome, novoNome);
+    if ((i.producao||null) !== novaProd) await registrarLog('prod_injetoras', id, 'editar', 'producao', i.producao||'', novaProd||'');
     toast('Atualizada!','sucesso');
     fecharEdicaoInjetora(); carregarInjetoras();
   } catch(e) { toast('Erro ao salvar.','erro'); }
