@@ -128,25 +128,39 @@ function _confSvgLinhaTempo(r) {
   if (!r.montado || !r.montado.length || !r.ocorrencias.length) return '';
   const ocD = r.ocorrencias.map(o => ({ ini: _confDia(o.ini), fim: _confDia(o.fim), o }));
   const d0 = Math.min(r.montado[0][0], ...ocD.map(x => x.ini)), d1 = Math.max(r.hojeDia, ...ocD.map(x => x.fim));
-  const W = 640, ml = 12, mr = 12, yb = 46, hb = 22, span = Math.max(1, d1 - d0);
+  const W = 640, ml = 12, mr = 12, hb = 22, span = Math.max(1, d1 - d0);
   const x = d => ml + (d - d0) / span * (W - ml - mr);
+  // Rótulos em até 5 "andares" para não se sobreporem (cada rótulo ocupa ~78 unidades)
+  const LW = 78, niveis = [];
+  const rot = ocD.map(m => {
+    const cx = x((m.ini + m.fim) / 2); let n = 0;
+    while (niveis[n] !== undefined && cx - niveis[n] < LW) n++;
+    niveis[n] = cx; return { m, cx, n };
+  });
+  const nMax = Math.min(4, Math.max(...rot.map(q => q.n)));
+  const yb = 22 + (nMax + 1) * 12;
   const mont = r.montado.map(([a, b]) => `<rect x="${x(a).toFixed(1)}" y="${yb}" width="${Math.max(2, x(Math.min(b, d1)) - x(a)).toFixed(1)}" height="${hb}" fill="#10b981" rx="3"><title>Montado na injetora: ${_confBr(_confIso(a))} a ${_confBr(_confIso(Math.min(b, d1)))} (${Math.min(b, d1) - a} dias)</title></rect>`).join('');
+  const semHist = r.inicioHist != null && r.inicioHist > d0
+    ? `<rect x="${ml}" y="${yb}" width="${(x(r.inicioHist) - ml).toFixed(1)}" height="${hb}" fill="url(#confHach)" rx="3"><title>Antes de ${_confBr(_confIso(r.inicioHist))} o sistema não sabe onde o molde estava</title></rect>` : '';
   // meses no eixo
   const ticks = []; const dt = new Date(d0 * 86400000); dt.setUTCDate(1); dt.setUTCMonth(dt.getUTCMonth() + 1);
   for (; dt.getTime() / 86400000 < d1; dt.setUTCMonth(dt.getUTCMonth() + 1)) ticks.push(Math.round(dt.getTime() / 86400000));
   const eixo = ticks.map(t => `<line x1="${x(t).toFixed(1)}" x2="${x(t).toFixed(1)}" y1="${yb + hb}" y2="${yb + hb + 5}" stroke="#94a3b8"/><text x="${x(t).toFixed(1)}" y="${yb + hb + 16}" text-anchor="middle" font-size="9" fill="#64748b">${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][new Date(t * 86400000).getUTCMonth()]}</text>`).join('');
-  const marc = ocD.map((m, k) => {
-    const cx = x((m.ini + m.fim) / 2), alto = k % 2 === 0;
+  const marc = rot.map(({ m, cx, n }) => {
+    const ty = 12 + (nMax - Math.min(n, nMax)) * 12 + 0;   // andar 0 (mais perto da barra) fica embaixo
+    const ya = yb - 4 - 12 * Math.min(n, nMax) - 4;
     return `<rect x="${(x(m.ini) - 1).toFixed(1)}" y="${yb - 4}" width="${Math.max(3, x(m.fim) - x(m.ini) + 2).toFixed(1)}" height="${hb + 8}" fill="#ef4444" rx="2"><title>Corretiva ${_confBr(m.o.ini)}: ${_confNum(m.o.total)} min da Ferramentaria (${esc(m.o.onde)})</title></rect>` +
-      `<line x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${alto ? 22 : 30}" y2="${yb - 4}" stroke="#ef4444" stroke-width="1"/>` +
-      `<text x="${cx.toFixed(1)}" y="${alto ? 18 : 28}" text-anchor="${cx > W - 70 ? 'end' : cx < 70 ? 'start' : 'middle'}" font-size="9.5" font-weight="700" fill="#b91c1c">${_confBr(m.o.ini).substring(0, 5)} · ${_confNum(m.o.total)} min</text>`;
+      `<line x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${ya + 2}" y2="${yb - 4}" stroke="#ef4444" stroke-width="1"/>` +
+      `<text x="${cx.toFixed(1)}" y="${ya}" text-anchor="${cx > W - 50 ? 'end' : cx < 50 ? 'start' : 'middle'}" font-size="9" font-weight="700" fill="#b91c1c" stroke="#fff" stroke-width="2.5" paint-order="stroke">${_confBr(m.o.ini).substring(0, 5)} · ${_confNum(m.o.total)}m</text>`;
   }).join('');
-  return `<svg viewBox="0 0 ${W} ${yb + hb + 22}" style="width:100%;height:auto" role="img" aria-label="Linha do tempo do molde">
-    <rect x="${ml}" y="${yb}" width="${W - ml - mr}" height="${hb}" fill="#e2e8f0" rx="3"/>${mont}${marc}${eixo}</svg>
+  return `<svg viewBox="0 0 ${W} ${yb + hb + 22}" style="width:100%;max-width:820px;height:auto;display:block" role="img" aria-label="Linha do tempo do molde">
+    <defs><pattern id="confHach" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#f1f5f9"/><line x1="0" y1="0" x2="0" y2="6" stroke="#cbd5e1" stroke-width="2"/></pattern></defs>
+    <rect x="${ml}" y="${yb}" width="${W - ml - mr}" height="${hb}" fill="#e2e8f0" rx="3"/>${semHist}${mont}${marc}${eixo}</svg>
     <div style="font-size:11px;color:#64748b;display:flex;gap:14px;flex-wrap:wrap;margin-top:2px">
       <span><i style="display:inline-block;width:10px;height:10px;background:#10b981;border-radius:2px"></i> montado na injetora</span>
       <span><i style="display:inline-block;width:10px;height:10px;background:#e2e8f0;border-radius:2px;border:1px solid #cbd5e1"></i> fora da máquina</span>
-      <span><i style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px"></i> corretiva (minutos da Ferramentaria)</span></div>`;
+      ${semHist ? '<span><i style="display:inline-block;width:10px;height:10px;background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 2px,#cbd5e1 2px,#cbd5e1 4px);border-radius:2px"></i> sem histórico de localização</span>' : ''}
+      <span><i style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px"></i> corretiva (data · minutos da Ferramentaria)</span></div>`;
 }
 
 // Gráfico de barras em SVG. itens: [{rot, partes:[{v,cor}]}]; barras empilhadas; linha tracejada = média
@@ -164,7 +178,7 @@ function _confSvgBarras(itens, op) {
       `<text x="${(x + bw / 2).toFixed(1)}" y="${H - mb + 13}" text-anchor="middle" font-size="9" fill="#64748b">${esc(it.rot)}</text>`;
   }).join('');
   const med = op.media != null && op.ok ? `<line x1="${ml}" x2="${W - mr}" y1="${y(op.media)}" y2="${y(op.media)}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3"/><text x="${W - mr}" y="${y(op.media) - 4}" text-anchor="end" font-size="9.5" font-weight="700" fill="#ef4444" stroke="#fff" stroke-width="3" paint-order="stroke">média ${_confNum(op.media)}</text>` : '';
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:230px" role="img" aria-label="Gráfico de barras em ${esc(op.un)}">${grade}${bars}${med}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:520px;height:auto;display:block" role="img" aria-label="Gráfico de barras em ${esc(op.un)}">${grade}${bars}${med}</svg>`;
 }
 
 function confiabilidadePartes(job, r) {
