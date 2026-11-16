@@ -448,7 +448,7 @@ const db = {
       db.buscarLocalizacao(job),
       db._get('molde_pendencias', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.asc', '*').catch(e => (avisarErro('carregar as pendências do molde', e), [])),
       db._get('molde_localizacao_historico', 'job=eq.' + encodeURIComponent(job) + '&order=movido_em.desc', '*').catch(e => (avisarErro('carregar o histórico de localização do molde', e), [])),
-      db._get('jobs', 'nome=eq.' + encodeURIComponent(job), 'id,nome,ativo,num_cavidades,peso_nominal,sistema_injecao').catch(e => (avisarErro('carregar os dados do job', e), [])),
+      db._get('jobs', 'nome=eq.' + encodeURIComponent(job), 'id,nome,ativo,num_cavidades,peso_nominal,sistema_injecao,num_projeto_injecao').catch(e => (avisarErro('carregar os dados do job', e), [])),
       db._get('molde_anexos', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*').catch(e => (avisarErro('carregar os anexos do molde', e), [])),
       db._get('molde_peso_verificacoes', 'job=eq.' + encodeURIComponent(job) + '&order=criado_em.desc', '*').catch(e => (avisarErro('carregar as verificações de peso', e), []))
     ]);
@@ -464,6 +464,7 @@ const db = {
       jobId:         (jobRow && jobRow[0] && jobRow[0].id) || null,
       numCavidades:  (jobRow && jobRow[0] && jobRow[0].num_cavidades) || null,
       sistemaInjecao: (jobRow && jobRow[0] && jobRow[0].sistema_injecao) || null,
+      numProjetoInjecao: (jobRow && jobRow[0] && jobRow[0].num_projeto_injecao) || null,
       pesoNominal:   (jobRow && jobRow[0] && jobRow[0].peso_nominal) || null,
       anexos:        anexos || [],
       verificacoesPeso: verificacoesPeso || []
