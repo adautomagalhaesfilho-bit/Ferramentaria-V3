@@ -16,10 +16,22 @@
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
   const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
   const med = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y), h = s.length >> 1; return s.length % 2 ? s[h] : (s[h-1] + s[h]) / 2; };
+  // Moda: o tempo que mais se repete. Se nenhum tempo se repete, usa a faixa de 15 min com mais lançamentos (marcada com ~).
+  const moda = a => {
+    if (!a.length) return { v: 0, n: 0, faixa: false };
+    const c = {}; a.forEach(x => { c[x] = (c[x] || 0) + 1; });
+    let bv = null, bn = 0; Object.keys(c).forEach(k => { const n = c[k]; if (n > bn || (n === bn && +k < bv)) { bn = n; bv = +k; } });
+    if (bn > 1) return { v: bv, n: bn, faixa: false };
+    const f = {}; a.forEach(x => { const b = Math.floor(x / 15); f[b] = (f[b] || 0) + 1; });
+    let bb = null, bc = 0; Object.keys(f).forEach(k => { if (f[k] > bc || (f[k] === bc && +k < bb)) { bc = f[k]; bb = +k; } });
+    return { v: bb * 15 + 7.5, n: bc, faixa: true, de: bb * 15, ate: bb * 15 + 14 };
+  };
   const fmtD = d => d.split('-').reverse().join('/');
   const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const fmtM = m => MESES[+m.slice(5) - 1] + '/' + m.slice(2, 4);
   const hm = m => { m = Math.round(m); const h = Math.floor(m / 60), r = m % 60; return h ? h + ' h ' + String(r).padStart(2, '0') : r + ' min'; };
+  const hmModa = o => (o.modaFaixa ? '~' : '') + hm(o.moda);
+  const modaTxt = v => { const m = moda(v); return (m.faixa ? '~' : '') + hm(m.v); };
   const addDays = (d, n) => { const t = new Date(d + 'T12:00:00'); t.setDate(t.getDate() + n); return dataLocal(t); };
   const diffDays = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5) + 1;
 
@@ -78,13 +90,13 @@
       (ex.includes('cat') || S.cat === 'Todos' || x.cat === S.cat) && (!S.ton || x.ton === S.ton) && (!S.cav || x.cav === S.cav) && (!S.inj || x.inj === S.inj) && (!t || x.mol.toUpperCase().includes(t)) &&
       (S.par === '' || String(x.par) === S.par) && (!S.out || x.min <= LIM_EXTREMO));
   }
-  const stats = a => { const v = a.map(x => x.min); return { n: a.length, med: mean(v), mediana: med(v), tot: v.reduce((x, y) => x + y, 0), max: v.length ? Math.max(...v) : 0, min: v.length ? Math.min(...v) : 0 }; };
-  function group(rows, key) { const m = {}; rows.forEach(x => (m[x[key]] = m[x[key]] || []).push(x)); return Object.entries(m).map(([k, a]) => { const s = stats(a); return { k, n: s.n, med: s.med, mediana: s.mediana, tot: s.tot / 60, max: s.max, min: s.min, a }; }); }
+  const stats = a => { const v = a.map(x => x.min), mo = moda(v); return { n: a.length, med: mean(v), mediana: med(v), moda: mo.v, modaN: mo.n, modaFaixa: mo.faixa, modaDe: mo.de, modaAte: mo.ate, tot: v.reduce((x, y) => x + y, 0), max: v.length ? Math.max(...v) : 0, min: v.length ? Math.min(...v) : 0 }; };
+  function group(rows, key) { const m = {}; rows.forEach(x => (m[x[key]] = m[x[key]] || []).push(x)); return Object.entries(m).map(([k, a]) => { const s = stats(a); return { k, n: s.n, med: s.med, mediana: s.mediana, moda: s.moda, modaFaixa: s.modaFaixa, tot: s.tot / 60, max: s.max, min: s.min, a }; }); }
 
   // Molde × injetora: cada linha é o molde numa injetora específica
   function groupMolInj(rows) {
     const m = {}; rows.forEach(x => { const k = x.mol + '\u0001' + x.inj; (m[k] = m[k] || []).push(x); });
-    return Object.entries(m).map(([k, a]) => { const s = stats(a), [mol, inj] = k.split('\u0001'); return { k: mol, mol, inj, n: s.n, med: s.med, mediana: s.mediana, tot: s.tot / 60, max: s.max, min: s.min, a }; });
+    return Object.entries(m).map(([k, a]) => { const s = stats(a), [mol, inj] = k.split('\u0001'); return { k: mol, mol, inj, n: s.n, med: s.med, mediana: s.mediana, moda: s.moda, modaFaixa: s.modaFaixa, tot: s.tot / 60, max: s.max, min: s.min, a }; });
   }
 
   // ---------- estrutura ----------
@@ -173,6 +185,7 @@
     q('piKpis').innerHTML = `
      <div class="pi-k"><div class="pi-v">${s.n ? unid(hm(s.med)) : '—'}</div><div class="pi-kl">Tempo médio</div>${dl}</div>
      <div class="pi-k"><div class="pi-v">${s.n ? unid(hm(s.mediana)) : '—'}</div><div class="pi-kl">Mediana (valor do meio)</div></div>
+     <div class="pi-k"><div class="pi-v">${s.n ? unid(hmModa(s)) : '—'}</div><div class="pi-kl">Moda (tempo mais comum)</div>${s.n ? `<div class="pi-d flat">${s.modaFaixa ? 'nenhum tempo se repete: faixa de ' + s.modaDe + ' a ' + s.modaAte + ' min, ' + s.modaN + ' lanç.' : 'repetido ' + s.modaN + ' vezes'}</div>` : ''}</div>
      <div class="pi-k"><div class="pi-v">${s.n}</div><div class="pi-kl">Lançamentos</div></div>
      <div class="pi-k"><div class="pi-v">${(s.tot / 60).toFixed(0)}<small>h</small></div><div class="pi-kl">Horas somadas</div></div>
      <div class="pi-k"><div class="pi-v">${mx ? unid(hm(mx.min)) : '—'}</div><div class="pi-kl">Maior lançamento${mx ? ' · ' + esc(mx.inj) + ' · ' + fmtD(mx.d) : ''}</div></div>`;
@@ -199,7 +212,7 @@
     const xmax = xmaxDe(rows), W = Math.max(220, q('piAxis').clientWidth || 600);
     q('piStrip').innerHTML = keys.slice(0, S.rows).map(k => {
       const a = by[k], v = a.map(x => x.min);
-      return `<button class="pi-srow" data-s="${esc(k)}" title="Filtrar por ${esc(k)}"><div class="pi-lab"><b>${esc(k)}</b><span><span class="pi-n">${hm(mean(v))}</span> média · mediana ${hm(med(v))} · ${a.length} lanç.</span></div>${stripSvg(a, xmax, W, 34, true)}</button>`;
+      return `<button class="pi-srow" data-s="${esc(k)}" title="Filtrar por ${esc(k)}"><div class="pi-lab"><b>${esc(k)}</b><span><span class="pi-n">${hm(mean(v))}</span> média · mediana ${hm(med(v))} · moda ${modaTxt(v)} · ${a.length} lanç.</span></div>${stripSvg(a, xmax, W, 34, true)}</button>`;
     }).join('');
     q('piAxis').innerHTML = eixoSvg(xmax, W, rows.some(x => x.min > xmax));
     const b = q('piMore'); b.hidden = total <= 12; b.textContent = S.rows < total ? `Mostrar todas as ${total} atividades` : 'Mostrar só as 12 principais';
@@ -218,9 +231,9 @@
   function comp() {
     const all = base(['cat']);
     const corpo = ['Balde', 'Tampa', 'STX', 'PMX', 'Alça', 'Outros'].map(c => { const a = all.filter(x => x.cat === c);
-      if (!a.length) return `<tr><td>${c}</td><td colspan="4" style="color:#64748b">sem lançamentos</td></tr>`;
-      const s = stats(a); return `<tr${S.cat === c ? ' style="background:#dbe9f7"' : ''}><td><b>${c}</b></td><td style="text-align:right"><b>${hm(s.med)}</b></td><td style="text-align:right">${hm(s.mediana)}</td><td style="text-align:right">${s.n}</td><td style="text-align:right">${(s.tot / 60).toFixed(0)}</td></tr>`; }).join('');
-    q('piComp').innerHTML = `<table><thead><tr><th>Molde</th><th style="text-align:right">Média</th><th style="text-align:right">Mediana</th><th style="text-align:right">Lançam.</th><th style="text-align:right">Horas</th></tr></thead><tbody>${corpo}</tbody></table><div class="pi-hint" style="margin-top:8px">Respeita todos os filtros, menos o de molde. STX são as tampas dos potes e PMX são os potes.</div>`;
+      if (!a.length) return `<tr><td>${c}</td><td colspan="5" style="color:#64748b">sem lançamentos</td></tr>`;
+      const s = stats(a); return `<tr${S.cat === c ? ' style="background:#dbe9f7"' : ''}><td><b>${c}</b></td><td style="text-align:right"><b>${hm(s.med)}</b></td><td style="text-align:right">${hm(s.mediana)}</td><td style="text-align:right">${hmModa(s)}</td><td style="text-align:right">${s.n}</td><td style="text-align:right">${(s.tot / 60).toFixed(0)}</td></tr>`; }).join('');
+    q('piComp').innerHTML = `<table><thead><tr><th>Molde</th><th style="text-align:right">Média</th><th style="text-align:right">Mediana</th><th style="text-align:right" title="Tempo mais comum. ~ = faixa de 15 min, quando nenhum tempo se repete">Moda</th><th style="text-align:right">Lançam.</th><th style="text-align:right">Horas</th></tr></thead><tbody>${corpo}</tbody></table><div class="pi-hint" style="margin-top:8px">Respeita todos os filtros, menos o de molde. STX são as tampas dos potes e PMX são os potes.</div>`;
   }
   function th(t, key, lab, r) { const [sk, sd] = S.sort[t]; return `<th class="pi-sort" style="${r ? 'text-align:right' : ''}" data-t="${t}" data-k="${key}">${lab}${sk === key ? (sd > 0 ? ' ▲' : ' ▼') : ''}</th>`; }
   function tabela(rows) {
@@ -237,7 +250,7 @@
     if ((t === 'ton' || t === 'cav') && k === 'k') g.sort((x, y) => (ordTon(x.k) - ordTon(y.k)) * d); else
     g.sort((x, y) => (x[k] > y[k] ? 1 : x[k] < y[k] ? -1 : 0) * d);
     const mx = Math.max(...g.map(x => x.med));
-    q('piTab').innerHTML = `<table><thead><tr>${th(t, 'k', t === 'cav' ? 'Cavidades' : t === 'ton' ? 'Tonelagem' : t === 'inj' ? 'Injetora' : 'Molde')}${t === 'mol' ? th(t, 'inj', 'Injetora') : ''}${th(t, 'med', 'Tempo médio', 1)}${th(t, 'mediana', 'Mediana', 1)}${th(t, 'n', 'Lançam.', 1)}${th(t, 'tot', 'Horas', 1)}${th(t, 'max', 'Maior', 1)}</tr></thead><tbody>${g.slice(0, t === 'mol' ? 40 : 25).map(x => `<tr class="pi-click" data-f="${t}" data-v="${esc(x.k)}" data-i="${esc(x.inj || '')}" title="Filtrar"><td>${esc(x.k)}</td>${t === 'mol' ? `<td><b>${esc(x.inj)}</b></td>` : ''}<td style="text-align:right"><span class="pi-bar" style="width:${Math.max(1, 60 * x.med / mx)}px"></span><b>${hm(x.med)}</b></td><td style="text-align:right">${hm(x.mediana)}</td><td style="text-align:right">${x.n}</td><td style="text-align:right">${x.tot.toFixed(1)}</td><td style="text-align:right">${hm(x.max)}</td></tr>`).join('')}</tbody></table>${g.length > (t === 'mol' ? 40 : 25) ? `<div class="pi-hint" style="margin-top:8px">Mostrando as ${t === 'mol' ? 40 : 25} com mais lançamentos de ${g.length}. Use os filtros para ver as demais.</div>` : ''}`;
+    q('piTab').innerHTML = `<table><thead><tr>${th(t, 'k', t === 'cav' ? 'Cavidades' : t === 'ton' ? 'Tonelagem' : t === 'inj' ? 'Injetora' : 'Molde')}${t === 'mol' ? th(t, 'inj', 'Injetora') : ''}${th(t, 'med', 'Tempo médio', 1)}${th(t, 'mediana', 'Mediana', 1)}${th(t, 'moda', 'Moda', 1)}${th(t, 'n', 'Lançam.', 1)}${th(t, 'tot', 'Horas', 1)}${th(t, 'max', 'Maior', 1)}</tr></thead><tbody>${g.slice(0, t === 'mol' ? 40 : 25).map(x => `<tr class="pi-click" data-f="${t}" data-v="${esc(x.k)}" data-i="${esc(x.inj || '')}" title="Filtrar"><td>${esc(x.k)}</td>${t === 'mol' ? `<td><b>${esc(x.inj)}</b></td>` : ''}<td style="text-align:right"><span class="pi-bar" style="width:${Math.max(1, 60 * x.med / mx)}px"></span><b>${hm(x.med)}</b></td><td style="text-align:right">${hm(x.mediana)}</td><td style="text-align:right">${hmModa(x)}</td><td style="text-align:right">${x.n}</td><td style="text-align:right">${x.tot.toFixed(1)}</td><td style="text-align:right">${hm(x.max)}</td></tr>`).join('')}</tbody></table>${g.length > (t === 'mol' ? 40 : 25) ? `<div class="pi-hint" style="margin-top:8px">Mostrando as ${t === 'mol' ? 40 : 25} com mais lançamentos de ${g.length}. Use os filtros para ver as demais.</div>` : ''}`;
   }
   function render() {
     if (!raiz || !q('piKpis')) return;
@@ -291,13 +304,13 @@
 
       // ---- Resumo ----
       const ws = wb.addWorksheet('Resumo', { views: [{ showGridLines: false }] });
-      [2, 20, 20, 20, 20, 20, 3, 14, 14].forEach((w, i) => ws.getColumn(i + 1).width = w);
-      ws.mergeCells('B2:F2'); Object.assign(ws.getCell('B2'), { value: 'Indicadores de PCM — Produção' });
+      [2, 20, 20, 20, 20, 20, 20, 3, 14, 14].forEach((w, i) => ws.getColumn(i + 1).width = w);
+      ws.mergeCells('B2:G2'); Object.assign(ws.getCell('B2'), { value: 'Indicadores de PCM — Produção' });
       ws.getCell('B2').font = xlFont({ size: 20, bold: true, color: { argb: 'FFFFFFFF' } }); ws.getCell('B2').fill = xlFill(XL.NAVY);
       ws.getCell('B2').alignment = { vertical: 'middle', indent: 1 }; ws.getRow(2).height = 38;
-      ws.mergeCells('B3:F3'); ws.getCell('B3').value = 'Filtros: ' + descFiltros() + '  ·  Gerado em ' + new Date().toLocaleString('pt-BR');
+      ws.mergeCells('B3:G3'); ws.getCell('B3').value = 'Filtros: ' + descFiltros() + '  ·  Gerado em ' + new Date().toLocaleString('pt-BR');
       ws.getCell('B3').font = xlFont({ italic: true, color: { argb: 'FF595959' }, size: 9 }); ws.getCell('B3').alignment = { wrapText: true, vertical: 'top', indent: 1 }; ws.getRow(3).height = 30;
-      const cards = [['Tempo médio', { formula: `AVERAGE(${col('G')})`, result: s.med }, 'min por lançamento', XL.BLUE, '0'], ['Mediana', { formula: `MEDIAN(${col('G')})`, result: s.mediana }, 'min (valor do meio)', XL.ORG, '0'],
+      const cards = [['Tempo médio', { formula: `AVERAGE(${col('G')})`, result: s.med }, 'min por lançamento', XL.BLUE, '0'], ['Mediana', { formula: `MEDIAN(${col('G')})`, result: s.mediana }, 'min (valor do meio)', XL.ORG, '0'], ['Moda', s.moda, s.modaFaixa ? 'min (faixa mais comum, ~)' : 'min (tempo mais comum)', XL.BLUE, '0'],
         ['Lançamentos', { formula: `COUNT(${col('G')})`, result: s.n }, 'no período filtrado', XL.BLUE, '0'], ['Horas somadas', { formula: `SUM(${col('G')})/60`, result: s.tot / 60 }, 'horas', XL.ORG, '0'], ['Maior lançamento', { formula: `MAX(${col('G')})`, result: s.max }, 'min', XL.BLUE, '0']];
       cards.forEach(([t, v, u, cor, nf], i) => { const cl = 2 + i;
         const a = ws.getCell(5, cl), b = ws.getCell(6, cl), c = ws.getCell(7, cl);
@@ -317,18 +330,18 @@
       const tabela = (nome, titulo, key, letra, itens, rotulo, larg0, par) => {
         const o = par ? 1 : 0;
         const w = wb.addWorksheet(nome, { views: [{ state: 'frozen', ySplit: 3, showGridLines: false }] });
-        w.mergeCells('A1:' + String.fromCharCode(72 + o) + '1'); w.getCell('A1').value = titulo; w.getCell('A1').font = xlFont({ size: 15, bold: true, color: { argb: XL.NAVY } }); w.getRow(1).height = 26;
-        const cab = [rotulo, ...(par ? ['Injetora'] : []), 'Tempo médio (min)', 'Tempo médio (h:mm)', 'Mediana (min)', 'Lançamentos', 'Horas somadas', 'Maior (min)', 'Menor (min)'];
+        w.mergeCells('A1:' + String.fromCharCode(73 + o) + '1'); w.getCell('A1').value = titulo; w.getCell('A1').font = xlFont({ size: 15, bold: true, color: { argb: XL.NAVY } }); w.getRow(1).height = 26;
+        const cab = [rotulo, ...(par ? ['Injetora'] : []), 'Tempo médio (min)', 'Tempo médio (h:mm)', 'Mediana (min)', 'Moda (min)', 'Lançamentos', 'Horas somadas', 'Maior (min)', 'Menor (min)'];
         cab.forEach((t, i) => { const c = w.getCell(3, i + 1); c.value = t; c.font = xlFont({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = xlFill(XL.NAVY); c.border = xlBorda; c.alignment = { horizontal: i > o ? 'center' : 'left', vertical: 'middle', wrapText: true, indent: i ? 0 : 1 }; });
         w.getRow(3).height = 32;
         itens.forEach((g, n) => { const r = 4 + n, fx = (f, v) => ({ formula: f, result: v }), L = String.fromCharCode(66 + o), M = String.fromCharCode(67 + o);
           const crit = par ? `${col('C')},A${r},${col('B')},B${r}` : `${col(letra)},A${r}`;
-          const cs = [g.k, ...(par ? [g.inj] : []), fx(`IFERROR(AVERAGEIFS(${col('G')},${crit}),0)`, g.med), fx(`${L}${r}/1440`, g.med / 1440), g.mediana, fx(`COUNTIFS(${crit})`, g.n), fx(`SUMIFS(${col('G')},${crit})/60`, g.tot), g.max, g.min];
+          const cs = [g.k, ...(par ? [g.inj] : []), fx(`IFERROR(AVERAGEIFS(${col('G')},${crit}),0)`, g.med), fx(`${L}${r}/1440`, g.med / 1440), g.mediana, Math.round(g.moda), fx(`COUNTIFS(${crit})`, g.n), fx(`SUMIFS(${col('G')},${crit})/60`, g.tot), g.max, g.min];
           cs.forEach((v, i) => { const c = w.getCell(r, i + 1), j = i - o; c.value = v; c.font = xlFont({ bold: j === 1 }); c.border = xlBorda; if (n % 2) c.fill = xlFill(XL.GREY);
             c.alignment = { horizontal: i > o ? 'center' : 'left', indent: i > o ? 0 : 1, wrapText: i === 0 };
-            c.numFmt = j === 2 ? '[h]:mm' : j === 5 ? '0.0' : '0'; }); });
-        [larg0, ...(par ? [14] : []), 16, 16, 14, 13, 14, 13, 13].forEach((x, i) => w.getColumn(i + 1).width = x);
-        w.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + itens.length, column: 8 + o } };
+            c.numFmt = j === 2 ? '[h]:mm' : j === 6 ? '0.0' : '0'; }); });
+        [larg0, ...(par ? [14] : []), 16, 16, 14, 12, 13, 14, 13, 13].forEach((x, i) => w.getColumn(i + 1).width = x);
+        w.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3 + itens.length, column: 9 + o } };
         return w;
       };
       const ordN = (a, b) => b.n - a.n;
@@ -354,7 +367,7 @@
       const wn = wb.addWorksheet('Como ler', { views: [{ showGridLines: false }] });
       wn.getColumn(1).width = 110;
       ['Como ler este arquivo',
-       'Tempo médio: média de minutos dos lançamentos de Produção (aba Lançamentos). Mediana: o valor do meio, menos afetado por lançamentos muito longos.',
+       'Tempo médio: média de minutos dos lançamentos de Produção (aba Lançamentos). Mediana: o valor do meio, menos afetado por lançamentos muito longos. Moda: o tempo que mais se repete; quando nenhum tempo se repete, é a faixa de 15 minutos com mais lançamentos (arredondado, no centro da faixa).',
        'As abas "Por ..." usam fórmulas sobre a aba Lançamentos. Se você corrigir um valor lá, as médias se atualizam.',
        'Lançamentos acima de 8 h aparecem destacados em laranja na aba Lançamentos. Podem ser erro de horário.',
        'Tipo de molde vem do nome do molde (BX balde, TX/TCX tampa, STX tampa de pote, PMX pote, ALÇA alça). Cavidades vêm do cadastro do molde; "Não cadastrado" indica molde sem esse dado.',
@@ -374,8 +387,8 @@
     if (!rows.length) { toast('Nenhum lançamento para exportar com esses filtros.', 'erro'); return; }
     const s = stats(rows), xmax = xmaxDe(rows), W = 680, by = {}; rows.forEach(x => (by[x.s] = by[x.s] || []).push(x));
     const keys = Object.keys(by).sort((a, b) => by[b].length - by[a].length).slice(0, 14);
-    const strips = keys.map(k => { const a = by[k], v = a.map(x => x.min); return `<div class="r"><div class="l"><b>${esc(k)}</b><br>${hm(mean(v))} média · mediana ${hm(med(v))} · ${a.length} lanç.</div>${stripSvg(a, xmax, W, 30, false)}</div>`; }).join('');
-    const tab = (titulo, g, nome, n) => `<h3>${titulo}</h3><table><tr><th>${nome}</th><th>Média</th><th>Mediana</th><th>Lanç.</th><th>Horas</th><th>Maior</th></tr>${g.slice(0, n).map(x => `<tr><td>${esc(x.k)}</td><td>${hm(x.med)}</td><td>${hm(x.mediana)}</td><td>${x.n}</td><td>${x.tot.toFixed(1)}</td><td>${hm(x.max)}</td></tr>`).join('')}</table>`;
+    const strips = keys.map(k => { const a = by[k], v = a.map(x => x.min); return `<div class="r"><div class="l"><b>${esc(k)}</b><br>${hm(mean(v))} média · mediana ${hm(med(v))} · moda ${modaTxt(v)} · ${a.length} lanç.</div>${stripSvg(a, xmax, W, 30, false)}</div>`; }).join('');
+    const tab = (titulo, g, nome, n) => `<h3>${titulo}</h3><table><tr><th>${nome}</th><th>Média</th><th>Mediana</th><th>Moda</th><th>Lanç.</th><th>Horas</th><th>Maior</th></tr>${g.slice(0, n).map(x => `<tr><td>${esc(x.k)}</td><td>${hm(x.med)}</td><td>${hm(x.mediana)}</td><td>${hmModa(x)}</td><td>${x.n}</td><td>${x.tot.toFixed(1)}</td><td>${hm(x.max)}</td></tr>`).join('')}</table>`;
     const mes = group(rows, 'mes').sort((a, b) => a.k.localeCompare(b.k)).map(x => ({ ...x, k: fmtM(x.k) }));
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Indicadores de PCM</title><style>
       @page{size:A4;margin:14mm}body{font:11px/1.4 Arial,sans-serif;color:#14202e;margin:0}h1{font-size:20px;margin:0}h3{font-size:13px;margin:16px 0 6px}
@@ -384,8 +397,8 @@
       table{width:100%;border-collapse:collapse;font-size:10px;break-inside:avoid}th,td{text-align:right;padding:3px 6px;border-bottom:1px solid #e6ebf0}th:first-child,td:first-child{text-align:left}th{color:#5a6a7b}
       .leg{color:#5a6a7b;font-size:10px;margin:2px 0 6px}.pb{break-before:page}svg{display:block}</style></head><body>
       <h1>Indicadores de PCM — Produção</h1><div class="sub">Filtros: ${esc(descFiltros())}<br>Gerado em ${new Date().toLocaleString('pt-BR')} · ${rows.length} lançamentos</div>
-      <div class="k"><div><b>${hm(s.med)}</b>tempo médio</div><div><b>${hm(s.mediana)}</b>mediana</div><div><b>${s.n}</b>lançamentos</div><div><b>${(s.tot / 60).toFixed(0)} h</b>somadas</div><div><b>${hm(s.max)}</b>maior</div></div>
-      <h3>Faixa de tempos por atividade</h3><div class="leg">Cada ponto é um lançamento. Linha escura: média. Losango: mediana. Escala de 0 a ${xmax / 60} h.</div>${strips}
+      <div class="k"><div><b>${hm(s.med)}</b>tempo médio</div><div><b>${hm(s.mediana)}</b>mediana</div><div><b>${hmModa(s)}</b>moda</div><div><b>${s.n}</b>lançamentos</div><div><b>${(s.tot / 60).toFixed(0)} h</b>somadas</div><div><b>${hm(s.max)}</b>maior</div></div>
+      <h3>Faixa de tempos por atividade</h3><div class="leg">Cada ponto é um lançamento. Linha escura: média. Losango: mediana. Moda: tempo mais comum (~ = faixa de 15 min, quando nenhum tempo se repete). Escala de 0 a ${xmax / 60} h.</div>${strips}
       <div class="pb"></div>${tab('Por mês', mes, 'Mês', 14)}${tab('Por cavidades do molde', group(rows, 'cav').sort((a, b) => ordCav(a.k) - ordCav(b.k)), 'Cavidades', 14)}${tab('Por tonelagem', group(rows, 'ton').sort((a, b) => ordTon(a.k) - ordTon(b.k)), 'Tonelagem', 14)}${tab('Por tipo de molde', group(rows, 'cat').sort((a, b) => b.n - a.n), 'Molde', 8)}
       ${tab('Por injetora (25 com mais lançamentos)', group(rows, 'inj').sort((a, b) => b.n - a.n), 'Injetora', 25)}${tab('Por molde e injetora (25 com mais lançamentos)', groupMolInj(rows).sort((a, b) => b.n - a.n).map(x => ({ ...x, k: x.mol + ' — ' + x.inj })), 'Molde — injetora', 25)}
       <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
@@ -490,7 +503,7 @@
     .pi-chip button{border:0;background:none;cursor:pointer;width:22px;height:22px;border-radius:50%;line-height:1;font-size:15px}.pi-chip button:hover{background:#fff}
     .pi-clear{border:0;background:none;color:var(--pi-acc);cursor:pointer;text-decoration:underline;font-size:13px}
     .pi-pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:var(--pi-soft)}.pi-pill.st{background:#fbead0;color:var(--pi-sig)}
-    .pi-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0 0 16px;background:#fff;border:1px solid var(--pi-line);border-radius:10px}
+    .pi-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin:0 0 16px;background:#fff;border:1px solid var(--pi-line);border-radius:10px}
     .pi-k{padding:14px 16px;border-right:1px solid var(--pi-soft);min-width:0}.pi-k:last-child{border-right:0}
     .pi-v{font-size:30px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;color:var(--pi-ink)}.pi-v small{font-size:15px;color:var(--pi-mut);margin-left:3px;font-weight:500}
     .pi-kl{font-size:12.5px;color:var(--pi-mut);margin-top:4px}.pi-d{font-size:12px;margin-top:3px;font-weight:600}.pi-d.up{color:#b3261e}.pi-d.down{color:#17733f}.pi-d.flat{color:var(--pi-mut)}
@@ -508,7 +521,7 @@
     .pi-bar{display:inline-block;height:8px;background:var(--pi-acc);border-radius:2px;vertical-align:middle;margin-right:6px}
     .pi-empty{padding:24px 8px;color:var(--pi-mut);text-align:center}
     @media(max-width:900px){.pi-two{grid-template-columns:minmax(0,1fr)}}
-    @media(max-width:820px){.pi-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.pi-k{border-bottom:1px solid var(--pi-soft)}.pi-k:nth-child(2n){border-right:0}.pi-k:last-child{grid-column:1/-1;border-bottom:0}}
+    @media(max-width:820px){.pi-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.pi-k{border-bottom:1px solid var(--pi-soft)}.pi-k:nth-child(2n){border-right:0}.pi-k:last-child:nth-child(odd){grid-column:1/-1;border-bottom:0}}
     @media(max-width:640px){.pi-srow,.pi-axis{grid-template-columns:1fr}.pi-axis>div:first-child{display:none}.pi-lab{padding-bottom:0}}`;
     document.head.appendChild(st);
   }
