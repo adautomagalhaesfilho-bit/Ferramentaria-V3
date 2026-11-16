@@ -23,9 +23,9 @@ function ciclosLerNumero(txt) {
 // Cada formulário tem seus próprios IDs
 function _ciclosIds(ctx) {
   return ctx === 'Prod'
-    ? { grupo:'grupoCiclosProd', input:'prodFormCiclos', zerado:'prodFormCiclosZerado', sem:'prodFormCiclosSem', dica:'ciclosDicaProd', req:'ciclosReqProd',
+    ? { grupo:'grupoCiclosProd', input:'prodFormCiclos', zerado:'prodFormCiclosZerado', dica:'ciclosDicaProd', req:'ciclosReqProd',
         job:'prodFormMolde', tipo:'prodFormTipo', rotuloJob:'rotuloMoldeProd' }
-    : { grupo:'grupoCiclosBanc', input:'formCiclos', zerado:'formCiclosZerado', sem:'formCiclosSem', dica:'ciclosDicaBanc', req:'ciclosReqBanc',
+    : { grupo:'grupoCiclosBanc', input:'formCiclos', zerado:'formCiclosZerado', dica:'ciclosDicaBanc', req:'ciclosReqBanc',
         job:'formJob', tipo:'formTipoBancada', rotuloJob:'rotuloJobBanc' };
 }
 
@@ -52,7 +52,7 @@ async function ciclosAtualizar(ctx) {
   const exigeMolde = mostrar;
   if (rotulo) rotulo.innerHTML = (ctx === 'Prod' ? 'Molde' : 'Job / Molde') + (exigeMolde ? ' <span style="color:#ef4444">* obrigatório</span>' : '');
   const req = document.getElementById(ids.req);
-  if (req) req.innerHTML = mostrar ? '<span style="color:#ef4444">*</span>' : '';
+  if (req) req.innerHTML = mostrar ? '<span style="font-weight:400;color:#5a6a7b">(opcional: só se o molde tiver contador)</span>' : '';
   if (!mostrar) return;
 
   const job = (document.getElementById(ids.job)?.value || '').trim();
@@ -98,7 +98,6 @@ function ciclosLimpar(ctx) {
   const ids = _ciclosIds(ctx);
   const i = document.getElementById(ids.input); if (i) i.value = '';
   const z = document.getElementById(ids.zerado); if (z) z.checked = false;
-  const s = document.getElementById(ids.sem); if (s) s.checked = false;
   _ciclosUltima[ctx] = undefined; _ciclosJobBuscado[ctx] = null;
   if (ctx === 'Prod') _ciclosSugerido.injetora = null;
   ciclosAtualizar(ctx);
@@ -110,10 +109,8 @@ function ciclosValidar(ctx, tipo, jobTexto) {
   if (_ciclosEdicao(ctx) || !ciclosExigeLeitura(tipo)) return { ok: true, leitura: null };
   if (!jobTexto) { toast('Informe o molde: é obrigatório em corretiva e preventiva.', 'erro'); return { ok: false }; }
   if (ctx === 'Banc' && !_ciclosFormEhBancada()) return { ok: true, leitura: null };
-  const sem = document.getElementById(ids.sem)?.checked;
-  if (sem) return { ok: true, leitura: null };
   const v = ciclosLerNumero(document.getElementById(ids.input)?.value);
-  if (v == null) { toast('Informe o contador de ciclos do molde (ou marque "Sem leitura").', 'erro'); return { ok: false }; }
+  if (v == null) return { ok: true, leitura: null };   // contador opcional: nem todo molde tem
   const zerado = !!document.getElementById(ids.zerado)?.checked;
   const u = _ciclosUltima[ctx];
   if (u && !zerado && v < u.ciclos) {
@@ -164,10 +161,6 @@ function _ciclosAgendar() {
   _ciclosTimer = setTimeout(() => {
     ciclosAtualizar('Prod'); ciclosAtualizar('Banc'); _ciclosSugerirMolde();
     _ciclosDicaTexto('Prod'); _ciclosDicaTexto('Banc');
-    ['Prod', 'Banc'].forEach(c => {   // "Sem leitura" desativa o campo do número
-      const ids = _ciclosIds(c), i = document.getElementById(ids.input), sem = document.getElementById(ids.sem);
-      if (i && sem) { i.disabled = sem.checked; i.style.opacity = sem.checked ? '0.5' : ''; }
-    });
   }, 200);
 }
 
