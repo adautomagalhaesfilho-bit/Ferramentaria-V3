@@ -187,6 +187,8 @@ function renderizarFicha(job, res) {
     <div style="height:280px"><canvas id="chartFichaTipos"></canvas></div>
   </div>
 
+  <div id="fichaConfiab"><div class="loader-inline"><div class="spinner-sm"></div><span>Calculando confiabilidade...</span></div></div>
+
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:700;color:#1e3a5f;font-size:15px">📐 Mapeamento de Calços</div>
@@ -225,7 +227,7 @@ function renderizarFicha(job, res) {
     ${typeof renderizarGaleriaAnexosMolde === 'function' ? renderizarGaleriaAnexosMolde(res.anexos||[]) : ''}
   </div>
 
-  <div id="fichaConfiab"><div class="loader-inline"><div class="spinner-sm"></div><span>Calculando confiabilidade...</span></div></div>
+  <div id="fichaConfiabBase"></div>
 
   <div class="card" style="border-left:4px solid #059669">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
