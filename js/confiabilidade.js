@@ -23,14 +23,14 @@ function confCalcular(dados) {
   // 1) Corretivas de Produção e de Bancada
   const evs = [];
   (dados.prod || []).filter(l => /corretiv/i.test(l.tipo || '')).forEach(l => evs.push({
-    origem: 'Produção', id: l.id, data: String(l.data).substring(0, 10), hi: l.hora_inicio || '', min: l.minutos || 0,
+    origem: 'Produção', id: l.id, ativ: l.atividade || '', desc: l.descricao || '', data: String(l.data).substring(0, 10), hi: l.hora_inicio || '', min: l.minutos || 0,
     onde: l.injetora || 'Produção', tec: String(l.tecnicos || '').split(',').map(t => t.trim()).filter(Boolean) }));
   // Bancada: vários técnicos no mesmo serviço geram um lançamento para cada um (mesma data, hora e duração): conta uma vez
   const bancVistos = {};
   (dados.banc || []).filter(l => l.setor === 'Bancada' && /corretiv/i.test(l.tipo || '')).forEach(l => {
     const dia = String(l.data).substring(0, 10), chave = dia + '|' + (l.hora_inicio || '') + '|' + (l.minutos || 0);
     if (bancVistos[chave]) { if (l.funcionario) bancVistos[chave].tec.push(l.funcionario); return; }
-    const ev = { origem: 'Bancada', id: l.id, data: dia, hi: l.hora_inicio || '', min: l.minutos || 0, onde: 'Bancada', tec: l.funcionario ? [l.funcionario] : [] };
+    const ev = { origem: 'Bancada', id: l.id, ativ: '', desc: l.descricao || '', data: dia, hi: l.hora_inicio || '', min: l.minutos || 0, onde: 'Bancada', tec: l.funcionario ? [l.funcionario] : [] };
     bancVistos[chave] = ev; evs.push(ev);
   });
   evs.sort((a, b) => a.data.localeCompare(b.data) || (a.origem === b.origem ? a.hi.localeCompare(b.hi) : (a.origem === 'Produção' ? -1 : 1)));
@@ -112,8 +112,8 @@ function confCalcular(dados) {
 async function confiabilidadeCarregar(job) {
   const enc = encodeURIComponent(job);
   const [prod, banc, hist, leituras] = await Promise.all([
-    db._get('prod_lancamentos', 'molde=eq.' + enc + '&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,injetora,tecnicos'),
-    db._get('lancamentos', 'job=eq.' + enc + '&setor=eq.Bancada&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,setor,funcionario'),
+    db._get('prod_lancamentos', 'molde=eq.' + enc + '&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,atividade,descricao,injetora,tecnicos'),
+    db._get('lancamentos', 'job=eq.' + enc + '&setor=eq.Bancada&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,setor,funcionario,descricao'),
     db._get('molde_localizacao_historico', 'job=eq.' + enc + '&order=movido_em.asc,id.asc', '*'),
     db._get('molde_contador_ciclos', 'job=eq.' + enc + '&order=data.asc,id.asc', '*')
   ]);
@@ -213,13 +213,20 @@ function confiabilidadePartes(job, r) {
       <div style="font-size:11px;color:#64748b;margin-top:3px">Máquina (Produção): ${_confNum(totMaq)} min · Bancada: ${_confNum(totBanc)} min</div>` : '');
 
   const podeEd = typeof podeEditar === 'function' && podeEditar();
-  const linhasOc = r.ocorrencias.slice().reverse().map(o => `<tr>
+  const fm = m => esc(typeof fmtMin === 'function' ? fmtMin(m) : m + ' min');
+  const linhaLanc = e => `<div style="display:flex;gap:8px;align-items:flex-start;padding:3px 0;border-top:1px dashed #e2e8f0;font-size:12px">
+      ${podeEd ? `<button class="btn-secondary" style="font-size:11px;padding:2px 8px;flex:none" onclick="confiabilidadeEditarLanc('${e.origem === 'Bancada' ? 'Bancada' : 'Producao'}', ${Number(e.id)}, '${esc(e.data)}', '${escJs(job)}')">✏️ Editar</button>` : ''}
+      <div style="flex:none;min-width:92px;color:#475569"><b>${_confBr(e.data).substring(0, 5)}</b>${e.hi ? ' ' + esc(String(e.hi).substring(0, 5)) : ''}</div>
+      <div style="flex:none;min-width:110px;font-weight:600;color:${e.origem === 'Bancada' ? '#b45309' : '#0056b3'}">${e.origem === 'Bancada' ? 'Bancada' : 'Produção ' + esc(e.onde)}</div>
+      <div style="flex:none;min-width:60px;text-align:right">${fm(e.min)}</div>
+      <div style="flex:1;min-width:0;color:#334155">${e.ativ ? '<b>' + esc(e.ativ) + '</b>' : ''}${e.ativ && e.desc ? ' — ' : ''}${esc(e.desc.length > 160 ? e.desc.slice(0, 160) + '…' : e.desc)}${(e.ativ || e.desc) ? '<br>' : ''}<span style="color:#64748b">${esc(e.tec.join(', ') || '—')}</span></div></div>`;
+  const linhasOc = r.ocorrencias.slice().reverse().map(o => `<tr style="background:#f8fafc">
       <td>${_confBr(o.ini)}${o.fim !== o.ini ? ' <span style="color:#94a3b8">→ ' + _confBr(o.fim).substring(0, 5) + '</span>' : ''}</td>
       <td>${esc(o.onde)}</td>
-      <td style="text-align:right">${esc(typeof fmtMin === 'function' ? fmtMin(o.total) : o.total + ' min')}</td>
+      <td style="text-align:right">${fm(o.total)}</td>
       <td style="text-align:right">${o.leitura ? _confNum(o.leitura.ciclos) : '<span style="color:#94a3b8">—</span>'}</td>
-      <td>${esc(o.tec.join(', ') || '—')}</td>
-      ${podeEd ? `<td style="white-space:nowrap">${o.evs.map(e => `<button class="btn-secondary" style="font-size:11px;padding:2px 8px;margin:1px 2px" title="Editar o lançamento de ${esc(e.origem)} (${esc(e.onde)})" onclick="confiabilidadeEditarLanc('${e.origem === 'Bancada' ? 'Bancada' : 'Producao'}', ${Number(e.id)}, '${esc(e.data)}', '${escJs(job)}')">✏️ ${_confBr(e.data).substring(0, 5)}${e.origem === 'Bancada' ? ' Banc.' : ''}</button>`).join('')}</td>` : ''}</tr>`).join('');
+      <td>${esc(o.tec.join(', ') || '—')}</td></tr>
+    <tr><td colspan="5" style="padding:2px 10px 10px 24px"><div style="font-size:11px;color:#64748b;margin-bottom:2px">Lançamentos desta ocorrência (${o.evs.length})</div>${o.evs.map(linhaLanc).join('')}</td></tr>`).join('');
 
   const admin = typeof isAdmin === 'function' && isAdmin();
   const linhasLeit = r.leituras.slice().reverse().map(l => `<tr>
@@ -245,7 +252,7 @@ function confiabilidadePartes(job, r) {
   const base = `
   <div class="card" style="border-left:4px solid #0056b3">
     ${r.ocorrencias.length ? `<div style="margin:0 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Ocorrências de corretiva</div>
-    <div class="table-wrap"><table><thead><tr><th>Início</th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th>${podeEd ? '<th>Editar lançamento</th>' : ''}</tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
+    <div class="table-wrap"><table><thead><tr><th>Início</th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th></tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
     ${r.leituras.length ? `<div style="margin:16px 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Leituras do contador</div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th style="text-align:right">Ciclos</th><th style="text-align:right">Desde a anterior</th><th>Registrou</th><th>Origem</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>${linhasLeit}</tbody></table></div>` : ''}
     <div style="background:#e8f0fa;border-radius:8px;padding:10px 12px;font-size:12px;color:#5a6a7b;margin-top:14px"><b style="color:#14202e">Como é calculado.</b>
