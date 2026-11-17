@@ -220,13 +220,13 @@ function confiabilidadePartes(job, r) {
       <div style="flex:none;min-width:110px;font-weight:600;color:${e.origem === 'Bancada' ? '#b45309' : '#0056b3'}">${e.origem === 'Bancada' ? 'Bancada' : 'Produção ' + esc(e.onde)}</div>
       <div style="flex:none;min-width:60px;text-align:right">${fm(e.min)}</div>
       <div style="flex:1;min-width:0;color:#334155">${e.ativ ? '<b>' + esc(e.ativ) + '</b>' : ''}${e.ativ && e.desc ? ' — ' : ''}${esc(e.desc.length > 160 ? e.desc.slice(0, 160) + '…' : e.desc)}${(e.ativ || e.desc) ? '<br>' : ''}<span style="color:#64748b">${esc(e.tec.join(', ') || '—')}</span></div></div>`;
-  const linhasOc = r.ocorrencias.slice().reverse().map(o => `<tr style="background:#f8fafc">
-      <td>${_confBr(o.ini)}${o.fim !== o.ini ? ' <span style="color:#94a3b8">→ ' + _confBr(o.fim).substring(0, 5) + '</span>' : ''}</td>
+  const linhasOc = r.ocorrencias.slice().reverse().map(o => `<tr style="background:#f8fafc;cursor:pointer" onclick="confiabilidadeToggleOc(this)" title="Clique para ver os lançamentos">
+      <td><span class="conf-seta" style="display:inline-block;width:14px;color:#0056b3;transition:transform .15s">▶</span> ${_confBr(o.ini)}${o.fim !== o.ini ? ' <span style="color:#94a3b8">→ ' + _confBr(o.fim).substring(0, 5) + '</span>' : ''}</td>
       <td>${esc(o.onde)}</td>
       <td style="text-align:right">${fm(o.total)}</td>
       <td style="text-align:right">${o.leitura ? _confNum(o.leitura.ciclos) : '<span style="color:#94a3b8">—</span>'}</td>
       <td>${esc(o.tec.join(', ') || '—')}</td></tr>
-    <tr><td colspan="5" style="padding:2px 10px 10px 24px"><div style="font-size:11px;color:#64748b;margin-bottom:2px">Lançamentos desta ocorrência (${o.evs.length})</div>${o.evs.map(linhaLanc).join('')}</td></tr>`).join('');
+    <tr class="conf-det" style="display:none"><td colspan="5" style="padding:2px 10px 10px 24px"><div style="font-size:11px;color:#64748b;margin-bottom:2px">Lançamentos desta ocorrência (${o.evs.length})</div>${o.evs.map(linhaLanc).join('')}</td></tr>`).join('');
 
   const admin = typeof isAdmin === 'function' && isAdmin();
   const linhasLeit = r.leituras.slice().reverse().map(l => `<tr>
@@ -252,7 +252,7 @@ function confiabilidadePartes(job, r) {
   const base = `
   <div class="card" style="border-left:4px solid #0056b3">
     ${r.ocorrencias.length ? `<div style="margin:0 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Ocorrências de corretiva</div>
-    <div class="table-wrap"><table><thead><tr><th>Início</th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th></tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
+    <div class="table-wrap"><table><thead><tr><th>Início <span style="font-weight:400;color:#94a3b8">(clique na linha para ver os lançamentos)</span></th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th></tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
     ${r.leituras.length ? `<div style="margin:16px 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Leituras do contador</div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th style="text-align:right">Ciclos</th><th style="text-align:right">Desde a anterior</th><th>Registrou</th><th>Origem</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>${linhasLeit}</tbody></table></div>` : ''}
     <div style="background:#e8f0fa;border-radius:8px;padding:10px 12px;font-size:12px;color:#5a6a7b;margin-top:14px"><b style="color:#14202e">Como é calculado.</b>
@@ -276,6 +276,13 @@ async function confiabilidadeRenderizar(job) {
     console.error(e);
     el.innerHTML = '<div class="card"><div style="font-size:13px;color:#b91c1c">Não foi possível carregar a confiabilidade deste molde.</div></div>';
   }
+}
+
+function confiabilidadeToggleOc(tr) {
+  const det = tr.nextElementSibling; if (!det) return;
+  const abre = det.style.display === 'none';
+  det.style.display = abre ? '' : 'none';
+  const seta = tr.querySelector('.conf-seta'); if (seta) seta.style.transform = abre ? 'rotate(90deg)' : '';
 }
 
 // Abre o mesmo formulário de edição de Produção/Bancada; ao salvar, a ficha recalcula a confiabilidade
