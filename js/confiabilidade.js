@@ -2,7 +2,7 @@
 // 📈 CONFIABILIDADE.JS — MTBF e MTTR da Ferramentaria, por molde
 // - Ocorrência = corretivas do mesmo molde (Produção + Bancada) que são a mesma falha:
 //   a que ficou na máquina e depois foi para a bancada conta UMA vez.
-// - MTTR da Ferramentaria = tempo que a Ferramentaria gastou por ocorrência (soma dos lançamentos).
+// - MTTR = tempo corrido do molde parado por ocorrência (da corretiva até voltar à injetora); sem histórico do PCM, trabalho efetivo sem sobreposição.
 // - MTBF = tempo montado na injetora (histórico do PCM) e ciclos (contador) entre ocorrências.
 // Só usa informação que a Ferramentaria controla.
 // ==========================================
@@ -11,6 +11,9 @@ var CONF_GAP_BANCADA_DIAS = 45;   // com histórico no PCM, corretiva de bancada
 
 function _confDia(iso) { const [y, m, d] = String(iso).substring(0, 10).split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 86400000); }
 function _confIso(dia) { return new Date(dia * 86400000).toISOString().substring(0, 10); }
+// minutos de "relógio de parede" (hora local) a partir de data + hora do lançamento, ou de um timestamp do histórico
+function _confMinLanc(dia, hi) { const [y, m, d] = String(dia).substring(0, 10).split('-').map(Number); const h = /^(\d{1,2}):(\d{2})/.exec(hi || ''); return Date.UTC(y, m - 1, d, h ? +h[1] : 0, h ? +h[2] : 0) / 60000; }
+function _confMinTs(ts) { const d = new Date(ts); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()) / 60000; }
 function _confBr(iso) { return String(iso).substring(0, 10).split('-').reverse().join('/'); }
 
 // Função pura (testável): recebe os dados já carregados e devolve os indicadores
@@ -50,9 +53,21 @@ function confCalcular(dados) {
     else ocs.push({ ini: ev.data, fim: ev.data, evs: [ev] });
   });
   ocs.forEach(o => {
-    o.minMaq = o.evs.filter(e => e.origem === 'Produção').reduce((a, e) => a + e.min, 0);
-    o.minBanc = o.evs.filter(e => e.origem === 'Bancada').reduce((a, e) => a + e.min, 0);
+    // Tempo real decorrido: se dois técnicos lançaram o mesmo serviço em horários que se sobrepõem, o tempo em paralelo conta uma vez só
+    const doTipo = t => o.evs.filter(e => e.origem === t);
+    o.minMaq = _confUniaoMin(doTipo('Produção'));
+    o.minBanc = _confUniaoMin(doTipo('Bancada'));
     o.total = o.minMaq + o.minBanc;
+    o.minSoma = o.evs.reduce((a, e) => a + e.min, 0);   // soma bruta dos lançamentos (horas-homem), só para referência
+    o.trabalho = o.total;   // tempo de trabalho decorrido (sem sobreposição)
+    // MTTR = tempo corrido: da primeira corretiva até o molde voltar para a injetora. Só dá para saber onde o histórico do PCM já existia.
+    o.base = 'trabalho';
+    if (_confDia(o.ini) >= inicioHist) {
+      const ini = Math.min(...o.evs.map(e => _confMinLanc(e.data, e.hi)));
+      const fimEv = Math.max(...o.evs.map(e => _confMinLanc(e.data, e.hi) + e.min));
+      const volta = hist.find(h => h.localizacao === 'Em Máquina' && _confMinTs(h.movido_em) >= ini);
+      if (volta) { const vm = _confMinTs(volta.movido_em); if (vm > ini) { o.total = Math.max(vm - ini, o.trabalho); o.base = 'corrido'; o.voltouEm = volta.movido_em; } }
+    }
     const passos = []; o.evs.forEach(e => { const p = e.origem === 'Bancada' ? 'Bancada' : 'Produção ' + e.onde; if (!passos.includes(p)) passos.push(p); });
     o.onde = passos.join(' → ');
     o.tec = [...new Set(o.evs.flatMap(e => e.tec))];
@@ -107,6 +122,28 @@ function confCalcular(dados) {
     tendencia, suficiente: ocs.length >= 3,
     montado, hojeDia: hoje, inicioHist: isFinite(inicioHist) ? inicioHist : null
   };
+}
+
+// Soma o tempo dos lançamentos sem contar duas vezes os trechos de relógio em que mais de um técnico trabalhou ao mesmo tempo.
+// Lançamento sem hora de início não dá para comparar: entra pelo tempo informado.
+function _confUniaoMin(evs) {
+  let total = 0; const porDia = {};
+  evs.forEach(e => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(e.hi || '');
+    if (!m || !(e.min > 0)) { total += e.min || 0; return; }
+    const a = (+m[1]) * 60 + (+m[2]);
+    (porDia[e.data] = porDia[e.data] || []).push([a, a + e.min]);
+  });
+  Object.values(porDia).forEach(iv => {
+    iv.sort((x, y) => x[0] - y[0]);
+    let [ini, fim] = iv[0];
+    for (let i = 1; i < iv.length; i++) {
+      if (iv[i][0] <= fim) fim = Math.max(fim, iv[i][1]);
+      else { total += fim - ini; [ini, fim] = iv[i]; }
+    }
+    total += fim - ini;
+  });
+  return total;
 }
 
 async function confiabilidadeCarregar(job) {
@@ -197,10 +234,10 @@ function confiabilidadePartes(job, r) {
   const dd = x => _confBr(x.de).substring(0, 5) + '→' + _confBr(x.ate).substring(0, 5);
   const serieDias = r.intervalos.filter(x => x.diasMontado != null).map(x => ({ rot: dd(x), partes: [{ v: x.diasMontado, cor: '#0056b3' }] }));
   const serieCic = r.intervalos.filter(x => x.ciclos != null).map(x => ({ rot: dd(x), partes: [{ v: x.ciclos, cor: '#10b981' }] }));
-  const serieMttr = r.ocorrencias.map(o => ({ rot: _confBr(o.ini).substring(0, 5), partes: [{ v: o.minMaq || 0, cor: '#0056b3', nome: 'máquina' }, { v: o.minBanc || 0, cor: '#f59e0b', nome: 'bancada' }] }));
+  const serieMttr = r.ocorrencias.map(o => ({ rot: _confBr(o.ini).substring(0, 5), partes: o.base === 'corrido' ? [{ v: o.total, cor: '#ef4444', nome: 'molde parado (corrido)' }] : [{ v: o.minMaq || 0, cor: '#0056b3', nome: 'máquina' }, { v: o.minBanc || 0, cor: '#f59e0b', nome: 'bancada' }] }));
   const totMaq = r.ocorrencias.reduce((a, o) => a + (o.minMaq || 0), 0), totBanc = r.ocorrencias.reduce((a, o) => a + (o.minBanc || 0), 0);
   const pctMaq = totMaq + totBanc ? Math.round(totMaq / (totMaq + totBanc) * 100) : null;
-  const legenda = '<span style="font-size:11px;color:#64748b;font-weight:400;margin-left:6px"><span style="display:inline-block;width:10px;height:10px;background:#0056b3;border-radius:2px;margin-right:3px"></span>máquina <span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin:0 3px 0 8px"></span>bancada</span>';
+  const legenda = '<span style="font-size:11px;color:#64748b;font-weight:400;margin-left:6px"><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-right:3px"></span>corrido até voltar à injetora <span style="display:inline-block;width:10px;height:10px;background:#0056b3;border-radius:2px;margin:0 3px 0 8px"></span>trabalho na máquina <span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin:0 3px 0 8px"></span>bancada</span>';
   const linhaTempo = _confSvgLinhaTempo(r);
   const barras =
     (linhaTempo ? `${grafTit('🕒 Linha do tempo do molde: onde ficou e quando falhou')}${linhaTempo}` : '') +
@@ -208,7 +245,7 @@ function confiabilidadePartes(job, r) {
       ${serieDias.length ? `<div>${grafTit('📆 MTBF: dias montado entre ocorrências', pillT)}${_confSvgBarras(serieDias, { media: r.mtbfDias, un: 'dias', ok: !insuf })}</div>` : ''}
       ${serieCic.length ? `<div>${grafTit('🔢 MTBF: ciclos entre ocorrências', serieDias.length ? '' : pillT)}${_confSvgBarras(serieCic, { media: r.mtbfCiclos, un: 'ciclos', ok: !insuf })}</div>` : ''}
     </div>` : `<div style="font-size:12px;color:#64748b;margin-top:14px">O gráfico de MTBF aparece a partir de 2 ocorrências.</div>`) +
-    (serieMttr.length ? `${grafTit('🛠️ MTTR: tempo da Ferramentaria em cada ocorrência (min)', legenda)}${_confSvgBarras(serieMttr, { media: r.mttrTotal, un: 'min', ok: !insuf })}` : '') +
+    (serieMttr.length ? `${grafTit('🛠️ MTTR: tempo corrido do molde parado em cada ocorrência (min)', legenda)}${_confSvgBarras(serieMttr, { media: r.mttrTotal, un: 'min', ok: !insuf })}` : '') +
     (pctMaq != null ? `${grafTit('⚖️ Onde o tempo foi gasto')}<div style="display:flex;height:22px;border-radius:6px;overflow:hidden;font-size:11px;font-weight:700;color:#fff"><div style="width:${pctMaq}%;background:#0056b3;display:flex;align-items:center;justify-content:center;min-width:${pctMaq ? 28 : 0}px">${pctMaq}%</div><div style="width:${100 - pctMaq}%;background:#f59e0b;display:flex;align-items:center;justify-content:center;min-width:${100 - pctMaq ? 28 : 0}px">${100 - pctMaq}%</div></div>
       <div style="font-size:11px;color:#64748b;margin-top:3px">Máquina (Produção): ${_confNum(totMaq)} min · Bancada: ${_confNum(totBanc)} min</div>` : '');
 
@@ -226,7 +263,7 @@ function confiabilidadePartes(job, r) {
       <td style="text-align:right">${fm(o.total)}</td>
       <td style="text-align:right">${o.leitura ? _confNum(o.leitura.ciclos) : '<span style="color:#94a3b8">—</span>'}</td>
       <td>${esc(o.tec.join(', ') || '—')}</td></tr>
-    <tr class="conf-det" style="display:none"><td colspan="5" style="padding:2px 10px 10px 24px"><div style="font-size:11px;color:#64748b;margin-bottom:2px">Lançamentos desta ocorrência (${o.evs.length})</div>${o.evs.map(linhaLanc).join('')}</td></tr>`).join('');
+    <tr class="conf-det" style="display:none"><td colspan="5" style="padding:2px 10px 10px 24px"><div style="font-size:11px;color:#64748b;margin-bottom:2px">Lançamentos desta ocorrência (${o.evs.length})${o.base === 'corrido' ? ` · molde parado ${fm(o.total)} corridos, até voltar para a injetora em ${_confBr(o.voltouEm)} (trabalho efetivo ${fm(o.trabalho)}; soma bruta dos lançamentos ${fm(o.minSoma)})` : ` · sem histórico de volta à injetora: conta o trabalho efetivo ${fm(o.trabalho)} (soma bruta dos lançamentos ${fm(o.minSoma)}; técnicos no mesmo horário contam uma vez)`}</div>${o.evs.map(linhaLanc).join('')}</td></tr>`).join('');
 
   const admin = typeof isAdmin === 'function' && isAdmin();
   const linhasLeit = r.leituras.slice().reverse().map(l => `<tr>
@@ -243,20 +280,20 @@ function confiabilidadePartes(job, r) {
     <div class="cards-row">
       <div class="metric-card" style="border-left-color:#0056b3"><div class="metric-valor">${mostra(r.mtbfDias, 0)}${!insuf && r.mtbfDias != null ? ' dias' : ''}</div><div class="metric-label">MTBF (dias montado)</div><div class="metric-sub">média entre ocorrências</div></div>
       <div class="metric-card" style="border-left-color:#10b981"><div class="metric-valor">${mostra(r.mtbfCiclos, 0)}</div><div class="metric-label">MTBF (ciclos)</div><div class="metric-sub">${r.nCiclos ? r.nCiclos + ' intervalo(s) com leitura' : 'precisa de leituras do contador'}</div></div>
-      <div class="metric-card" style="border-left-color:#ef4444"><div class="metric-valor">${mostra(r.mttrTotal, 0)}${!insuf && r.mttrTotal != null ? ' min' : ''}</div><div class="metric-label">MTTR da Ferramentaria</div><div class="metric-sub">por ocorrência (soma dos lançamentos)</div></div>
+      <div class="metric-card" style="border-left-color:#ef4444"><div class="metric-valor">${mostra(r.mttrTotal, 0)}${!insuf && r.mttrTotal != null ? ' min' : ''}</div><div class="metric-label">MTTR (molde parado)</div><div class="metric-sub">tempo corrido, da corretiva até voltar à injetora</div></div>
       <div class="metric-card" style="border-left-color:#f59e0b"><div class="metric-valor">${r.ocorrencias.length}</div><div class="metric-label">Ocorrências</div><div class="metric-sub">${r.leituras.length ? _confNum(r.leituras[r.leituras.length - 1].ciclos) + ' ciclos na última leitura' : 'sem leitura do contador'}</div></div>
     </div>
-    <div style="font-size:12px;color:#64748b;margin-top:8px">Do MTTR: <b>${_confNum(r.mttrMaq)} min</b> em média na máquina (Produção) · <b>${_confNum(r.mttrBanc)} min</b> em média na bancada.</div>
+    <div style="font-size:12px;color:#64748b;margin-top:8px">Trabalho efetivo da Ferramentaria por ocorrência: <b>${_confNum(r.mttrMaq)} min</b> em média na máquina (Produção) · <b>${_confNum(r.mttrBanc)} min</b> em média na bancada. ${r.ocorrencias.some(o => o.base !== 'corrido') ? `<br>${r.ocorrencias.filter(o => o.base === 'corrido').length} de ${r.ocorrencias.length} ocorrências têm tempo corrido; as demais (antes do histórico do PCM) entram pelo trabalho efetivo.` : ''}</div>
     ${barras}
   </div>`;
   const base = `
   <div class="card" style="border-left:4px solid #0056b3">
     ${r.ocorrencias.length ? `<div style="margin:0 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Ocorrências de corretiva</div>
-    <div class="table-wrap"><table><thead><tr><th>Início <span style="font-weight:400;color:#94a3b8">(clique na linha para ver os lançamentos)</span></th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th></tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
+    <div class="table-wrap"><table><thead><tr><th>Início <span style="font-weight:400;color:#94a3b8">(clique na linha para ver os lançamentos)</span></th><th>Onde atuamos</th><th style="text-align:right">Tempo parado</th><th style="text-align:right">Contador</th><th>Técnicos</th></tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
     ${r.leituras.length ? `<div style="margin:16px 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Leituras do contador</div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th style="text-align:right">Ciclos</th><th style="text-align:right">Desde a anterior</th><th>Registrou</th><th>Origem</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>${linhasLeit}</tbody></table></div>` : ''}
     <div style="background:#e8f0fa;border-radius:8px;padding:10px 12px;font-size:12px;color:#5a6a7b;margin-top:14px"><b style="color:#14202e">Como é calculado.</b>
-      Ocorrência = corretivas do mesmo molde sem o molde voltar para a máquina no meio (usa o histórico do PCM). MTTR = tempo de trabalho da Ferramentaria ÷ ocorrências. MTBF = dias montado na injetora, ou ciclos do contador, entre uma ocorrência e a próxima, em média. Não usa tempo de máquina parada, que é da produção. Com menos de 3 ocorrências os números não aparecem.</div>
+      Ocorrência = corretivas do mesmo molde sem o molde voltar para a máquina no meio (usa o histórico do PCM). MTTR = tempo corrido do molde parado, da primeira corretiva até ele voltar para a injetora (histórico do PCM), em média por ocorrência; nunca soma as horas de várias pessoas. Antes do histórico do PCM (30/06/2026) não dá para saber quando voltou: nesses casos entra o trabalho efetivo, sem contar duas vezes quem trabalhou no mesmo horário. MTBF = dias montado na injetora, ou ciclos do contador, entre uma ocorrência e a próxima, em média. Com menos de 3 ocorrências os números não aparecem.</div>
   </div>`;
   return { topo, base };
 }
