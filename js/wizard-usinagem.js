@@ -4,7 +4,7 @@
 // então todas as regras de salvamento continuam sendo as mesmas. A edição não usa este arquivo.
 // ==========================================
 (function () {
-  var jobPend = null, A = {}, retorno = false, idx = 0, ordemTipos = null, rams = [], confirmando = false, salvando = false, feito = false;
+  var tiposPorMaq = null, jobPend = null, A = {}, retorno = false, idx = 0, ordemTipos = null, rams = [], confirmando = false, salvando = false, feito = false;
   var $ = function (id) { return document.getElementById(id); };
   var E = function (s) { return (typeof esc === 'function') ? esc(s == null ? '' : String(s)) : String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
   var L = function () { return (typeof _listas !== 'undefined' && _listas) ? _listas : {}; };
@@ -33,6 +33,7 @@
     + '.wz-btn.pri{flex:1;background:#0b5cab;border-color:#0b5cab;color:#fff}.wz-btn.ok{flex:1;background:#16794a;border-color:#16794a;color:#fff}.wz-btn:disabled{opacity:.4;cursor:not-allowed}'
     + '.wz-lista{border:2px solid #d5dce3;border-radius:12px;margin-top:6px;max-height:240px;overflow:auto;background:#fff}.wz-lista button{display:block;width:100%;text-align:left;padding:12px 14px;font:500 16px inherit;font-family:inherit;background:none;border:0;border-bottom:1px solid #d5dce3;color:#14202b;cursor:pointer}.wz-lista button:hover{background:#e3eefa}'
     + '.wz-rev{display:grid;grid-template-columns:auto 1fr auto;border:1px solid #d5dce3;border-radius:12px;overflow:hidden}.wz-rev>*{padding:10px 12px;border-bottom:1px solid #d5dce3;min-width:0}.wz-rev .k{color:#5a6b7a;font-size:14px}.wz-rev .v{font-weight:600;overflow-wrap:anywhere}.wz-rev button{background:none;border:0;color:#0b5cab;font-weight:600;font-size:14px;cursor:pointer}.wz-rev>*:nth-last-child(-n+3){border-bottom:0}'
+    + '.wz-sub{font-weight:700;font-size:14px;color:#5a6b7a;margin:2px 0 -4px}.wz-opt.ult{border-color:#0b5cab;background:#e3eefa}.wz-opt.ult.sel{background:#cfe2f7}'
     + '.wz-full{background:none;border:0;color:#5a6b7a;text-decoration:underline;font-size:13px;cursor:pointer;align-self:center;padding:6px}';
     document.head.appendChild(s);
   }
@@ -58,7 +59,8 @@
     { id: 'maq', t: 'Qual máquina foi utilizada?', h: 'Toque na máquina. Se foi um serviço geral, sem máquina, escolha a última opção.' },
     { id: 'tipo', t: 'O que foi feito?', h: 'Escolha o tipo de serviço. Os mais usados ficam no início. Se a máquina ficou parada, toque em “Máquina parada”.' },
     { id: 'motivo', t: 'Por que a máquina parou?', h: 'Escolha o motivo principal da parada.', se: ehParada },
-    { id: 'op', t: 'Quem foi o operador?', h: 'Toque no seu nome. Se mais alguém trabalhou junto, adicione em seguida.', se: function () { return !ehParada(); } },
+    { id: 'op', t: 'Quem foi o operador?', h: 'Toque no seu nome. Se for o mesmo da última vez nesta máquina, ele aparece primeiro.', se: function () { return !ehParada(); } },
+    { id: 'mais', t: 'Houve mais de um operador?', h: 'Responda Sim se mais alguém trabalhou junto. O sistema cria o mesmo lançamento para cada um.', se: function () { return !ehParada(); } },
     { id: 'ini', t: 'Que horas começou?', h: 'Digite a hora de início.' },
     { id: 'fim', t: 'Que horas terminou?', h: 'Digite a hora do fim. Se ainda está rodando, coloque a hora de agora.' },
     { id: 'alm', t: 'Passou pelo horário de almoço?', h: 'O sistema desconta 1h10 de almoço. Responda Sim se parou para almoçar nesse intervalo.', se: cruzaAlmoco },
@@ -93,11 +95,21 @@
     try {
       var d = new Date(); d.setDate(d.getDate() - 120);
       var ini = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-      var rows = await db._get('lancamentos', 'setor=eq.Usinagem&data=gte.' + ini + '&limit=5000', 'tipo');
-      var c = {}; (rows || []).forEach(function (r) { if (r.tipo) c[r.tipo] = (c[r.tipo] || 0) + 1; });
-      ordemTipos = c;
-    } catch (e) { ordemTipos = {}; }
+      var rows = await db._get('lancamentos', 'setor=eq.Usinagem&data=gte.' + ini + '&limit=5000', 'tipo,maquina');
+      var c = {}, pm = {};
+      (rows || []).forEach(function (r) {
+        if (!r.tipo) return; c[r.tipo] = (c[r.tipo] || 0) + 1;
+        if (r.maquina) { var m = pm[r.maquina] = pm[r.maquina] || {}; m[r.tipo] = (m[r.tipo] || 0) + 1; }
+      });
+      ordemTipos = c; tiposPorMaq = pm;
+    } catch (e) { ordemTipos = {}; tiposPorMaq = {}; }
     if (atual() && atual().id === 'tipo') draw();
+  }
+  // Os 5 serviços mais lançados NESTA máquina nos últimos 4 meses (só se a máquina tem histórico suficiente)
+  function topDaMaquina(todos) {
+    var m = A.maq && tiposPorMaq ? tiposPorMaq[A.maq] : null; if (!m) return [];
+    var tot = 0; Object.keys(m).forEach(function (k) { tot += m[k]; }); if (tot < 3) return [];
+    return todos.filter(function (t) { return m[t] > 0; }).sort(function (a, b) { return m[b] - m[a] || a.localeCompare(b, 'pt-BR'); }).slice(0, 5);
   }
   function tiposOrdenados() {
     var todos = (L().tipos || []).slice(), c = ordemTipos || {};
@@ -123,13 +135,22 @@
       h = '<div class="wz-opts">' + bt(h0, 'Hoje') + bt(h1, 'Ontem') + '</div><div><div class="wz-aj" style="margin-bottom:6px">Ou escolha outro dia:</div><input type="date" id="wzDataOut" value="' + E(A.data || '') + '"></div>';
     }
     if (p.id === 'maq') h = '<div class="wz-opts g2">' + (l.maquinas || []).filter(function (m) { return m !== 'Sem Máquina'; }).map(function (m) { return opt('maq', m); }).join('') + '</div><div class="wz-opts">' + '<button type="button" class="wz-opt' + (A.maq === '' ? ' sel' : '') + '" data-k="maq" data-v="">Sem máquina<small>Serviço geral, fora de máquina</small></button></div>';
-    if (p.id === 'tipo') h = '<div class="wz-opts g2">' + tiposOrdenados().filter(function (t) { return t !== PARADA || A.maq; }).map(function (t) { return opt('tipo', t, '', 'c' + (t === PARADA ? ' red' : '')); }).join('') + '</div>';
+    if (p.id === 'tipo') {
+      var todosT = tiposOrdenados().filter(function (t) { return t !== PARADA || A.maq; }), topT = topDaMaquina(todosT);
+      var restoT = todosT.filter(function (t) { return topT.indexOf(t) < 0; });
+      h = (topT.length ? '<div class="wz-sub">Mais usados nesta máquina</div><div class="wz-opts">' + topT.map(function (t) { return opt('tipo', t, '', 'ult' + (t === PARADA ? ' red' : '')); }).join('') + '</div>' + (restoT.length ? '<div class="wz-sub">Outros serviços</div>' : '') : '') +
+        '<div class="wz-opts g2">' + restoT.map(function (t) { return opt('tipo', t, '', 'c' + (t === PARADA ? ' red' : '')); }).join('') + '</div>';
+    }
     if (p.id === 'motivo') h = '<div class="wz-opts">' + (l.motivos || []).filter(function (m) { return m !== 'Nenhum'; }).map(function (m) { return opt('motivo', m); }).join('') + '</div>';
     if (p.id === 'op') {
-      var ops = l.funcionarios || [];
-      h = (A.ultOp ? '<div class="wz-av">Último operador nesta máquina: <b>' + E(A.ultOp) + '</b>.</div>' : '') +
-        '<div class="wz-opts">' + ops.map(function (m) { return opt('op', m); }).join('') + '</div>' +
-        (A.op ? '<div class="wz-aj">Mais alguém trabalhou junto? Toque para adicionar (cria o mesmo lançamento para ele):</div><div class="wz-opts g2">' + ops.filter(function (o) { return o !== A.op; }).map(function (m) { return '<button type="button" class="wz-opt c' + ((A.extras || []).indexOf(m) > -1 ? ' sel' : '') + '" data-k="extra" data-v="' + E(m) + '">+ ' + E(m) + '</button>'; }).join('') + '</div>' : '');
+      var ops = l.funcionarios || [], ult = (A.ultOp && ops.indexOf(A.ultOp) > -1) ? A.ultOp : null;
+      h = (ult ? '<div class="wz-sub">Último operador nesta máquina</div><div class="wz-opts">' + opt('op', ult, 'Toque para escolher', 'ult') + '</div><div class="wz-sub">Outros operadores</div>' : '') +
+        '<div class="wz-opts">' + ops.filter(function (m) { return m !== ult; }).map(function (m) { return opt('op', m); }).join('') + '</div>';
+    }
+    if (p.id === 'mais') {
+      var outros = (l.funcionarios || []).filter(function (o) { return o !== A.op; });
+      h = '<div class="wz-opts g2">' + opt('mais', 'Sim', 'Mais alguém trabalhou junto') + opt('mais', 'Não', 'Só ' + (A.op || '').split(' ')[0]) + '</div>' +
+        (A.mais === 'Sim' ? '<div class="wz-sub">Quem mais trabalhou junto? Toque para marcar:</div><div class="wz-opts g2">' + outros.map(function (m) { return '<button type="button" class="wz-opt c' + ((A.extras || []).indexOf(m) > -1 ? ' sel' : '') + '" data-k="extra" data-v="' + E(m) + '">' + E(m) + '</button>'; }).join('') + '</div>' : '');
     }
     if (p.id === 'ini') h = (A.ultFim && !A.iniTocado ? '<div class="wz-av">O último lançamento desta máquina neste dia terminou às <b>' + A.ultFim + '</b>. Já deixei essa hora preenchida. Corrija se precisar.</div>' : '') + '<input type="time" id="wzIni" value="' + E(A.ini || '') + '">';
     if (p.id === 'fim') h = '<input type="time" id="wzFim" value="' + E(A.fim || '') + '"><div id="wzDur" class="wz-av" hidden></div>';
@@ -141,7 +162,7 @@
     if (p.id === 'desc') h = (A.descAuto ? '<div class="wz-av">Já preenchi com a descrição do último lançamento deste molde. Ajuste se precisar.</div>' : '') + '<textarea id="wzDesc" placeholder="O que foi feito?">' + E(A.desc || '') + '</textarea>';
     if (p.id === 'rev') {
       var R = [['Data', fd(A.data), 'data'], ['Máquina', A.maq || 'Sem máquina', 'maq'], ['Serviço', A.tipo + (A.motivo ? ' — ' + A.motivo : ''), 'tipo']];
-      if (!ehParada()) R.push(['Operador', A.op + ((A.extras || []).length ? ' + ' + A.extras.join(', ') : ''), 'op']);
+      if (!ehParada()) { R.push(['Operador', A.op, 'op']); R.push(['Outros operadores', (A.extras || []).length ? A.extras.join(', ') : 'Nenhum', 'mais']); }
       R.push(['Horário', A.ini + ' às ' + (A.fim || '—') + (A.alm === 'Sim' && cruzaAlmoco() ? ' (almoço descontado)' : ''), 'ini']);
       R.push(['Tempo trabalhado', hhmm(dur()), 'fim']);
       if (A.auto === 'Sim') R.push(['Em automático', A.autoT || '00:00', 'auto']);
@@ -159,6 +180,7 @@
       case 'tipo': return !!A.tipo;
       case 'motivo': return !!A.motivo;
       case 'op': return !!A.op;
+      case 'mais': return A.mais === 'Não' || (A.mais === 'Sim' && (A.extras || []).length > 0);
       case 'ini': return !!A.ini;
       case 'fim': return !!A.fim;
       case 'alm': return !!A.alm;
@@ -170,8 +192,8 @@
       default: return true;
     }
   }
-  function draw() {
-    var o = overlay(), p = atual(), l = lista(), c = l.indexOf(p);
+  function draw(manter) {
+    var o = overlay(), rolagem = overlay().scrollTop, p = atual(), l = lista(), c = l.indexOf(p);
     if (p.id === 'desc' && !A.desc && A.descSug) { A.desc = A.descSug; A.descAuto = true; }
     var ch = [];
     if (p.id !== 'data' && A.data) { var h0 = hoje(); ch.push(A.data === h0 ? 'Hoje' : A.data === addDias(h0, -1) ? 'Ontem' : A.data.split('-').reverse().slice(0, 2).join('/')); }
@@ -186,7 +208,7 @@
       '<div class="wz-nav">' + (retorno ? '<button type="button" class="wz-btn" data-a="voltar">← Voltar à conferência</button>' : c > 0 ? '<button type="button" class="wz-btn" data-a="voltar">← Voltar</button>' : '') +
       (fim ? '<button type="button" class="wz-btn ok" data-a="salvar"' + (salvando ? ' disabled' : '') + '>' + (salvando ? 'Salvando...' : '💾 Salvar lançamento') + '</button>' : '<button type="button" class="wz-btn pri" data-a="prox"' + (ok() ? '' : ' disabled') + '>' + (retorno ? 'Salvar alteração ✓' : 'Continuar →') + '</button>') + '</div></div>' +
       '<button type="button" class="wz-full" data-a="completo">Prefiro usar o formulário completo</button></div>';
-    o.innerHTML = html; o.scrollTop = 0; ligar(p);
+    o.innerHTML = html; o.scrollTop = manter ? rolagem : 0; ligar(p);
   }
   function telaSalvo() {
     var o = overlay();
@@ -198,7 +220,7 @@
   function btnProx() { var b = document.querySelector('#wzOv [data-a="prox"]'); if (b) b.disabled = !ok(); }
   function ligar(p) {
     var g = function (id) { return $(id); };
-    if (p.id === 'data' && g('wzDataOut')) g('wzDataOut').onchange = function (e) { A.data = e.target.value; draw(); };
+    if (p.id === 'data' && g('wzDataOut')) g('wzDataOut').onchange = function (e) { A.data = e.target.value; draw(true); };
     if (p.id === 'ini') { var t = g('wzIni'); if (!A.ini && A.ultFim) { A.ini = A.ultFim; t.value = A.ini; btnProx(); } t.oninput = function () { A.ini = t.value; A.iniTocado = true; btnProx(); }; }
     if (p.id === 'fim') { var f = g('wzFim'), d = g('wzDur'); var up = function () { A.fim = f.value; btnProx(); if (A.fim && A.ini) { var m = dur(); d.hidden = false; d.className = 'wz-av' + (m > 600 ? ' w' : ''); d.textContent = 'Das ' + A.ini + ' às ' + A.fim + ': ' + hhmm(m) + ' de trabalho.' + (m > 600 ? ' Mais de 10 horas. Confira se está certo.' : ''); } else d.hidden = true; }; f.oninput = up; up(); }
     if (p.id === 'auto' && g('wzAuto')) g('wzAuto').oninput = function (e) { A.autoT = e.target.value; btnProx(); };
@@ -242,11 +264,12 @@
     var k = b.dataset.k; if (k === undefined) return; var v = b.dataset.v;
     if (k === 'data') { A.data = v; return prox(); }
     if (k === 'maq') { A.maq = v; A.ini = A.iniTocado ? A.ini : ''; aoEscolherMaquina(); return prox(); }
-    if (k === 'tipo') { A.tipo = v; if (v === PARADA) { A.op = null; A.extras = []; A.job = null; A.semJob = false; A.st = null; A.ram = ''; rams = []; } else A.motivo = null; return prox(); }
+    if (k === 'tipo') { A.tipo = v; if (v === PARADA) { A.op = null; A.extras = []; A.mais = undefined; A.job = null; A.semJob = false; A.st = null; A.ram = ''; rams = []; } else A.motivo = null; return prox(); }
     if (k === 'semjob') { A.semJob = true; jobPend = null; A.job = ''; A.ram = ''; A.st = null; rams = []; A.descSug = null; return prox(); }
-    if (k === 'op') { A.op = v; A.extras = (A.extras || []).filter(function (x) { return x !== v; }); return draw(); }
-    if (k === 'extra') { A.extras = A.extras || []; var i = A.extras.indexOf(v); if (i > -1) A.extras.splice(i, 1); else A.extras.push(v); return draw(); }
-    if (k === 'auto') { A.auto = v; if (v === 'Não') { A.autoT = null; return prox(); } return draw(); }
+    if (k === 'op') { A.op = v; A.extras = (A.extras || []).filter(function (x) { return x !== v; }); return prox(); }
+    if (k === 'mais') { A.mais = v; if (v === 'Não') { A.extras = []; return prox(); } return draw(true); }
+    if (k === 'extra') { A.extras = A.extras || []; var i = A.extras.indexOf(v); if (i > -1) A.extras.splice(i, 1); else A.extras.push(v); return draw(true); }
+    if (k === 'auto') { A.auto = v; if (v === 'Não') { A.autoT = null; return prox(); } return draw(true); }
     A[k] = v; if (k === 'ram') { return prox(); } prox();
   }
 
