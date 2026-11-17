@@ -23,14 +23,14 @@ function confCalcular(dados) {
   // 1) Corretivas de Produção e de Bancada
   const evs = [];
   (dados.prod || []).filter(l => /corretiv/i.test(l.tipo || '')).forEach(l => evs.push({
-    origem: 'Produção', data: String(l.data).substring(0, 10), hi: l.hora_inicio || '', min: l.minutos || 0,
+    origem: 'Produção', id: l.id, data: String(l.data).substring(0, 10), hi: l.hora_inicio || '', min: l.minutos || 0,
     onde: l.injetora || 'Produção', tec: String(l.tecnicos || '').split(',').map(t => t.trim()).filter(Boolean) }));
   // Bancada: vários técnicos no mesmo serviço geram um lançamento para cada um (mesma data, hora e duração): conta uma vez
   const bancVistos = {};
   (dados.banc || []).filter(l => l.setor === 'Bancada' && /corretiv/i.test(l.tipo || '')).forEach(l => {
     const dia = String(l.data).substring(0, 10), chave = dia + '|' + (l.hora_inicio || '') + '|' + (l.minutos || 0);
     if (bancVistos[chave]) { if (l.funcionario) bancVistos[chave].tec.push(l.funcionario); return; }
-    const ev = { origem: 'Bancada', data: dia, hi: l.hora_inicio || '', min: l.minutos || 0, onde: 'Bancada', tec: l.funcionario ? [l.funcionario] : [] };
+    const ev = { origem: 'Bancada', id: l.id, data: dia, hi: l.hora_inicio || '', min: l.minutos || 0, onde: 'Bancada', tec: l.funcionario ? [l.funcionario] : [] };
     bancVistos[chave] = ev; evs.push(ev);
   });
   evs.sort((a, b) => a.data.localeCompare(b.data) || (a.origem === b.origem ? a.hi.localeCompare(b.hi) : (a.origem === 'Produção' ? -1 : 1)));
@@ -212,12 +212,14 @@ function confiabilidadePartes(job, r) {
     (pctMaq != null ? `${grafTit('⚖️ Onde o tempo foi gasto')}<div style="display:flex;height:22px;border-radius:6px;overflow:hidden;font-size:11px;font-weight:700;color:#fff"><div style="width:${pctMaq}%;background:#0056b3;display:flex;align-items:center;justify-content:center;min-width:${pctMaq ? 28 : 0}px">${pctMaq}%</div><div style="width:${100 - pctMaq}%;background:#f59e0b;display:flex;align-items:center;justify-content:center;min-width:${100 - pctMaq ? 28 : 0}px">${100 - pctMaq}%</div></div>
       <div style="font-size:11px;color:#64748b;margin-top:3px">Máquina (Produção): ${_confNum(totMaq)} min · Bancada: ${_confNum(totBanc)} min</div>` : '');
 
+  const podeEd = typeof podeEditar === 'function' && podeEditar();
   const linhasOc = r.ocorrencias.slice().reverse().map(o => `<tr>
       <td>${_confBr(o.ini)}${o.fim !== o.ini ? ' <span style="color:#94a3b8">→ ' + _confBr(o.fim).substring(0, 5) + '</span>' : ''}</td>
       <td>${esc(o.onde)}</td>
       <td style="text-align:right">${esc(typeof fmtMin === 'function' ? fmtMin(o.total) : o.total + ' min')}</td>
       <td style="text-align:right">${o.leitura ? _confNum(o.leitura.ciclos) : '<span style="color:#94a3b8">—</span>'}</td>
-      <td>${esc(o.tec.join(', ') || '—')}</td></tr>`).join('');
+      <td>${esc(o.tec.join(', ') || '—')}</td>
+      ${podeEd ? `<td style="white-space:nowrap">${o.evs.map(e => `<button class="btn-secondary" style="font-size:11px;padding:2px 8px;margin:1px 2px" title="Editar o lançamento de ${esc(e.origem)} (${esc(e.onde)})" onclick="confiabilidadeEditarLanc('${e.origem === 'Bancada' ? 'Bancada' : 'Producao'}', ${Number(e.id)}, '${esc(e.data)}', '${escJs(job)}')">✏️ ${_confBr(e.data).substring(0, 5)}${e.origem === 'Bancada' ? ' Banc.' : ''}</button>`).join('')}</td>` : ''}</tr>`).join('');
 
   const admin = typeof isAdmin === 'function' && isAdmin();
   const linhasLeit = r.leituras.slice().reverse().map(l => `<tr>
@@ -243,7 +245,7 @@ function confiabilidadePartes(job, r) {
   const base = `
   <div class="card" style="border-left:4px solid #0056b3">
     ${r.ocorrencias.length ? `<div style="margin:0 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Ocorrências de corretiva</div>
-    <div class="table-wrap"><table><thead><tr><th>Início</th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th></tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
+    <div class="table-wrap"><table><thead><tr><th>Início</th><th>Onde atuamos</th><th style="text-align:right">Tempo da Ferramentaria</th><th style="text-align:right">Contador</th><th>Técnicos</th>${podeEd ? '<th>Editar lançamento</th>' : ''}</tr></thead><tbody>${linhasOc}</tbody></table></div>` : ''}
     ${r.leituras.length ? `<div style="margin:16px 0 6px;font-weight:700;font-size:13px;color:#1e3a5f">Leituras do contador</div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th style="text-align:right">Ciclos</th><th style="text-align:right">Desde a anterior</th><th>Registrou</th><th>Origem</th>${admin ? '<th></th>' : ''}</tr></thead><tbody>${linhasLeit}</tbody></table></div>` : ''}
     <div style="background:#e8f0fa;border-radius:8px;padding:10px 12px;font-size:12px;color:#5a6a7b;margin-top:14px"><b style="color:#14202e">Como é calculado.</b>
@@ -267,6 +269,24 @@ async function confiabilidadeRenderizar(job) {
     console.error(e);
     el.innerHTML = '<div class="card"><div style="font-size:13px;color:#b91c1c">Não foi possível carregar a confiabilidade deste molde.</div></div>';
   }
+}
+
+// Abre o mesmo formulário de edição de Produção/Bancada; ao salvar, a ficha recalcula a confiabilidade
+async function confiabilidadeEditarLanc(origem, id, data, job) {
+  try {
+    const recarregar = function () { window._aoSalvarProducao = null; window._aoSalvarLancamento = null; confiabilidadeRenderizar(job); };
+    if (origem === 'Bancada') {
+      _setorAtivo = 'Bancada';
+      _dadosApontamentos = await db.buscarLancamentosDia('Bancada', data, 'Todas');
+      window._aoSalvarLancamento = recarregar;
+      editarApontamentoPorId(id);
+    } else {
+      if (typeof carregarListasProducao === 'function') await carregarListasProducao();
+      _dadosProducao = await db._get('prod_lancamentos', 'id=eq.' + id, '*');
+      window._aoSalvarProducao = recarregar;
+      await editarProd(id);
+    }
+  } catch (e) { console.error(e); toast('Não foi possível abrir o lançamento.', 'erro'); }
 }
 
 function confiabilidadeExcluirLeitura(id, job) {
