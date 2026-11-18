@@ -122,13 +122,9 @@ function _minutosForaDoTurno(blocosMesclados, entradaMin, saidaMin) {
   return fora;
 }
 
-// Ciclo padrão do relatório: do dia 16 ao dia 15 mais recente já ocorrido
+// Ciclo padrão do relatório (RG-13): regra em dominio-banco-horas.js, dia de início vem da configuração
 function _cicloBH() {
-  const h = new Date(); h.setHours(12,0,0,0);
-  const fim = new Date(h.getFullYear(), h.getMonth(), 15, 12);
-  if (h.getDate() < 15) fim.setMonth(fim.getMonth() - 1);
-  const ini = new Date(fim.getFullYear(), fim.getMonth() - 1, 16, 12);
-  return { ini: dataLocal(ini), fim: dataLocal(fim) };
+  return bancoHorasCiclo(dataLocal(new Date()), bancoHorasDiaInicio());
 }
 
 function exportarRelatorioMensalBH() {

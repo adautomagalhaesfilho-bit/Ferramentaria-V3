@@ -13,7 +13,8 @@ var CONFIG_EMPRESA = {
   rodizio: { inicio: null, turmaInicial: null },       // RG-01
   ajustes: [],                 // RG-03: { setor, turnos: [...], desde: 'AAAA-MM-DD', minutos }
   refeicao: { limiteDiaMin: 300, direitoPadraoMin: 60, direitoMin: {} },   // RG-08
-  isentos: { setores: [], cargos: [] }                 // RG-06
+  isentos: { setores: [], cargos: [] },                // RG-06
+  bhCicloDiaInicio: 1          // RG-13: dia do mês em que o ciclo do relatório começa (1 = mês cheio)
 };
 
 function _cfgJson(txt, padrao) { try { const v = JSON.parse(txt); return v == null ? padrao : v; } catch (e) { return padrao; } }
@@ -39,6 +40,8 @@ function configurarEmpresa(fonte) {
   if (dir && typeof dir === 'object') C.refeicao.direitoMin = dir;
   const aj = _cfgJson(cfg.ajustes_capacidade, null);
   if (Array.isArray(aj)) C.ajustes = aj.filter(a => a && a.setor && Array.isArray(a.turnos) && a.desde && !isNaN(Number(a.minutos))).map(a => ({ setor: a.setor, turnos: a.turnos, desde: a.desde, minutos: Number(a.minutos) }));
+  const dia = parseInt(cfg.bh_ciclo_dia_inicio, 10);
+  if (dia >= 1 && dia <= 28) C.bhCicloDiaInicio = dia;
   const iso = _cfgJson(cfg.isentos_meta, null);
   if (iso && typeof iso === 'object') C.isentos = { setores: iso.setores || [], cargos: iso.cargos || [] };
 }
