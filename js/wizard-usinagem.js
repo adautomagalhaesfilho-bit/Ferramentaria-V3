@@ -63,7 +63,7 @@
     { id: 'mais', t: 'Houve mais de um operador?', h: 'Responda Sim se mais alguém trabalhou junto. O sistema cria o mesmo lançamento para cada um.', se: function () { return !ehParada(); } },
     { id: 'ini', t: 'Que horas começou?', h: 'Digite a hora de início.' },
     { id: 'fim', t: 'Que horas terminou?', h: 'Digite a hora do fim. Se ainda está rodando, coloque a hora de agora.' },
-    { id: 'alm', t: 'Passou pelo horário de almoço?', h: 'O sistema desconta 1h10 de almoço. Responda Sim se parou para almoçar durante este lançamento. Se você parou e voltou em outro lançamento, responda Não.', se: cruzaAlmoco },
+    { id: 'alm', t: 'Passou pelo horário de almoço?', h: 'O sistema desconta 1h10 de almoço. Responda Sim se parou para almoçar nesse intervalo.', se: cruzaAlmoco },
     { id: 'auto', t: 'A máquina ficou rodando sozinha?', h: 'Responda Sim se ela trabalhou em automático (ex.: durante o almoço ou à noite).' },
     { id: 'job', t: 'Qual molde / job?', h: 'Digite parte do nome e escolha na lista. Assim não tem erro de digitação. Se o serviço não tem molde, toque em “Sem job”.', se: function () { return !ehParada(); } },
     { id: 'ram', t: 'É referente a alguma RAM?', h: 'Esse molde tem RAM aberta. Escolha qual, ou toque em “Nenhuma”.', se: function () { return !ehParada() && !A.semJob && rams.length > 0; } },
