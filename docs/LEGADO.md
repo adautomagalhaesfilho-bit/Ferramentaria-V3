@@ -44,7 +44,7 @@ Este documento descreve **o que existe agora** (para quem precisa mexer no códi
 | RG-11 saldo | `banco-horas.js` | |
 | RG-12 hora extra | função SQL `sincronizar_horas_extras` (migração `0001`) | só o agendamento a chama; lê a configuração |
 | RG-13 ciclo do relatório | `bancoHorasCiclo` (`js/dominio-banco-horas.js`), dia de início em `config_sistema.bh_ciclo_dia_inicio` | |
-| RG-14 ocorrência | `confCalcular`, `CONF_GAP_BANCADA_DIAS` (`confiabilidade.js`) | |
+| RG-14 ocorrência | `confCalcular`, `confLimitesOcorrencia` (`confiabilidade.js`), limites em `config_sistema` (`ocorrencia_gap_*`) | |
 | RG-15 parada programada | filtros `!parada_programada` em `confiabilidade.js` e `dashboard.js` | **`pcm-indicadores.js` ainda conta como corretiva** |
 | RG-16 MTTR | soma de trabalho na `main`; tempo corrido no **PR #64 (não mergeado)** | |
 | RG-17 MTBF | `confCalcular` | |

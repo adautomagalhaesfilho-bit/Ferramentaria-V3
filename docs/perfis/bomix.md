@@ -2,7 +2,7 @@
 
 Primeira empresa do produto (ferramentaria e usinagem de moldes de injeção plásticos). Responsável: Adauto (supervisor da usinagem). Fuso: America/Sao_Paulo.
 
-> Estado de hoje: turnos, capacidade, rodízio, ajuste da Usinagem, refeição e isentos estão **cadastrados no banco** (`turnos`, `config_sistema`; script em `supabase/perfis/bomix_config.sql`). O código não traz mais valor da Bomix. O ciclo do relatório (RG-13, dia 16) também vem do banco (`bh_ciclo_dia_inicio`). Ainda dentro do código: limites de ocorrência (RG-14), que saem no próximo passo, até a tela de Configurações existir (ver `LEGADO.md`).
+> Estado de hoje: turnos, capacidade, rodízio, ajuste da Usinagem, refeição e isentos estão **cadastrados no banco** (`turnos`, `config_sistema`; script em `supabase/perfis/bomix_config.sql`). O código não traz mais valor da Bomix. O ciclo do relatório (RG-13, dia 16) também vem do banco (`bh_ciclo_dia_inicio`). Os limites de ocorrência (RG-14) também vêm do banco (`ocorrencia_gap_*`). Falta só a tela de Configurações para o administrador alterar tudo isso (ver `LEGADO.md`).
 
 ## 1. Parâmetros
 | Regra | Parâmetro | Valor | Vale a partir de | Onde está hoje |
@@ -17,7 +17,7 @@ Primeira empresa do produto (ferramentaria e usinagem de moldes de injeção pl�
 | RG-08 | Limite do dia | 300 min | — | banco (`config_sistema`) |
 | RG-12 | Hora extra automática | ligada, 07:00, janela de 3 dias | — | banco (agendamento) + função SQL |
 | RG-13 | Ciclo do relatório mensal | dia 16 ao dia 15 | — | banco (`config_sistema`) |
-| RG-14 | Limites de ocorrência | Produção 1 dia; Bancada 45 dias (com histórico do PCM, a partir de 30/06/2026) ou 7 dias (sem histórico) | 30/06/2026 | código |
+| RG-14 | Limites de ocorrência | Produção 1 dia; Bancada 45 dias (com histórico do PCM, a partir de 30/06/2026) ou 7 dias (sem histórico) | 30/06/2026 | banco (`config_sistema`) |
 | — | Setores | Usinagem, Bancada, Projeto, Produção (+ Supervisão) | — | código/cadastros |
 
 ## 2. Regras específicas da Bomix

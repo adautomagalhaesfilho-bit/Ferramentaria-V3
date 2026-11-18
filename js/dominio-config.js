@@ -14,6 +14,7 @@ var CONFIG_EMPRESA = {
   ajustes: [],                 // RG-03: { setor, turnos: [...], desde: 'AAAA-MM-DD', minutos }
   refeicao: { limiteDiaMin: 300, direitoPadraoMin: 60, direitoMin: {} },   // RG-08
   isentos: { setores: [], cargos: [] },                // RG-06
+  ocorrencia: { producaoDias: 1, bancadaDias: 45, bancadaSemHistDias: 7 },   // RG-14: dias para juntar corretivas
   bhCicloDiaInicio: 1          // RG-13: dia do mês em que o ciclo do relatório começa (1 = mês cheio)
 };
 
@@ -40,6 +41,11 @@ function configurarEmpresa(fonte) {
   if (dir && typeof dir === 'object') C.refeicao.direitoMin = dir;
   const aj = _cfgJson(cfg.ajustes_capacidade, null);
   if (Array.isArray(aj)) C.ajustes = aj.filter(a => a && a.setor && Array.isArray(a.turnos) && a.desde && !isNaN(Number(a.minutos))).map(a => ({ setor: a.setor, turnos: a.turnos, desde: a.desde, minutos: Number(a.minutos) }));
+  [['ocorrencia_gap_producao_dias', 'producaoDias'], ['ocorrencia_gap_bancada_dias', 'bancadaDias'],
+    ['ocorrencia_gap_bancada_sem_hist_dias', 'bancadaSemHistDias']].forEach(([k, campo]) => {
+    const n = parseInt(cfg[k], 10);
+    if (cfg[k] != null && n >= 0 && !isNaN(n)) C.ocorrencia[campo] = n;
+  });
   const dia = parseInt(cfg.bh_ciclo_dia_inicio, 10);
   if (dia >= 1 && dia <= 28) C.bhCicloDiaInicio = dia;
   const iso = _cfgJson(cfg.isentos_meta, null);
