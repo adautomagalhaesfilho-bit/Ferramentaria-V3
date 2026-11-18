@@ -22,7 +22,7 @@ function bancoHorasCiclo(hojeStr, diaInicio) {
   return { ini: _bhData(ia, im, d), fim: _bhData(fa, fm, fd) };
 }
 
-// Dia de início configurado (config_sistema.bh_ciclo_dia_inicio); sem configuração vale o de fábrica (1 = mês cheio).
+// Dia de início configurado (config_sistema.bh_ciclo_dia_inicio); sem configuração vale 1 (mês cheio).
 function bancoHorasDiaInicio() {
   return typeof CONFIG_EMPRESA !== 'undefined' ? CONFIG_EMPRESA.bhCicloDiaInicio : 1;
 }
