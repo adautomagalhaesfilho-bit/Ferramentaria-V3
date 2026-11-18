@@ -60,7 +60,7 @@ function renderizarFichaInjetora(nome, dados) {
   }
 
   const totalMins   = lancs.reduce((a,l)=>a+(l.minutos||0),0);
-  const corretivas  = lancs.filter(l => l.tipo==='Corretiva' || l.tipo==='Manutenção Corretiva');
+  const corretivas  = lancs.filter(l => (l.tipo==='Corretiva' || l.tipo==='Manutenção Corretiva') && !l.parada_programada);
   const mttr        = corretivas.length>0 ? Math.round(corretivas.reduce((a,l)=>a+(l.minutos||0),0)/corretivas.length) : 0;
   const paradas     = lancs.filter(l => l.maquina_parada).length;
   const minsParadas = lancs.filter(l => l.maquina_parada).reduce((a,l)=>a+(l.minutos||0),0);

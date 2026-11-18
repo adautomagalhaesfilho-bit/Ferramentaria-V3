@@ -934,7 +934,7 @@ function desenharProducao(ini,fim){
     const naoPlaj=prod.filter(p=>p.maquina_parada).length;
 
     // MTTR — aceita ambos os nomes de tipo
-    const corretivas=prod.filter(p=>(p.tipo||'').includes('Corretiva')&&p.minutos>0);
+    const corretivas=prod.filter(p=>(p.tipo||'').includes('Corretiva')&&p.minutos>0&&!p.parada_programada);
     const mttr=corretivas.length>0?Math.round(corretivas.reduce((a,p)=>a+(p.minutos||0),0)/corretivas.length):0;
 
     // Cores por tipo — aceita ambos os nomes
