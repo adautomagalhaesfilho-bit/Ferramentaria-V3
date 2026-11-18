@@ -133,6 +133,7 @@ function aplicarPermissoes() {
     menuFeriados:     _temPermissao('rh') || _temPermissao('admin'),
     menuProgramacaoFerias: _temPermissao('rh') || _temPermissao('admin'),
     menuUsuarios:     isAdmin(),
+    menuConfiguracoes: isAdmin(),
     menuAuditoria:    isAdmin(),
     adminSection:     _temPermissao('admin') || _temPermissao('rh') || _temPermissao('competencias') || (p==='supervisor' && !!s),
   };

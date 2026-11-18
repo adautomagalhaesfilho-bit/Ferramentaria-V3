@@ -2,7 +2,7 @@
 
 Primeira empresa do produto (ferramentaria e usinagem de moldes de injeção plásticos). Responsável: Adauto (supervisor da usinagem). Fuso: America/Sao_Paulo.
 
-> Estado de hoje: turnos, capacidade, rodízio, ajuste da Usinagem, refeição e isentos estão **cadastrados no banco** (`turnos`, `config_sistema`; script em `supabase/perfis/bomix_config.sql`). O código não traz mais valor da Bomix. O ciclo do relatório (RG-13, dia 16) também vem do banco (`bh_ciclo_dia_inicio`). Os limites de ocorrência (RG-14) também vêm do banco (`ocorrencia_gap_*`). Falta só a tela de Configurações para o administrador alterar tudo isso (ver `LEGADO.md`).
+> Estado de hoje: turnos, capacidade, rodízio, ajuste da Usinagem, refeição e isentos estão **cadastrados no banco** (`turnos`, `config_sistema`; script em `supabase/perfis/bomix_config.sql`). O código não traz mais valor da Bomix. O ciclo do relatório (RG-13, dia 16) também vem do banco (`bh_ciclo_dia_inicio`). Os limites de ocorrência (RG-14) também vêm do banco (`ocorrencia_gap_*`). O administrador altera tudo isso na tela **Configurações** (ver `LEGADO.md`).
 
 ## 1. Parâmetros
 | Regra | Parâmetro | Valor | Vale a partir de | Onde está hoje |

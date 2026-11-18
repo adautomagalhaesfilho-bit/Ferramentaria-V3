@@ -18,6 +18,9 @@ var CONFIG_EMPRESA = {
   bhCicloDiaInicio: 1          // RG-13: dia do mês em que o ciclo do relatório começa (1 = mês cheio)
 };
 
+// Valores de fábrica (cópia intacta de antes de carregar a configuração da empresa): usados por "restaurar padrão"
+var CONFIG_FABRICA = JSON.parse(JSON.stringify(CONFIG_EMPRESA));
+
 function _cfgJson(txt, padrao) { try { const v = JSON.parse(txt); return v == null ? padrao : v; } catch (e) { return padrao; } }
 
 // Recebe as linhas de `turnos` e `config_sistema` e atualiza a configuração em uso.
@@ -52,4 +55,4 @@ function configurarEmpresa(fonte) {
   if (iso && typeof iso === 'object') C.isentos = { setores: iso.setores || [], cargos: iso.cargos || [] };
 }
 
-if (typeof module !== 'undefined') module.exports = { CONFIG_EMPRESA, configurarEmpresa };
+if (typeof module !== 'undefined') module.exports = { CONFIG_EMPRESA, CONFIG_FABRICA, configurarEmpresa };
