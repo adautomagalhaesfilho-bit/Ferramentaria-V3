@@ -12,4 +12,12 @@ function carregar(arquivos) {
   arquivos.forEach(a => vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'js', a), 'utf8'), ctx, { filename: a }));
   return ctx;
 }
-module.exports = { carregar };
+
+// Carrega os arquivos de regra com a configuração do perfil Bomix aplicada (como o sistema faz ao abrir)
+const ARQUIVOS_REGRAS = ['util.js', 'dominio-tempo.js', 'dominio-config.js', 'dominio-escala.js', 'dominio-refeicao.js', 'dashboard.js'];
+function carregarComPerfil(perfil, arquivos) {
+  const ctx = carregar(arquivos || ARQUIVOS_REGRAS);
+  ctx.configurarEmpresa(perfil || require('./perfil-bomix').PERFIL_BOMIX);
+  return ctx;
+}
+module.exports = { carregar, carregarComPerfil, ARQUIVOS_REGRAS };

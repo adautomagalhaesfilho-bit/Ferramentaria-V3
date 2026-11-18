@@ -33,12 +33,12 @@ Este documento descreve **o que existe agora** (para quem precisa mexer no códi
 |---|---|---|
 | RG-01 escala | `js/dominio-escala.js` (`funcTrabalhaEmDia`, `turmaEmDia`), configurado por `turnos.dias_semana` e `config_sistema` (`rodizio_start`, `rodizio_turma_start`) | **ainda resta a cópia em SQL** (`sincronizar_horas_extras`, data `2026-02-17` fixa); migrado em 18/11/2026 |
 | RG-02 capacidade | `capMinutosPorTurno` em `js/dominio-escala.js`, lendo `turnos.capacidade_min` | `calcularCapBancada` (`dashboard.js`) não aplica o RG-03 (sem efeito: ajuste é só da Usinagem) |
-| RG-03 ajuste por setor | `capMinutosNaData` e lista `ESCALA_CFG.ajustes` em `js/dominio-escala.js` | ainda é valor de fábrica no código (Usinagem, −30 min, desde 01/09/2026); falta tabela de configuração |
+| RG-03 ajuste por setor | `capMinutosNaData` em `js/dominio-escala.js`, lendo `config_sistema.ajustes_capacidade` | migrado em 18/11/2026; falta a tela e a vigência com histórico |
 | RG-04 turno na data | `turnoNaData` em `js/dominio-escala.js` | |
 | RG-05 meta | `calcularMeta` (`dashboard.js`); `diagnostico-meta.js` repete dia a dia | |
-| RG-06 isentos | `isSupervisor` (`dashboard.js`) | **também em SQL** |
+| RG-06 isentos | `isSupervisor` em `js/dominio-escala.js`, lendo `config_sistema.isentos_meta` | **ainda resta a cópia em SQL** (`sincronizar_horas_extras`) |
 | RG-07 união de tempo | `js/dominio-tempo.js` (`tempoHM`, `tempoIntervalo`, `tempoMesclar`, `tempoUnico`), usado por `dashboard.js`, `diagnostico-meta.js` e `banco-horas.js` | **ainda resta a cópia em SQL** (`sincronizar_horas_extras`); migrado em 18/11/2026 |
-| RG-08 refeição | `almocoAjusteDia`, `almocoDireitoMin`, `ALMOCO_MIN_DIA` (`dashboard.js`, agora sobre `dominio-tempo.js`), aplicado também em `diagnostico-meta.js` | `apontamentos.js` (`_calcularMinutos`) ainda desconta 70 min fixos em dados antigos |
+| RG-08 refeição | `almocoAjusteDia`, `refeicaoDireitoMin` em `js/dominio-refeicao.js`, lendo `config_sistema.refeicao_*`; aplicado também em `diagnostico-meta.js` | `apontamentos.js` (`_calcularMinutos`) ainda desconta 70 min fixos em dados antigos |
 | RG-09 automático/ocupação | `_minutosMaquina`, `_minutosAutoLanc`, `_ocupacaoPorGrupo` | |
 | RG-10 início produtivo | junto de RG-03 | |
 | RG-11 saldo | `banco-horas.js` | |
