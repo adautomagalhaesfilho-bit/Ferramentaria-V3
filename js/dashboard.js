@@ -5,57 +5,7 @@
 var _dadosDash = null;
 var _chartsDash = {};
 
-// ==========================================
-// 🔄 RODÍZIO 2x2
-// ==========================================
-const RODIZIO_START = new Date('2026-02-17T12:00:00');
-function turmaEmDia(data) {
-  const d = new Date(data + 'T12:00:00');
-  const diff = Math.floor((d - RODIZIO_START) / 86400000);
-  const cycle = ((diff % 4) + 4) % 4;
-  return (cycle === 0 || cycle === 1) ? 'Turma A' : 'Turma B';
-}
-
-function funcTrabalhaEmDia(turno, dataStr, feriados) {
-  const d = new Date(dataStr + 'T12:00:00');
-  const diaSem = d.getDay();
-  const isFeriado = (feriados || []).includes(dataStr);
-  if (turno === '5x2')    return diaSem !== 0 && diaSem !== 6 && !isFeriado;
-  if (turno === '6x1')    return diaSem !== 0 && !isFeriado;
-  if (turno === 'Turma A' || turno === 'Turma B') return turmaEmDia(dataStr) === turno;
-  if (turno === 'Estágio') return diaSem !== 0 && diaSem !== 6 && !isFeriado;
-  return diaSem !== 0 && diaSem !== 6 && !isFeriado;
-}
-
-function capMinutosPorTurno(turno) {
-  if (turno === '5x2')    return 528;
-  if (turno === 'Turma A' || turno === 'Turma B') return 660;
-  if (turno === '6x1')    return 440;
-  if (turno === 'Estágio') return 440;
-  return 528;
-}
-
-// Turno vigente da pessoa numa data. Sem histórico: o turno atual. Com histórico: o turno
-// da mudança que cobre o dia; antes da primeira mudança registrada, era 5x2.
-function turnoNaData(nome, ds, dados) {
-  const f = (dados.funcionarios || []).find(x => x.nome === nome);
-  const atual = f?.turno || '5x2';
-  const hist = (dados.turnoHistorico || []).filter(h => f && h.funcionario_id === f.id).sort((a,b) => a.data_inicio.localeCompare(b.data_inicio));
-  if (!hist.length) return atual;
-  if (ds < hist[0].data_inicio) return '5x2';
-  const cobre = hist.filter(h => ds >= h.data_inicio && (!h.data_fim || ds <= h.data_fim));
-  return cobre.length ? cobre[cobre.length-1].turno : atual;
-}
-
-// Usinagem (5x2 e Turma A/B): desde 01/09/2026 o trabalho produtivo começa às 08:00 (os primeiros 30 min
-// são do DDS), então a meta diária da pessoa é 30 min menor. Dias anteriores não mudam.
-// Vale só para a meta da ocupação (dashboard): o banco de horas continua com a jornada contratual.
-const INICIO_08H_USINAGEM = '2026-09-01';
-function capMinutosNaData(turno, setor, ds) {
-  const base = capMinutosPorTurno(turno);
-  if (setor === 'Usinagem' && (turno === '5x2' || turno === 'Turma A' || turno === 'Turma B') && ds >= INICIO_08H_USINAGEM) return base - 30;
-  return base;
-}
+// Escala, capacidade e turno na data (RG-01 a RG-04): ver js/dominio-escala.js
 
 // Supervisores/Encarregados são excluídos dos cálculos de ocupação/produtividade
 // (aparecem nas listas de técnico para lançamento, mas não contam na meta da equipe)
