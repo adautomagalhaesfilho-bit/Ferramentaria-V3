@@ -1,0 +1,6 @@
+{
+  "name": "ferramentaria-v3",
+  "private": true,
+  "description": "Gestão de ferramentaria e usinagem de moldes",
+  "scripts": { "test": "node --test \"tests/dominio/*.test.js\"" }
+}
