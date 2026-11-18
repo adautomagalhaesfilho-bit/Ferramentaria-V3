@@ -341,7 +341,8 @@ const db = {
       ram_numero:      dados.ramNumero || null,
       copo_id:         dados.copoId || null,
       tem_os:          !!dados.temOS,
-      numero_os:       dados.temOS ? (dados.numeroOS || null) : null
+      numero_os:       dados.temOS ? (dados.numeroOS || null) : null,
+      parada_programada: !!dados.paradaProgramada
     };
     const res = await db._post('lancamentos', reg);
     if (dados.job && dados.status) await db.salvarStatusJob(dados.job, dados.status, dados.descricao || '');
@@ -369,7 +370,8 @@ const db = {
       ram_numero:      dados.ramNumero || null,
       copo_id:         dados.copoId || null,
       tem_os:          !!dados.temOS,
-      numero_os:       dados.temOS ? (dados.numeroOS || null) : null
+      numero_os:       dados.temOS ? (dados.numeroOS || null) : null,
+      parada_programada: !!dados.paradaProgramada
     });
   },
 
@@ -679,7 +681,7 @@ const db = {
       injetora: dados.injetora, tipo: dados.tipo,
       atividade: dados.atividade || null, descricao: dados.descricao || null,
       status: dados.status || 'Em andamento',
-      maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
+      maquina_parada: !!dados.maquinaParada, parada_programada: !!dados.paradaProgramada, tem_os: !!dados.temOS,
       numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null,
       ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null,
       molde_atual: dados.moldeAtual || null, molde_novo: dados.moldeNovo || null,
@@ -696,7 +698,7 @@ const db = {
       injetora: dados.injetora, tipo: dados.tipo,
       atividade: dados.atividade || null, descricao: dados.descricao || null,
       status: dados.status || 'Em andamento',
-      maquina_parada: !!dados.maquinaParada, tem_os: !!dados.temOS,
+      maquina_parada: !!dados.maquinaParada, parada_programada: !!dados.paradaProgramada, tem_os: !!dados.temOS,
       numero_os: dados.numeroOS || null, observacoes: dados.observacoes || null,
       ram_id: dados.ramId || null, ram_numero: dados.ramNumero || null,
       molde_atual: dados.moldeAtual || null, molde_novo: dados.moldeNovo || null,
@@ -770,6 +772,7 @@ const db = {
       temObservacao:  l.tem_observacao || false,
       observacao:     l.observacao     || null,
       temOS:          l.tem_os         || false,
+      paradaProgramada: l.parada_programada || false,
       numeroOS:       l.numero_os      || null,
       ramId:          l.ram_id     || null,
       ramNumero:      l.ram_numero || null,

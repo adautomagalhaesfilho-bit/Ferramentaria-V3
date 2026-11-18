@@ -22,12 +22,12 @@ function confCalcular(dados) {
 
   // 1) Corretivas de Produção e de Bancada
   const evs = [];
-  (dados.prod || []).filter(l => /corretiv/i.test(l.tipo || '')).forEach(l => evs.push({
+  (dados.prod || []).filter(l => /corretiv/i.test(l.tipo || '') && !l.parada_programada).forEach(l => evs.push({
     origem: 'Produção', id: l.id, ativ: l.atividade || '', desc: l.descricao || '', data: String(l.data).substring(0, 10), hi: l.hora_inicio || '', min: l.minutos || 0,
     onde: l.injetora || 'Produção', tec: String(l.tecnicos || '').split(',').map(t => t.trim()).filter(Boolean) }));
   // Bancada: vários técnicos no mesmo serviço geram um lançamento para cada um (mesma data, hora e duração): conta uma vez
   const bancVistos = {};
-  (dados.banc || []).filter(l => l.setor === 'Bancada' && /corretiv/i.test(l.tipo || '')).forEach(l => {
+  (dados.banc || []).filter(l => l.setor === 'Bancada' && /corretiv/i.test(l.tipo || '') && !l.parada_programada).forEach(l => {
     const dia = String(l.data).substring(0, 10), chave = dia + '|' + (l.hora_inicio || '') + '|' + (l.minutos || 0);
     if (bancVistos[chave]) { if (l.funcionario) bancVistos[chave].tec.push(l.funcionario); return; }
     const ev = { origem: 'Bancada', id: l.id, ativ: '', desc: l.descricao || '', data: dia, hi: l.hora_inicio || '', min: l.minutos || 0, onde: 'Bancada', tec: l.funcionario ? [l.funcionario] : [] };
@@ -112,8 +112,8 @@ function confCalcular(dados) {
 async function confiabilidadeCarregar(job) {
   const enc = encodeURIComponent(job);
   const [prod, banc, hist, leituras] = await Promise.all([
-    db._get('prod_lancamentos', 'molde=eq.' + enc + '&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,atividade,descricao,injetora,tecnicos'),
-    db._get('lancamentos', 'job=eq.' + enc + '&setor=eq.Bancada&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,setor,funcionario,descricao'),
+    db._get('prod_lancamentos', 'molde=eq.' + enc + '&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,atividade,descricao,injetora,tecnicos,parada_programada'),
+    db._get('lancamentos', 'job=eq.' + enc + '&setor=eq.Bancada&tipo=ilike.*orretiv*&order=data.asc', 'id,data,hora_inicio,minutos,tipo,setor,funcionario,descricao,parada_programada'),
     db._get('molde_localizacao_historico', 'job=eq.' + enc + '&order=movido_em.asc,id.asc', '*'),
     db._get('molde_contador_ciclos', 'job=eq.' + enc + '&order=data.asc,id.asc', '*')
   ]);

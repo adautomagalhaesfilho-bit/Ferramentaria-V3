@@ -631,6 +631,9 @@
             <label class="checkbox-label">
               <input type="checkbox" id="formTemOS" onchange="toggleOSBancada()"> 📋 Tem OS
             </label>
+            <label class="checkbox-label" style="margin-left:24px" title="Quando marcado, este lançamento não conta como ocorrência de corretiva (MTBF/MTTR)">
+              <input type="checkbox" id="formParadaProg"> 🗓️ Parada programada
+            </label>
           </div>
           <div class="form-group" id="grupoOSBancada" style="display:none"><label>Número da OS</label><input type="text" id="formNumOS" placeholder="Ex: OS-2026-001"></div>
         </div>
@@ -821,6 +824,7 @@
       <div class="form-row" style="gap:24px;align-items:center">
         <label class="checkbox-label flag-maquina-parada"><input type="checkbox" id="prodFormMaqParada"> 🔴 Máquina Parada <span class="badge-nao-planejada">não planejada</span></label>
         <label class="checkbox-label"><input type="checkbox" id="prodFormTemOS" onchange="toggleOS()"> 📋 Tem OS</label>
+        <label class="checkbox-label" title="Quando marcado, este lançamento não conta como ocorrência de corretiva (MTBF/MTTR)"><input type="checkbox" id="prodFormParadaProg"> 🗓️ Parada programada</label>
       </div>
       <div class="form-group" id="grupoOS" style="display:none"><label>Número da OS</label><input type="text" id="prodFormNumOS" placeholder="Ex: OS-2026-001"></div>
       <div class="form-group"><label>Observações</label><textarea id="prodFormObs" rows="4" style="resize:vertical;min-height:90px"></textarea></div>
@@ -869,12 +873,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="js/util.js?v=20261009"></script>
-<script src="js/supabase.js?v=20261116d"></script>
+<script src="js/supabase.js?v=20261118e"></script>
 <script src="js/auth.js?v=20261112a"></script>
-<script src="js/apontamentos.js?v=20261118d"></script>
-<script src="js/wizard-usinagem.js?v=20261118d"></script>
+<script src="js/apontamentos.js?v=20261118e"></script>
+<script src="js/wizard-usinagem.js?v=20261118e"></script>
 <script src="js/ciclos.js?v=20261116b"></script>
-<script src="js/confiabilidade.js?v=20261117c"></script>
+<script src="js/confiabilidade.js?v=20261118e"></script>
 <script src="js/ficha.js?v=20261116e"></script>
 <script src="js/anexos.js?v=20261009"></script>
 <script src="js/peso.js?v=20261016"></script>
@@ -882,10 +886,10 @@
 <script src="js/copos.js?v=20261009"></script>
 <script src="js/mapeamento.js?v=20261016"></script>
 <script src="js/historico.js?v=20261009"></script>
-<script src="js/dashboard.js?v=20261118d"></script>
-<script src="js/diagnostico-meta.js?v=20261118d"></script>
+<script src="js/dashboard.js?v=20261118e"></script>
+<script src="js/diagnostico-meta.js?v=20261118e"></script>
 <script src="js/rh.js?v=20261111a"></script>
-<script src="js/producao.js?v=20261116a"></script>
+<script src="js/producao.js?v=20261118e"></script>
 <script src="js/usuarios.js?v=20261009"></script>
 <script src="js/pcm.js?v=20261104b"></script>
 <script src="js/pcm-indicadores.js?v=20261116a"></script>
@@ -893,7 +897,7 @@
 <script src="js/competencias.js?v=20261009"></script>
 <script src="js/intervencoes.js?v=20261009"></script>
 <script src="js/ferias-calendario.js?v=20261015"></script>
-<script src="js/ficha-injetora.js?v=20261009"></script>
+<script src="js/ficha-injetora.js?v=20261118e"></script>
 <script src="js/ficha-funcionario.js?v=20261009"></script>
 <script src="js/app.js?v=20261116c"></script>
 <script src="js/auditoria.js?v=20261009"></script>
