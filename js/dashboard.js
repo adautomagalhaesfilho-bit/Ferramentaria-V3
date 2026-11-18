@@ -1107,27 +1107,14 @@ function _contarMaquinasPorGrupo(maquinasTipo) {
 // Soma de minutos sem contar duas vezes o mesmo horário (lançamentos que se sobrepõem no mesmo dia).
 // Só desconta a parte sobreposta, então sem sobreposição o resultado é exatamente a soma dos minutos.
 function _minutosSemSobreposicao(lancs) {
-  const hm = h => { const m = /^(\d{1,2}):(\d{2})/.exec(h || ''); return m ? (+m[1])*60 + (+m[2]) : null; };
   const total = lancs.reduce((a,l)=>a+(l.minutos||0),0);
   const porDia = {};
   lancs.forEach(l => {
-    const a = hm(l.horaInicio), b0 = hm(l.horaFim);
-    if (a === null || b0 === null) return;
-    (porDia[l.data] = porDia[l.data] || []).push([a, b0 > a ? b0 : b0 + 1440]);
+    const iv = tempoIntervalo(l.horaInicio, l.horaFim);
+    if (iv) (porDia[l.data] = porDia[l.data] || []).push(iv);
   });
   let sobreposto = 0;
-  Object.values(porDia).forEach(iv => {
-    const soma = iv.reduce((x,[a,b])=>x+(b-a),0);
-    iv.sort((p,q)=>p[0]-q[0]);
-    let uniao = 0, ci = null, cf = null;
-    iv.forEach(([a,b]) => {
-      if (ci === null) { ci = a; cf = b; }
-      else if (a <= cf) cf = Math.max(cf, b);
-      else { uniao += cf - ci; ci = a; cf = b; }
-    });
-    if (ci !== null) uniao += cf - ci;
-    sobreposto += soma - uniao;
-  });
+  Object.values(porDia).forEach(iv => { sobreposto += iv.reduce((x,[a,b])=>x+(b-a),0) - tempoUnico(iv); });
   return Math.max(0, total - sobreposto);
 }
 
@@ -1141,26 +1128,18 @@ function _minutosSemSobreposicao(lancs) {
 var ALMOCO_MIN_DIA = 300;
 function almocoDireitoMin(turno) { return (turno === 'Turma A' || turno === 'Turma B') ? 60 : 70; }
 function almocoAjusteDia(lancs, turno) {
-  const hm = h => { const m = /^(\d{1,2}):(\d{2})/.exec(h || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; };
   const iv = []; let jaDescontado = 0;
   (lancs || []).forEach(l => {
-    const a = hm(l.horaInicio), b0 = hm(l.horaFim);
-    if (a === null || b0 === null) return;
-    const b = b0 > a ? b0 : b0 + 1440;
-    iv.push([a, b]);
-    if (l.descontaAlmoco === true || l.descontaAlmoco === 'true') jaDescontado += Math.min(70, Math.max(0, (b - a) - (l.minutos || 0)));
+    const i = tempoIntervalo(l.horaInicio, l.horaFim);
+    if (!i) return;
+    iv.push(i);
+    if (l.descontaAlmoco === true || l.descontaAlmoco === 'true') jaDescontado += Math.min(70, Math.max(0, (i[1] - i[0]) - (l.minutos || 0)));
   });
   if (!iv.length) return 0;
-  iv.sort((p, q) => p[0] - q[0]);
-  let uniao = 0, ci = iv[0][0], cf = iv[0][1], fimDia = cf;
-  for (let i = 1; i < iv.length; i++) {
-    const [a, b] = iv[i];
-    if (a <= cf) cf = Math.max(cf, b); else { uniao += cf - ci; ci = a; cf = b; }
-    fimDia = Math.max(fimDia, b);
-  }
-  uniao += cf - ci;
+  const uniao = tempoUnico(iv);
   if (uniao <= ALMOCO_MIN_DIA) return 0;
-  const lacunas = (fimDia - iv[0][0]) - uniao;
+  const inicioDia = Math.min(...iv.map(i => i[0])), fimDia = Math.max(...iv.map(i => i[1]));
+  const lacunas = (fimDia - inicioDia) - uniao;
   return Math.max(0, almocoDireitoMin(turno) - lacunas - jaDescontado);
 }
 
