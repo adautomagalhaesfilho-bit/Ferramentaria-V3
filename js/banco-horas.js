@@ -106,39 +106,7 @@ function formatarHHMM(el) {
 // ==========================================
 // 🔄 CRÉDITO AUTOMÁTICO — Sincroniza Horas Extras
 // ==========================================
-// Converte "HH:MM" ou "HH:MM:SS" em minutos desde 00:00
-function _paraMinutosDoDia(hstr) {
-  if (!hstr) return null;
-  const partes = String(hstr).split(':');
-  const h = parseInt(partes[0], 10), m = parseInt(partes[1], 10);
-  if (isNaN(h) || isNaN(m)) return null;
-  return h*60 + m;
-}
-
-// Mescla intervalos sobrepostos/adjacentes e retorna os BLOCOS mesclados (ordenados, sem sobreposição)
-function _mesclarIntervalosArray(intervalos) {
-  if (!intervalos.length) return [];
-  const ordenados = intervalos.slice().sort((a,b)=>a[0]-b[0]);
-  const resultado = [];
-  let [curIni, curFim] = ordenados[0];
-  for (let i=1; i<ordenados.length; i++) {
-    const [ini, fim] = ordenados[i];
-    if (ini <= curFim) {
-      if (fim > curFim) curFim = fim;
-    } else {
-      resultado.push([curIni, curFim]);
-      curIni = ini; curFim = fim;
-    }
-  }
-  resultado.push([curIni, curFim]);
-  return resultado;
-}
-
-// Mescla intervalos sobrepostos/adjacentes e retorna o total de minutos ÚNICOS trabalhados
-// (evita contar 2x quando o operador tem lançamentos simultâneos em máquinas diferentes)
-function _mesclarIntervalos(intervalos) {
-  return _mesclarIntervalosArray(intervalos).reduce((soma, [ini, fim]) => soma + (fim - ini), 0);
-}
+// (conversão de hora em minutos e junção de intervalos: ver js/dominio-tempo.js)
 
 // Dado os blocos mesclados de um dia e o horário oficial do turno (em minutos desde 00:00),
 // retorna quantos minutos ficaram FORA do expediente (chegou mais cedo + saiu mais tarde).
@@ -229,8 +197,8 @@ async function sincronizarHorasExtras() {
     // Mapa turno -> horário oficial de entrada/saída (em minutos desde 00:00), vindo da tabela `turnos`
     const turnoHorario = {};
     (turnos||[]).forEach(t => {
-      const eMin = _paraMinutosDoDia(t.hora_entrada);
-      let sMin = _paraMinutosDoDia(t.hora_saida);
+      const eMin = tempoHM(t.hora_entrada);
+      let sMin = tempoHM(t.hora_saida);
       if (eMin !== null && sMin !== null) {
         if (sMin <= eMin) sMin += 1440; // turno atravessa meia-noite
         turnoHorario[t.nome] = { entrada: eMin, saida: sMin };
@@ -251,18 +219,14 @@ async function sincronizarHorasExtras() {
       const key = l.funcionario + '|' + l.data;
       if (!porDia[key]) porDia[key] = { funcionario:l.funcionario, data:l.data, turno, diaDaEscala, intervalos:[] };
 
-      const iniMin = _paraMinutosDoDia(l.hora_inicio);
-      let fimMin   = _paraMinutosDoDia(l.hora_fim);
-      if (iniMin !== null && fimMin !== null) {
-        if (fimMin < iniMin) fimMin += 1440; // atravessou meia-noite
-        porDia[key].intervalos.push([iniMin, fimMin]);
-      }
+      const iv = tempoIntervalo(l.hora_inicio, l.hora_fim);
+      if (iv) porDia[key].intervalos.push(iv);
     });
 
     let criados = 0, ignorados = 0;
     for (const key of Object.keys(porDia)) {
       const item = porDia[key];
-      const blocos = _mesclarIntervalosArray(item.intervalos);
+      const blocos = tempoMesclar(item.intervalos);
 
       let minutosExtra, descricao;
       if (!item.diaDaEscala) {
@@ -332,14 +296,14 @@ async function sincronizarDebitoParcial(parcial) {
       return;
     }
 
-    const iniMin = _paraMinutosDoDia(parcial.inicio);
+    const iniMin = tempoHM(parcial.inicio);
     if (iniMin === null) return;
     let minutosDebito = 0;
     let descricao;
 
     if (parcial.fim) {
       // Saída com retorno no mesmo dia — débito é só o tempo ausente
-      const fimMin = _paraMinutosDoDia(parcial.fim);
+      const fimMin = tempoHM(parcial.fim);
       if (fimMin === null) return;
       minutosDebito = fimMin - iniMin;
       descricao = 'Ausência com retorno no mesmo dia (débito automático — ' + parcial.motivo + ')';
@@ -348,7 +312,7 @@ async function sincronizarDebitoParcial(parcial) {
       const funcRow = await db._get('funcionarios', 'nome=eq.'+encodeURIComponent(parcial.funcionario), 'turno');
       const turnoNome = (funcRow && funcRow[0] && funcRow[0].turno) || '5x2';
       const turnoRow = await db._get('turnos', 'nome=eq.'+encodeURIComponent(turnoNome)+'&ativo=eq.true', 'hora_saida');
-      const saidaTurno = (turnoRow && turnoRow[0]) ? _paraMinutosDoDia(turnoRow[0].hora_saida) : null;
+      const saidaTurno = (turnoRow && turnoRow[0]) ? tempoHM(turnoRow[0].hora_saida) : null;
       if (saidaTurno === null) return;
       minutosDebito = saidaTurno - iniMin;
       descricao = 'Saída antecipada sem retorno — débito até o fim do expediente (automático)';
@@ -795,8 +759,8 @@ async function _carregarDetalhesPendentesBH(lista) {
       if ((r.referencia_id||'').startsWith('HE-')) {
         const dia = (lancs||[]).filter(l => l.funcionario === r.funcionario && l.data === r.data && l.hora_inicio && l.hora_fim)
           .sort((a,b) => String(a.hora_inicio).localeCompare(String(b.hora_inicio)));
-        const intervalos = dia.map(l => { const i=_paraMinutosDoDia(l.hora_inicio); let f=_paraMinutosDoDia(l.hora_fim); if (f<i) f+=1440; return [i,f]; });
-        const blocos = _mesclarIntervalosArray(intervalos);
+        const intervalos = dia.map(l => tempoIntervalo(l.hora_inicio, l.hora_fim)).filter(Boolean);
+        const blocos = tempoMesclar(intervalos);
         const foraEscala = (r.descricao||'').startsWith('Trabalho em dia fora');
         const f = (funcs||[]).find(x => x.nome === r.funcionario);
         const t = (turnos||[]).find(x => x.nome === (f?.turno || '5x2'));
@@ -805,7 +769,7 @@ async function _carregarDetalhesPendentesBH(lista) {
           linhas.push('📅 <b>Dia de folga / fim de semana / feriado</b> — tudo que foi trabalhado conta como extra.');
           linhas.push('⏱️ Trabalhou: ' + blocos.map(([i,fm]) => _fmtHM(i)+'–'+_fmtHM(fm)).join(' · '));
         } else if (t) {
-          const e = _paraMinutosDoDia(t.hora_entrada); let sd = _paraMinutosDoDia(t.hora_saida); if (sd <= e) sd += 1440;
+          const e = tempoHM(t.hora_entrada); let sd = tempoHM(t.hora_saida); if (sd <= e) sd += 1440;
           const extras = [];
           blocos.forEach(([i,fm]) => {
             if (i < e) extras.push('antes do turno ' + _fmtHM(i) + '–' + _fmtHM(Math.min(fm,e)) + ' (' + _fmtDur(Math.min(fm,e)-i) + ')');
@@ -815,7 +779,7 @@ async function _carregarDetalhesPendentesBH(lista) {
           linhas.push('⏱️ Trabalhou: ' + blocos.map(([i,fm]) => _fmtHM(i)+'–'+_fmtHM(fm)).join(' · '));
           if (extras.length) linhas.push('➕ Extra: <b>' + extras.join(' + ') + '</b>');
         }
-        const oque = dia.slice(0,6).map(l => _fmtHM(_paraMinutosDoDia(l.hora_inicio))+'–'+_fmtHM(_paraMinutosDoDia(l.hora_fim))+' '+esc(l.tipo||'')+(l.maquina?' ('+esc(l.maquina)+')':'')+(l.job?' · '+esc(l.job):'')).join('<br>');
+        const oque = dia.slice(0,6).map(l => _fmtHM(tempoHM(l.hora_inicio))+'–'+_fmtHM(tempoHM(l.hora_fim))+' '+esc(l.tipo||'')+(l.maquina?' ('+esc(l.maquina)+')':'')+(l.job?' · '+esc(l.job):'')).join('<br>');
         if (oque) linhas.push('<span style="color:#64748b">Apontamentos:<br>' + oque + (dia.length>6?'<br>… +'+(dia.length-6):'') + '</span>');
         html = linhas.join('<br>') || '<span style="color:#94a3b8">Sem apontamentos com horário neste dia.</span>';
       } else if ((r.referencia_id||'').startsWith('PARC-')) {

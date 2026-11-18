@@ -23,23 +23,11 @@ var _DM_MOT_MQ = [
 ];
 
 // ---------- utilitários ----------
-function _dmHM(h) { const m = /^(\d{1,2}):(\d{2})/.exec(h || ''); return m ? (+m[1])*60 + (+m[2]) : null; }
 function _dmHH(m) { return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); }
 function _dmDur(m) { m = Math.round(m); return m >= 60 ? Math.floor(m/60) + 'h' + (m%60 ? String(m%60).padStart(2,'0') : '') : m + ' min'; }
 function _dmFmtD(d) { return d.slice(8) + '/' + d.slice(5,7); }
 function _dmWd(d) { return new Date(d + 'T12:00:00').getDay(); }
-function _dmIntervalos(lancs) {
-  const iv = [];
-  lancs.forEach(l => {
-    const a = _dmHM(l.horaInicio), b = _dmHM(l.horaFim);
-    if (a === null || b === null) return;
-    iv.push([a, b > a ? b : b + 1440]);
-  });
-  iv.sort((p,q) => p[0]-q[0]);
-  const u = [];
-  iv.forEach(([a,b]) => { if (u.length && a <= u[u.length-1][1]) u[u.length-1][1] = Math.max(u[u.length-1][1], b); else u.push([a,b]); });
-  return u;
-}
+function _dmIntervalos(lancs) { return tempoBlocosDeLancamentos(lancs); }
 function _dmBuracos(uniao, ini, fim, min) {
   const g = []; let c = ini;
   uniao.forEach(([a,b]) => { a = Math.max(a, ini); b = Math.min(b, fim); if (b <= a) return; if (a - c >= min) g.push([c,a]); c = Math.max(c,b); });
@@ -82,7 +70,7 @@ function _dmCalcular(ini, fim, lancsSetor) {
       const trabalha = funcTrabalhaEmDia(turno, ds, feriados);
       if (!trabalha) { if (m > 0) linhas.push({ d:ds, meta:0, m, extra:true, turno, gaps:[], parc:0, jus:null, lancs:doDia, ocorr:parciais.filter(p => p.data === ds) }); return; }
       let meta = capMinutosNaData(turno, f?.setor, ds), parc = 0;
-      parciais.filter(p => p.data === ds && p.inicio && p.fim).forEach(p => { parc += Math.max(0, _dmHM(p.fim) - _dmHM(p.inicio)); });
+      parciais.filter(p => p.data === ds && p.inicio && p.fim).forEach(p => { parc += Math.max(0, tempoHM(p.fim) - tempoHM(p.inicio)); });
       meta = Math.max(0, meta - parc);
       const fimJanela = (turno === 'Turma A' || turno === 'Turma B') ? 1170 : 1048;
       linhas.push({ d:ds, meta, m, extra:false, turno, parc, jus: aus ? aus.motivo : null, aus: aus || null, lancs: doDia, ocorr: parciais.filter(p => p.data === ds), gaps: _dmBuracos(_dmIntervalos(doDia), 480, fimJanela, 15), fimJanela });
