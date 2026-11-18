@@ -7,7 +7,7 @@ Este documento descreve **o que existe agora** (para quem precisa mexer no códi
 ## 1. Como a versão atual é feita
 - Site estático (HTML + JavaScript puro) no GitHub Pages, ligado direto ao Supabase (Postgres + Auth + 1 função de IA). Bibliotecas por CDN: Chart.js, supabase-js, SheetJS, ExcelJS. PWA mínimo (`sw.js`, sem cache).
 - 1 `app.html`, 31 arquivos JS (~920 KB), 1 CSS (560 linhas); ~30 `<script>` em ordem manual com `?v=` manual; variáveis globais; HTML montado com `innerHTML` e `onclick`.
-- Banco: 38 tabelas, 57 políticas de acesso (todas as tabelas com RLS), 6 funções, 1 gatilho, 12 chaves estrangeiras; esquema em `supabase/schema/`.
+- Banco: 38 tabelas, 59 políticas de acesso (todas as tabelas com RLS), 6 funções, 1 gatilho, 12 chaves estrangeiras; esquema em `supabase/schema/`.
 - Agendamento `horas-extras-0700` (pg_cron, 07:00 de Brasília).
 - Sem testes no repositório, sem CI, sem API pública, sem `empresa_id`.
 
@@ -24,7 +24,8 @@ Este documento descreve **o que existe agora** (para quem precisa mexer no códi
 | Ficha do molde | `js/ficha.js` |
 | PCM e indicadores | `js/pcm.js`, `js/pcm-indicadores.js` |
 | RH | `js/rh.js` |
-| Banco de horas | `js/banco-horas.js` |
+| Banco de horas | `js/banco-horas.js`, `js/dominio-banco-horas.js` |
+| Configurações da empresa (tela do administrador) | `js/configuracoes.js`, `js/configuracoes-salvar.js`, regras em `js/dominio-config-form.js` |
 | Exportar moldes (Excel) | `js/exportar-moldes.js` |
 | Assistente de IA (leitura) | `supabase/functions/miguelito/index.ts` |
 
@@ -66,7 +67,7 @@ Este documento descreve **o que existe agora** (para quem precisa mexer no códi
 - [ ] Execução automática dos testes no GitHub
 **Etapa B — Núcleo de domínio extraído (1 pull request por assunto, resultado idêntico na tela)**
 tempo → escala → refeição → meta/ocupação → banco de horas (unificando a cópia SQL) → confiabilidade.
-**Etapa C — Parametrização:** o legado passa a ler `turnos`, `config_sistema` e uma tabela de configuração em vez de constantes.
+**Etapa C — Parametrização (concluída em 18/11/2026):** o legado lê `turnos` e `config_sistema` em vez de constantes, e a tela **Configurações** (só administrador) altera tudo, com registro no Log de Alterações. Primeira versão: a mudança vale daqui para frente; "vale a partir de" por parâmetro e pré-visualização do efeito ficam para depois (o ajuste por setor já tem data de início).
 **Etapa D — Dados:** fechar as 133 chamadas diretas em repositórios; ids no lugar de nomes; `empresa_id` e política por empresa; migrações numeradas.
 **Etapa E — Decisão de plataforma (ADR-001)** com o domínio já testado: manter e evoluir (Supabase) ou reimplantar em outra base (por exemplo, o pedido da Bomix de Laravel/MySQL). O domínio testado serve nos dois caminhos.
 **Etapa F — API, integrações, marca branca, operação** conforme `ARQUITETURA.md` §5 e §8, e piloto com duas empresas.

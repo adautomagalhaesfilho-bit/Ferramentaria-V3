@@ -105,6 +105,7 @@ var _mapaTelaEl = {
   feriados:     'telaFeriados',
   atrasos:      'telaAtrasos',
   usuarios:     'telaUsuarios',
+  configuracoes: 'telaConfiguracoes',
   pcm:          'telaPCM',
   ram:          'telaRAM',
   pendencias:   'telaPendencias',
@@ -131,6 +132,7 @@ var _mapaTitulos = {
   feriados:     'Gestão e RH',
   atrasos:      'Atrasos e Ocorrências',
   usuarios:     'Usuários',
+  configuracoes: 'Configurações',
   pcm:          'PCM — Controle de Moldes',
   ram:          'RAM — Registros de Alteração/Modificação',
   pendencias:   'Pendências — Controle Interno',
@@ -165,6 +167,7 @@ function _irParaSemHistory(tela, elMenu) {
     else if (tela === 'feriados')     { inicializarRH(); }
     else if (tela === 'atrasos')      { inicializarAtrasos(); }
     else if (tela === 'usuarios')     { carregarUsuarios(); }
+    else if (tela === 'configuracoes') { inicializarConfiguracoes(); }
     else if (tela === 'funcionarios') { carregarFuncionariosAdmin(); }
     else if (tela === 'jobsAdmin')    { carregarJobsAdmin(); }
     else if (tela === 'maquinasAdmin'){ carregarMaquinasAdmin(); }
