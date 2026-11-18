@@ -255,7 +255,9 @@ function renderizarApontamentos() {
         ? `<div style="font-size:12px;color:#1e40af">📝 ${esc(item.observacao)}</div>` : '';
       const osTxt = temOS
         ? `<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📋 OS: ${esc(item.numeroOS||'?')}</span>` : '';
-      badgeObs = (obsTxt || osTxt) ? obsTxt + osTxt : '<span style="color:#94a3b8;font-size:11px">—</span>';
+      const ppTxt = (item.paradaProgramada === true || item.paradaProgramada === 'true')
+        ? `<span style="background:#ede9fe;color:#6d28d9;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🗓️ Parada programada</span>` : '';
+      badgeObs = (obsTxt || osTxt || ppTxt) ? obsTxt + osTxt + ppTxt : '<span style="color:#94a3b8;font-size:11px">—</span>';
     }
 
     const tecnico = _setorAtivo==='Bancada' && item._tecnicos
@@ -399,6 +401,7 @@ async function editarApontamento(idx) {
     if (elObs) elObs.value = item.observacao || '';
     const chkOS = document.getElementById('formTemOS'), grpOS = document.getElementById('grupoOSBancada');
     if (chkOS) chkOS.checked = !!(item.temOS === true || item.temOS === 'true');
+    const chkPP = document.getElementById('formParadaProg'); if (chkPP) chkPP.checked = !!(item.paradaProgramada === true || item.paradaProgramada === 'true');
     if (grpOS) grpOS.style.display = chkOS?.checked ? '' : 'none';
     const elNumOS = document.getElementById('formNumOS'); if (elNumOS) elNumOS.value = item.numeroOS || '';
     _renderizarTecnicosSelecionados();
@@ -809,6 +812,7 @@ function coletarDadosForm(setor) {
       descontaAlmoco: document.getElementById('formAlmoco')?.checked,
       trocaCopo, tipoCopo, descricaoCopo: descCopo, copoId: copoId ? parseInt(copoId) : null,
       temObservacao, observacao,
+      paradaProgramada: !!document.getElementById('formParadaProg')?.checked,
       temOS: document.getElementById('formTemOS')?.checked || false,
       numeroOS: document.getElementById('formTemOS')?.checked ? (document.getElementById('formNumOS')?.value?.trim() || null) : null
     });
@@ -1012,6 +1016,7 @@ function resetarForm() {
   const grpQualCopo = document.getElementById('grupoQualCopo'); if(grpQualCopo) grpQualCopo.style.display='none';
   const selCopo = document.getElementById('formCopoSelect'); if(selCopo) selCopo.innerHTML='<option value="">Selecione...</option>';
   const os = document.getElementById('formTemOS'); if(os) os.checked=false;
+  const pp = document.getElementById('formParadaProg'); if(pp) pp.checked=false;
   const grpOS2 = document.getElementById('grupoOSBancada'); if(grpOS2) grpOS2.style.display='none';
   const obs = document.getElementById('formTemObservacao'); if(obs) obs.checked=false;
   const grpObs = document.getElementById('grupoTextoObservacao'); if(grpObs) grpObs.style.display='none';

@@ -76,6 +76,7 @@ function renderizarProducao() {
     const corT = coresTipo[l.tipo] || (tl.includes('prevent') ? coresTipo.Preventiva : tl.includes('corret') ? coresTipo.Corretiva : tl.includes('inspe') ? coresTipo['Inspeção'] : '#64748b');
     const flags = [
       l.maquina_parada?'<span style="background:#fee2e2;color:#b91c1c;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🔴 Máq. Parada</span>':'',
+      l.parada_programada?'<span style="background:#ede9fe;color:#6d28d9;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🗓️ Parada programada</span>':'',
       l.tem_os?`<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📋 OS: ${esc(l.numero_os||'?')}</span>`:''
     ].filter(Boolean).join(' ');
     const status = l.status || 'Em andamento';
@@ -213,6 +214,7 @@ async function editarProd(id) {
   document.getElementById('prodFormDesc').value  = item.descricao || '';
   document.getElementById('prodFormMaqParada').checked = !!item.maquina_parada;
   document.getElementById('prodFormTemOS').checked     = !!item.tem_os;
+  const ppE = document.getElementById('prodFormParadaProg'); if (ppE) ppE.checked = !!item.parada_programada;
   document.getElementById('prodFormNumOS').value       = item.numero_os || '';
   document.getElementById('prodFormObs').value         = item.observacoes || '';
   if (item.tem_os) document.getElementById('grupoOS').style.display = '';
@@ -534,6 +536,7 @@ async function salvarFormProducao() {
     status:        _statusFormProd || 'Em andamento',
     maquinaParada: document.getElementById('prodFormMaqParada')?.checked,
     temOS:         document.getElementById('prodFormTemOS')?.checked,
+    paradaProgramada: !!document.getElementById('prodFormParadaProg')?.checked,
     numeroOS:      document.getElementById('prodFormNumOS')?.value || null,
     observacoes:   document.getElementById('prodFormObs')?.value || null,
     ramId, ramNumero
@@ -585,6 +588,7 @@ function resetarFormProducao() {
     .forEach(id => { const el=document.getElementById(id); if(!el) return; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
   const mp=document.getElementById('prodFormMaqParada'); if(mp) mp.checked=false;
   const os=document.getElementById('prodFormTemOS');     if(os) os.checked=false;
+  const pp=document.getElementById('prodFormParadaProg'); if(pp) pp.checked=false;
   const go=document.getElementById('grupoOS');           if(go) go.style.display='none';
   _anexoProdSelecionado = null;
   const nomeAnexoProd = document.getElementById('prodFormAnexoNome'); if(nomeAnexoProd) nomeAnexoProd.innerText='Nenhum arquivo selecionado.';
