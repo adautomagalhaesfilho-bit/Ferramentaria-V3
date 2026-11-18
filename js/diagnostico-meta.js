@@ -235,7 +235,11 @@ function _dmMapa(L, eq) {
   const dias = _dm.dados.dias;
   const objs = eq ? _dm.dados.pessoas.filter(p => L.some(x => x.o === p)) : _dm.dados.maquinas.filter(m => L.some(x => x.o === m));
   if (!objs.length) return '';
-  const th = dias.map(d => `<th class="${_dmWd(d) % 6 === 0 ? 'we' : ''}">${d.slice(8)}<small>${_DM_DIAS[_dmWd(d)]}</small></th>`).join('');
+  const feriados = (typeof _dadosDash !== 'undefined' && _dadosDash && _dadosDash.feriados) || [];
+  const th = dias.map(d => { const fer = feriados.includes(d); return `<th class="${_dmWd(d) % 6 === 0 ? 'we' : ''} ${fer ? 'hol' : ''}"${fer ? ' title="Feriado: quem é 5x2 não tem meta neste dia"' : ''}>${d.slice(8)}<small>${fer ? 'FER' : _DM_DIAS[_dmWd(d)]}</small></th>`; }).join('');
+  // Quem é de turma 2x2 (A ou B): mostra em quais dias cada turma trabalha; o vazio é a folga
+  const temTurma = eq && _dm.dados.pessoas.some(p => p.linhas.some(l => l.turno === 'Turma A' || l.turno === 'Turma B'));
+  const linhaTurma = t => `<tr class="dm-turma"><th class="tn">${t} <small>(trabalha ●)</small></th>${dias.map(d => `<th class="${turmaEmDia(d) === t ? 'on' : 'off'}" title="${t} ${turmaEmDia(d) === t ? 'trabalha' : 'folga'} em ${_dmFmtD(d)}">${turmaEmDia(d) === t ? '●' : ''}</th>`).join('')}</tr>`;
   const rows = objs.map(o => {
     const nome = eq ? o.curto : o.nome.replace(/ - .*/, '');
     const cells = dias.map(d => {
@@ -252,25 +256,26 @@ function _dmMapa(L, eq) {
       return `<td><button class="dm-cell ${_dmCls(x)} ${fora ? 'dim' : ''}" data-id="${esc(id)}" title="${esc(nome)} · ${_dmFmtD(d)} · ${_dmDur(x.m)} de ${_dmDur(x.meta)}" aria-label="${esc(nome)} ${_dmFmtD(d)}: ${x.pct}%">${x.pct}</button></td>`;
     }).join('');
     const mine = L.filter(y => y.o === o), mm = mine.reduce((a,y) => a + y.meta, 0), aa = mine.reduce((a,y) => a + y.m, 0);
-    return `<tr><td class="name">${esc(nome)}<small>${mm ? Math.round(100 * aa / mm) + '% no período' : ''}</small></td>${cells}</tr>`;
+    return `<tr><td class="name">${esc(nome)}<small>${mm ? Math.round(100 * aa / mm) + '% no período' : ''}${eq && o.linhas.length && /^Turma/.test(o.linhas[o.linhas.length - 1].turno || '') ? ' · ' + esc(o.linhas[o.linhas.length - 1].turno) : ''}</small></td>${cells}</tr>`;
   }).join('');
   return `<div class="dm-sec"><div class="dm-h">${eq ? 'Mapa por pessoa e dia' : 'Mapa por máquina e dia'}</div>
     <div class="dm-nota">Cada quadrado é um dia, com a % da meta. Clique para ver o horário que faltou.</div>
-    <div class="dm-scroll"><table class="dm-hm"><thead><tr><th></th>${th}</tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="dm-key"><span><i style="background:#cdebdd"></i>90% ou mais</span><span><i style="background:#f6e3b4"></i>70% a 89%</span><span><i style="background:#f2c9c3"></i>abaixo de 70%</span>${eq ? '<span><i style="background:repeating-linear-gradient(135deg,#dce2ee 0 3px,#fff 3px 6px)"></i>atestado ou folga</span>' : ''}${eq ? '<span><i style="background:#cdeceb;border:1px solid #6bbbb6"></i>férias</span><span><i style="background:#fff;border:2px solid #0056b3"></i>hora extra (dia de folga)</span>' : ''}<span><i style="background:#e6eaee"></i>sem meta no dia</span></div></div>`;
+    <div class="dm-scroll"><table class="dm-hm"><thead><tr><th></th>${th}</tr>${temTurma ? linhaTurma('Turma A') + linhaTurma('Turma B') : ''}</thead><tbody>${rows}</tbody></table></div>
+    <div class="dm-key"><span><i style="background:#cdebdd"></i>90% ou mais</span><span><i style="background:#f6e3b4"></i>70% a 89%</span><span><i style="background:#f2c9c3"></i>abaixo de 70%</span>${eq ? '<span><i style="background:repeating-linear-gradient(135deg,#dce2ee 0 3px,#fff 3px 6px)"></i>atestado ou folga</span>' : ''}${eq ? '<span><i style="background:#cdeceb;border:1px solid #6bbbb6"></i>férias</span><span><i style="background:#fff;border:2px solid #0056b3"></i>hora extra (dia de folga)</span>' : ''}<span><i style="background:#e6eaee"></i>sem meta no dia</span><span><i style="background:#fde68a;border:1px solid #f59e0b"></i>feriado (FER no cabeçalho)</span>${temTurma ? '<span><b style="color:#1e3a5f">●</b> Turma A / Turma B: dia de trabalho (sem a bolinha é folga da turma)</span>' : ''}</div></div>`;
 }
 
 function _dmLista(L, eq, MOT) {
-  let rows = L.filter(x => x.gap > 0 && x.pct < (_dm.limite >= 100 ? 100 : _dm.limite));
+  const hoje = hojeLocal();   // o dia de hoje ainda está em andamento: não se cobra
+  let rows = L.filter(x => x.r.d < hoje && (eq ? x.main === 'dia' : (x.m === 0 && x.seg.par === 0)));
   if (_dm.motivo && _dm.motivo !== 'ok') rows = rows.filter(x => x.seg[_dm.motivo] > 0);
   rows.sort((a,b) => (_dm.motivo && _dm.motivo !== 'ok' ? b.seg[_dm.motivo] - a.seg[_dm.motivo] : b.gap - a.gap));
   const shown = rows.slice(0, 15);
   const nm = k => MOT.find(x => x.k === k);
   return `<div class="dm-sec"><div class="dm-h">O que cobrar</div>
-    <div class="dm-nota">${rows.length} dia(s) abaixo da meta${_dm.motivo ? ' pelo motivo escolhido' : ''}, do maior para o menor tempo perdido.${rows.length > 15 ? ' Mostrando os 15 primeiros.' : ''}</div>
+    <div class="dm-nota">${rows.length} dia(s) passado(s) sem nenhum lançamento${_dm.motivo ? ' pelo motivo escolhido' : ''} (hoje não entra e horário faltando dentro de um dia com lançamento não entra), do maior para o menor tempo perdido.${rows.length > 15 ? ' Mostrando os 15 primeiros.' : ''}</div>
     ${shown.length ? `<div class="dm-scroll"><table class="dm-list"><thead><tr><th>${eq ? 'Pessoa' : 'Máquina'}</th><th>Dia</th><th>Motivo principal</th><th class="r dm-hide">Apontado</th><th class="r">Perdido</th></tr></thead><tbody>
     ${shown.map(x => { const mo = nm(x.main); const id = (eq ? 'p' : 'm') + '|' + x.o.nome + '|' + x.r.d;
-      return `<tr class="row" tabindex="0" data-id="${esc(id)}"><td><b>${esc(eq ? x.o.curto : x.o.nome.replace(/ - .*/, ''))}</b></td><td>${_dmFmtD(x.r.d)} <span class="dm-mut">${['dom','seg','ter','qua','qui','sex','sáb'][_dmWd(x.r.d)]}</span></td><td><span class="dm-chip"><i style="background:${mo.c}"></i>${esc(mo.n)}</span></td><td class="r dm-hide">${_dmDur(x.m)} de ${_dmDur(x.meta)}</td><td class="r"><span class="dm-lost">${_dmDur(x.gap)}</span></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="dm-vazio">Nenhum dia abaixo da meta com esses filtros.</div>'}</div>`;
+      return `<tr class="row" tabindex="0" data-id="${esc(id)}"><td><b>${esc(eq ? x.o.curto : x.o.nome.replace(/ - .*/, ''))}</b></td><td>${_dmFmtD(x.r.d)} <span class="dm-mut">${['dom','seg','ter','qua','qui','sex','sáb'][_dmWd(x.r.d)]}</span></td><td><span class="dm-chip"><i style="background:${mo.c}"></i>${esc(mo.n)}</span></td><td class="r dm-hide">${_dmDur(x.m)} de ${_dmDur(x.meta)}</td><td class="r"><span class="dm-lost">${_dmDur(x.gap)}</span></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="dm-vazio">Nenhum dia passado sem lançamento com esses filtros.</div>'}</div>`;
 }
 
 // ---------- detalhe do dia ----------
@@ -444,6 +449,12 @@ function _dmInjetarCss() {
 .dm-hm{border-collapse:separate;border-spacing:2px;font-size:11.5px}
 .dm-hm th{font-weight:500;color:#64748b;text-align:center;min-width:32px;padding:0 0 3px}
 .dm-hm th.we{color:#a0aab5}
+.dm-hm th.hol{background:#fde68a;color:#92400e;border-radius:4px}
+.dm-hm th.hol small{color:#92400e;font-weight:700}
+.dm-hm tr.dm-turma th{font-size:10px;color:#64748b;padding:1px 0}
+.dm-hm tr.dm-turma th.tn{text-align:left;position:sticky;left:0;background:#fff;white-space:nowrap;font-weight:600;color:#1e3a5f;z-index:1}
+.dm-hm tr.dm-turma th.tn small{display:inline;font-weight:400;color:#94a3b8}
+.dm-hm tr.dm-turma th.on{color:#0056b3}
 .dm-hm th small{display:block;font-size:10px;color:#a0aab5}
 .dm-hm td.name{position:sticky;left:0;background:#fff;padding-right:10px;font-weight:600;font-size:12.5px;white-space:nowrap;text-align:left;z-index:1;color:#1e3a5f}
 .dm-hm td.name small{display:block;font-weight:400;color:#64748b;font-size:11px}
