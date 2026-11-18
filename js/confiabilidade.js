@@ -7,7 +7,11 @@
 // Só usa informação que a Ferramentaria controla.
 // ==========================================
 
-var CONF_GAP_BANCADA_DIAS = 45;   // com histórico no PCM, corretiva de bancada até 45 dias depois (sem o molde voltar à máquina) é a mesma falha; sem histórico, só até 7 dias
+// RG-14: limites (em dias) para juntar corretivas na mesma ocorrência; vêm da configuração da empresa
+function confLimitesOcorrencia() {
+  const o = (typeof CONFIG_EMPRESA !== 'undefined' && CONFIG_EMPRESA.ocorrencia) || {};
+  return { producao: o.producaoDias ?? 1, bancada: o.bancadaDias ?? 45, bancadaSemHist: o.bancadaSemHistDias ?? 7 };
+}
 
 function _confDia(iso) { const [y, m, d] = String(iso).substring(0, 10).split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 86400000); }
 function _confIso(dia) { return new Date(dia * 86400000).toISOString().substring(0, 10); }
@@ -18,6 +22,7 @@ function confCalcular(dados) {
   const hoje = _confDia(dados.hoje);
   const hist = (dados.hist || []).slice().sort((a, b) => String(a.movido_em).localeCompare(String(b.movido_em)) || a.id - b.id);
   const emMaquinaDias = hist.filter(h => h.localizacao === 'Em Máquina').map(h => _confDia(h.movido_em));
+  const lim = confLimitesOcorrencia();
   const inicioHist = hist.length ? _confDia(hist[0].movido_em) : Infinity;   // antes disso não sabemos onde o molde estava
 
   // 1) Corretivas de Produção e de Bancada
@@ -43,7 +48,7 @@ function confCalcular(dados) {
     if (cur) {
       const d0 = _confDia(cur.fim), d1 = _confDia(ev.data);
       const voltouParaMaquina = emMaquinaDias.some(d => d > d0 && d <= d1);
-      const limite = ev.origem === 'Bancada' ? (d1 >= inicioHist ? CONF_GAP_BANCADA_DIAS : 7) : 1;
+      const limite = ev.origem === 'Bancada' ? (d1 >= inicioHist ? lim.bancada : lim.bancadaSemHist) : lim.producao;
       junta = !voltouParaMaquina && (d1 - d0) <= limite;
     }
     if (junta) { cur.fim = ev.data; cur.evs.push(ev); }
@@ -310,4 +315,4 @@ function confiabilidadeExcluirLeitura(id, job) {
   });
 }
 
-if (typeof module !== 'undefined') module.exports = { confCalcular };
+if (typeof module !== 'undefined') module.exports = { confCalcular, confLimitesOcorrencia };
