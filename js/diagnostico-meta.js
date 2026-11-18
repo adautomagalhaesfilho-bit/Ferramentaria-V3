@@ -77,8 +77,8 @@ function _dmCalcular(ini, fim, lancsSetor) {
       const aus = ausencias.find(x => ds >= x.inicio && ds <= x.fim);
       const doDia = meus.filter(l => l.data === ds);
       if (aus && aus.motivo === 'Férias') { linhas.push({ d:ds, meta:0, m:0, fer:aus, extra:false, turno:turnoNaData(nome, ds, dados), gaps:[], parc:0, lancs:doDia, ocorr:[], jus:null }); return; }
-      const m = doDia.reduce((a,l) => a + (l.minutos || 0), 0);
       const turno = turnoNaData(nome, ds, dados);
+      const m = Math.max(0, doDia.reduce((a,l) => a + (l.minutos || 0), 0) - almocoAjusteDia(doDia, turno));   // almoço obrigatório descontado por dia
       const trabalha = funcTrabalhaEmDia(turno, ds, feriados);
       if (!trabalha) { if (m > 0) linhas.push({ d:ds, meta:0, m, extra:true, turno, gaps:[], parc:0, jus:null, lancs:doDia, ocorr:parciais.filter(p => p.data === ds) }); return; }
       let meta = capMinutosNaData(turno, f?.setor, ds), parc = 0;

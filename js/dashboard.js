@@ -218,7 +218,7 @@ function pcmAgruparInstalado(perms) {
 
 function pcmMudarProducao(v) { _pcmProducao = v; _pcmChartTodos = false; renderizarDashAtivo('pcm'); }
 function pcmAlternarTodos() { _pcmChartTodos = !_pcmChartTodos; renderizarDashAtivo('pcm'); }
-if (typeof module !== 'undefined') module.exports = Object.assign(module.exports || {}, { pcmPermanencias, pcmAgruparInstalado });
+if (typeof module !== 'undefined') module.exports = Object.assign(module.exports || {}, { pcmPermanencias, pcmAgruparInstalado, almocoAjusteDia });
 
 // ==========================================
 // 📦 PCM — Movimentação de Moldes / Setups
@@ -570,13 +570,28 @@ function desenharSetor(setor, ini, fim) {
 
   // Exclui supervisores das horas produtivas do setor (têm função administrativa)
   const lancsSemSupervisor = lancsProdutivos.filter(l => !isSupervisor(l.funcionario, _dadosDash));
-  const totalMinsSemSup = lancsSemSupervisor.reduce((a,l)=>a+(l.minutos||0),0);
+  // Almoço obrigatório descontado por dia e por pessoa (ver almocoAjusteDia)
+  const ajusteAlmoco = {};   // nome -> minutos a descontar no período
+  let ajusteAlmocoTotal = 0, ajusteAlmocoExtra = 0;
+  {
+    const porDiaPessoa = {};
+    lancsSemSupervisor.forEach(l => { if (!l.funcionario || l.funcionario.toUpperCase().includes('SEM OPERADOR')) return; (porDiaPessoa[l.funcionario + '|' + l.data] = porDiaPessoa[l.funcionario + '|' + l.data] || []).push(l); });
+    Object.values(porDiaPessoa).forEach(arr => {
+      const nome = arr[0].funcionario, ds = arr[0].data;
+      const aj = almocoAjusteDia(arr, turnoNaData(nome, ds, _dadosDash));
+      if (!aj) return;
+      ajusteAlmoco[nome] = (ajusteAlmoco[nome] || 0) + aj; ajusteAlmocoTotal += aj;
+      const turnoAtual = ((_dadosDash.funcionarios || []).find(f => f.nome === nome)?.turno) || '5x2';
+      if (!funcTrabalhaEmDia(turnoAtual, ds, feriados)) ajusteAlmocoExtra += aj;
+    });
+  }
+  const totalMinsSemSup = lancsSemSupervisor.reduce((a,l)=>a+(l.minutos||0),0) - ajusteAlmocoTotal;
 
   const horasExtras = lancsSemSupervisor.filter(l => {
     const funcRH = (_dadosDash.funcionarios||[]).find(f=>f.nome===l.funcionario);
     const turno  = funcRH?.turno || '5x2';
     return !funcTrabalhaEmDia(turno, l.data, feriados);
-  }).reduce((a,l)=>a+(l.minutos||0),0);
+  }).reduce((a,l)=>a+(l.minutos||0),0) - ajusteAlmocoExtra;
 
   const porOp = {};
   lancsSemSupervisor.forEach(l => {
@@ -584,7 +599,8 @@ function desenharSetor(setor, ini, fim) {
     if(f.toUpperCase().includes('SEM OPERADOR')) return;
     if(!porOp[f]) porOp[f]=0; porOp[f]+=l.minutos||0;
   });
-  const opEntries = Object.entries(porOp).map(([nome,mins]) => {
+  const opEntries = Object.entries(porOp).map(([nome,mins0]) => {
+    const mins = Math.max(0, mins0 - (ajusteAlmoco[nome] || 0));
     const meta = calcularMeta(ini, fim, nome, _dadosDash);
     const pct  = meta>0?Math.round(mins/meta*100):0;
     return { nome, mins, meta, pct };
@@ -1113,6 +1129,39 @@ function _minutosSemSobreposicao(lancs) {
     sobreposto += soma - uniao;
   });
   return Math.max(0, total - sobreposto);
+}
+
+// ==========================================
+// 🍽️ ALMOÇO OBRIGATÓRIO, DESCONTADO POR DIA E POR PESSOA
+// Não existe horário fixo de almoço. O direito é 1h10 (5x2, 6x1, estágio) ou 60 min em duas refeições de 40 + 20 (turmas 2x2).
+// O que a pessoa deixou sem lançar entre um lançamento e outro já foi refeição; só se desconta o que faltar.
+// Dia com 5 h ou menos de tempo lançado não conta (não chegou a almoçar). Lançamentos que já tiveram o desconto
+// gravado (caixa de almoço marcada) entram na conta para não descontar duas vezes. Nada é gravado: é só o cálculo do dia.
+// ==========================================
+var ALMOCO_MIN_DIA = 300;
+function almocoDireitoMin(turno) { return (turno === 'Turma A' || turno === 'Turma B') ? 60 : 70; }
+function almocoAjusteDia(lancs, turno) {
+  const hm = h => { const m = /^(\d{1,2}):(\d{2})/.exec(h || ''); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+  const iv = []; let jaDescontado = 0;
+  (lancs || []).forEach(l => {
+    const a = hm(l.horaInicio), b0 = hm(l.horaFim);
+    if (a === null || b0 === null) return;
+    const b = b0 > a ? b0 : b0 + 1440;
+    iv.push([a, b]);
+    if (l.descontaAlmoco === true || l.descontaAlmoco === 'true') jaDescontado += Math.min(70, Math.max(0, (b - a) - (l.minutos || 0)));
+  });
+  if (!iv.length) return 0;
+  iv.sort((p, q) => p[0] - q[0]);
+  let uniao = 0, ci = iv[0][0], cf = iv[0][1], fimDia = cf;
+  for (let i = 1; i < iv.length; i++) {
+    const [a, b] = iv[i];
+    if (a <= cf) cf = Math.max(cf, b); else { uniao += cf - ci; ci = a; cf = b; }
+    fimDia = Math.max(fimDia, b);
+  }
+  uniao += cf - ci;
+  if (uniao <= ALMOCO_MIN_DIA) return 0;
+  const lacunas = (fimDia - iv[0][0]) - uniao;
+  return Math.max(0, almocoDireitoMin(turno) - lacunas - jaDescontado);
 }
 
 // "Tempo em Automático" do lançamento (campo hh:mm): a máquina seguiu trabalhando sozinha.
