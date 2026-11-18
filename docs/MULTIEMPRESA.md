@@ -1,63 +1,79 @@
-# MULTIEMPRESA.md — como o sistema atende várias empresas
+# MULTIEMPRESA.md — um produto, várias empresas
 
-Decisões do Adauto (18/11/2026):
-- **Modelos de venda:** os dois — **SaaS** (nós hospedamos, uma instalação para vários clientes) e **instalação dedicada** (banco próprio de um cliente).
-- **Regras diferentes por empresa:** **configuráveis na tela**, sem mexer em código.
-- **Base técnica (Supabase x Laravel/MySQL):** decidir depois da Fase 0. Tudo aqui vale nas duas.
+## 1. Objetivo
+Um único produto atende várias empresas, cada uma com suas próprias regras, setores, turnos e identidade visual, sem alterar código. Dois modelos de venda com o **mesmo código e a mesma versão**:
 
-## 1. Princípio
-O código contém só **mecanismos** (como calcular almoço, meta, ocorrência). Os **valores** (70 min, 528 min, quais turnos, quais setores) vêm da configuração da empresa. Nada com o nome "Bomix" no código.
-
-## 2. Camadas de regra
-| Nível | Quem decide | Exemplo | Onde fica |
-|---|---|---|---|
-| PADRÃO | o produto | união de lançamentos sobrepostos (RG-07) | código |
-| CONFIGURÁVEL | o administrador da empresa | minutos de almoço por turno (RG-08) | tabela de configuração |
-| ESPECÍFICA | só um cliente, com vigência | meta −30 min na Usinagem desde 01/09/2026 (RG-03) | tabela de configuração com setor e data de início |
-
-Cada regra de `REGRAS.md` já traz o nível. Regra ESPECÍFICA vira **parâmetro com vigência**, nunca um `if (empresa === ...)`.
-
-## 3. Modelo de dados proposto
-- `empresas` (id, nome, slug/subdomínio, logo, cores, fuso, plano, ativo).
-- **`empresa_id` em todas as tabelas de negócio** (hoje 38 tabelas, nenhuma tem). Índice por `empresa_id`.
-- `usuarios.empresa_id`; perfil `super_admin` (nosso, atravessa empresas) separado de `admin` da empresa.
-- **RLS por empresa:** `empresa_id = empresa_do_usuario()` em todas as políticas, substituindo o atual "usuário ativo". É o que impede uma empresa ver dados de outra; teste obrigatório antes do primeiro cliente.
-- **Configuração:** `config_empresa` (empresa_id, chave, valor jsonb, vigente_desde, vigente_ate). Ex.: `almoco.direito_min.5x2 = 70`, `almoco.limite_dia_min = 300`, `meta.ajuste_setor.Usinagem = -30 desde 2026-09-01`, `escala.rodizio_inicio = 2026-02-17`, `bh.ciclo_dia_inicio = 16`.
-- Já existem e viram por empresa: `turnos` (capacidade, horários, intervalo, dias da semana), `feriados`, `cargos`, `tipos_servico`, `motivos_parada`, `prod_categorias`, `maquinas`, `config_sistema` (hoje com `rodizio_start`).
-- **Setores** passam a ser tabela (`setores`: nome, lança apontamento?, entra em meta?, grupo), em vez de texto fixo no código (RG-18).
-
-## 4. Mapa: regra → o que precisa virar configuração
-| Regra | Hoje | Passa a ser |
+| Modelo | Como funciona | Diferença |
 |---|---|---|
-| RG-01 escala | constantes no JS e no SQL | `turnos.dias_semana` + tipo de rodízio + início do ciclo |
-| RG-02 capacidade | função com números fixos (a tabela `turnos` já tem os mesmos) | ler `turnos.capacidade_min` |
-| RG-03 −30 min Usinagem | constante com data fixa | `config_empresa` com setor e vigência |
-| RG-06 quem fica fora | nomes de cargo no código | lista de cargos/setores isentos |
-| RG-08 almoço | 70/60/300 no código | direito por turno + limite do dia |
-| RG-11 hora extra | SQL com escala duplicada | mesma função de escala, lendo a configuração |
-| RG-12 ciclo 16→15 | fixo | dia de início do ciclo |
-| RG-13 limites de ocorrência | 1 dia / 45 / 7 | três parâmetros |
-| RG-18 setores | texto espalhado | tabela `setores` |
+| **SaaS** | Nós hospedamos. Várias empresas no mesmo ambiente, cada uma isolada. Cobrança por assinatura. | uma implantação, uma atualização para todas |
+| **Instalação dedicada** | Ambiente próprio de um cliente (banco, domínio e chaves só dele). | mesmo pacote, implantado separado; migrações aplicadas pelo mesmo procedimento |
 
-## 5. Marca branca e domínio
-- SaaS: `empresa.<domínio-próprio>` por cliente (subdomínio), logo e cores vindos de `empresas`.
-- Instalação dedicada: domínio do cliente; mesmo código, `empresa` única.
-- Domínio pago próprio: registrar e apontar o DNS para a hospedagem escolhida (hoje GitHub Pages; para subdomínio por cliente será preciso hospedagem com curinga `*.dominio`, como Netlify/Cloudflare Pages/Vercel — decisão da Fase 2).
+Regra de ouro: **a diferença entre os dois modelos é só implantação**. Nenhuma funcionalidade existe em um e não no outro.
 
-## 6. Dois modelos, um código
-- Um único repositório e versão. A diferença entre SaaS e dedicada é **só implantação** (qual banco, qual domínio, quais configurações).
-- Migrações de banco versionadas em `supabase/migrations/`, aplicáveis a todos os bancos em ordem.
-- Atualização: SaaS = uma vez; dedicada = rodar o mesmo pacote de migrações e publicar a mesma versão no cliente.
+## 2. Isolamento (o requisito mais importante)
+- Toda tabela de negócio tem `empresa_id` obrigatório.
+- Toda leitura e escrita é filtrada pela empresa do usuário **no banco** (política de acesso por linha), não só na tela. Esquecer um filtro no código não pode vazar dados.
+- Usuário pertence a uma empresa. O papel **super administrador** (equipe do produto) é separado e auditado; opera suporte sem ver dados de negócio, salvo autorização registrada.
+- Testes de isolamento rodam a cada versão com duas empresas: nenhum dado de uma aparece para a outra, em nenhuma tabela, função, exportação ou API.
+- Arquivos (anexos, imagens) ficam em pastas por empresa com acesso restrito.
 
-## 7. Ordem segura para chegar lá
-1. (Fase 0) `REGRAS.md`, testes das regras, esquema versionado — **feito neste PR**.
-2. Fazer o código **ler** `turnos`/`config_sistema` em vez de números fixos, ainda para uma empresa só (sem mudar resultado; os testes provam).
-3. Criar `empresas` + `empresa_id` (migração com backup; tudo recebe a empresa atual).
-4. RLS por empresa + testes de isolamento.
-5. Tela de configuração da empresa.
-6. Primeira empresa nova de teste, com regras diferentes da Bomix, para provar que nada está fixo.
+## 3. Configuração em vez de código
+Camadas de regra (detalhe em `REGRAS.md`):
 
-## 8. Cuidados
-- Isolamento entre empresas é o maior risco de venda: testar com duas empresas antes de qualquer cliente real.
-- Dados da Bomix pertencem à Bomix; ver o documento de transferência/venda do projeto (autoria, LGPD, contrato).
-- Não migrar para Laravel/MySQL antes de ter as regras testadas (Fase 1): sem testes, a reescrita não tem como provar que os números continuam iguais.
+| Nível | Quem decide | Onde fica |
+|---|---|---|
+| Padrão | o produto | código |
+| Parâmetro | o administrador da empresa | configuração da empresa |
+| Específica | uma empresa, com data de início | configuração com vigência |
+
+Princípios:
+1. O código contém **mecanismos**; os **valores** vêm da configuração.
+2. Nunca existe `if (empresa == X)`. Uma particularidade vira parâmetro com vigência.
+3. Todo parâmetro tem **valor inicial de fábrica**, **vigência** (vale a partir de) e **histórico** de quem mudou.
+4. Mudar parâmetro vale daqui para frente; períodos já fechados não se alteram.
+5. Se três empresas pedem a mesma particularidade, ela vira recurso do produto.
+
+### Parâmetros por empresa (resumo)
+- Identidade: nome, logotipo, cores, fuso horário, idioma, domínio.
+- Calendário: feriados, ciclo de fechamento mensal.
+- Turnos: nome, horário, intervalo, tipo de escala (semanal ou rodízio), capacidade, turmas.
+- Setores: nome, lança apontamento?, entra em meta?, início do tempo produtivo, ajustes de capacidade.
+- Refeição: direito por turno, limite mínimo do dia.
+- Hora extra automática: ligada?, horário, janela de dias.
+- Isentos de meta: cargos e setores.
+- Confiabilidade: limites de agrupamento de ocorrência.
+- Cadastros: tipos de serviço, motivos de parada, categorias, máquinas, moldes.
+- Perfis e permissões por setor e por tela.
+- Integrações: chaves de API, webhooks, importações (RH).
+
+## 4. Tela de configuração
+Administrador da empresa acessa **Configurações**: cada grupo acima em uma página, com valor atual, vigência, histórico e botão "restaurar padrão". Alterações pedem confirmação e geram auditoria. Há **pré-visualização do efeito** quando possível ("com este valor, a meta de outubro seria X em vez de Y").
+
+## 5. Implantação de uma nova empresa (onboarding)
+1. Criar a empresa (nome, fuso, marca).
+2. Aplicar o **modelo de configuração** (conjunto inicial de turnos, setores e regras; ex.: "Usinagem de moldes").
+3. Criar o administrador da empresa.
+4. Importar pessoas (planilha ou integração com o RH, por matrícula), feriados e máquinas.
+5. Conferir com **casos de teste da empresa**: o cliente informa 3 dias reais e o resultado calculado é comparado ao que ele espera.
+6. Liberar usuários.
+
+## 6. Marca e domínio
+- SaaS: endereço por empresa (`empresa.dominio-do-produto`), com logotipo e cores da empresa.
+- Dedicada: domínio do cliente, mesmo código.
+- Domínio próprio do produto, certificado e e-mail institucional fazem parte da configuração de implantação.
+
+## 7. Planos e limites (a definir)
+Itens que o produto deve conseguir medir por empresa: usuários ativos, pessoas cadastradas, máquinas, volume de apontamentos, armazenamento, chamadas de API e uso de IA. Preço e franquias são decisão comercial.
+
+## 8. Dados, privacidade e saída
+- Cada empresa é dona dos seus dados. Exportação completa (planilhas e arquivo estruturado) a qualquer momento.
+- Encerramento: retenção definida em contrato, depois exclusão comprovada.
+- Conformidade com a LGPD: base legal, registro de acessos, perfil de menor privilégio, backup criptografado.
+- Dados pessoais de funcionários usados só para a finalidade do produto.
+
+## 9. Critérios de pronto
+O produto está pronto para multiempresa quando:
+1. duas empresas com regras diferentes (turnos, almoço, setores) convivem e cada uma obtém o resultado esperado nos casos de ouro;
+2. o teste de isolamento passa em todas as tabelas e na API;
+3. uma empresa nova entra no ar só por configuração, sem alterar código;
+4. uma atualização é aplicada em SaaS e em instalação dedicada pelo mesmo procedimento.

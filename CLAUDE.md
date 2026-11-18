@@ -1,55 +1,48 @@
-# CLAUDE.md — mapa do projeto Ferramentaria V3
+# CLAUDE.md — guia do projeto
 
-Leia este arquivo primeiro. Ele existe para não precisar ler o código inteiro (~920 KB) a cada tarefa.
+Leia este arquivo primeiro. Ele diz o que o produto é, como está organizado e como se trabalha nele.
 
-## O que é
-Sistema de gestão de ferramentaria/usinagem de moldes (apontamentos, produção, PCM, RH, banco de horas, ficha do molde, dashboards).
-Produto em construção para ser **vendável a várias empresas**, em dois modelos: SaaS (nós hospedamos) e instalação dedicada por cliente.
-Hoje roda para a Bomix. Nenhuma regra nova deve nascer "só da Bomix" no código: ver `docs/MULTIEMPRESA.md`.
+## Produto
+Sistema de gestão de ferramentaria e usinagem de moldes de injeção: apontamento de tempo, metas e ocupação de pessoas e máquinas, produção e injetoras, PCM, RH, banco de horas, ficha e confiabilidade do molde (MTBF/MTTR), dashboards, exportações e integrações.
 
-## Stack atual
-HTML + JavaScript puro (sem módulos/bundler), GitHub Pages, Supabase (Postgres + Auth + 1 Edge Function). PWA mínimo (`sw.js`, sem cache).
-Bibliotecas por CDN: Chart.js, supabase-js, SheetJS, ExcelJS. Decisão sobre migrar a base técnica: **adiada para depois da Fase 0** (ver `docs/ARQUITETURA.md`).
+Vendido a **várias empresas**, em dois modelos com o mesmo código: **SaaS** (hospedamos) e **instalação dedicada** (ambiente do cliente). Cada empresa tem as próprias regras, definidas por **configuração na tela**, nunca por código. Nenhum nome de cliente aparece no código.
 
-## Onde está cada assunto (js/)
-| Assunto | Arquivo(s) |
+Dono do produto: Adauto (não é desenvolvedor). Ele decide, aprova e acompanha; a implementação é nossa. Falar em português simples; aprovar **texto de regra**, não código.
+
+## Documentos (nesta ordem)
+| Documento | Para quê |
 |---|---|
-| Dados / banco (REST, auth, domínio) | `supabase.js` (objeto `db`) |
-| Entrada, login, menu, sessão, permissões | `app.js` |
-| Apontamento da bancada / usinagem | `apontamentos.js`, `wizard-usinagem.js` |
-| Apontamento da produção (injetoras) | `producao.js` |
-| Dashboard (meta, ocupação, **almoço**, turnos) | `dashboard.js` |
-| Diagnóstico da meta (por que ficou abaixo) | `diagnostico-meta.js` |
-| Confiabilidade do molde (MTTR/MTBF/ocorrências) | `confiabilidade.js` |
-| Ficha do molde | `ficha.js` |
-| PCM e indicadores | `pcm.js`, `pcm-indicadores.js` |
-| RH (funcionários, férias, parciais, turnos) | `rh.js` |
-| Banco de horas | `banco-horas.js` |
-| Exportar moldes para Excel | `exportar-moldes.js` |
-| Assistente de IA (somente leitura) | `supabase/functions/miguelito/index.ts` |
-Ordem de carga e versões (`?v=`) dos scripts: `app.html`. **Ao mudar um .js, suba o `?v=` dele em `app.html`.**
+| `docs/REGRAS.md` | **Fonte da verdade** das regras de negócio (RG-xx), parâmetros e casos de ouro |
+| `docs/MULTIEMPRESA.md` | Isolamento, configuração por empresa, implantação, modelos de venda |
+| `docs/ARQUITETURA.md` | Camadas, estrutura de pastas, dados, API, testes, segurança, marcos |
+| `docs/LEGADO.md` | Onde o código atual (versão em produção) implementa cada regra e o plano de migração |
 
-## Onde estão as regras de negócio
-Fonte da verdade em português: **`docs/REGRAS.md`** (cada regra tem ID `RG-xx`).
-Hoje as regras estão misturadas no código das telas (principalmente `dashboard.js`) e uma parte duplicada em SQL (`sincronizar_horas_extras`). `REGRAS.md` diz onde cada uma mora.
+## Como trabalhar (especificação primeiro)
+1. Entender o pedido em português.
+2. Se mexe em regra: **editar `REGRAS.md`**, com parâmetro, vigência e caso de ouro, e **aprovar o texto com o Adauto**.
+3. Escrever o teste a partir do caso de ouro.
+4. Implementar no domínio (ou, enquanto o legado vive, no ponto indicado em `LEGADO.md`).
+5. Rodar os testes. Conferir o resultado com números reais.
+6. Branch → commit → pull request. **Merge somente quando o Adauto disser "faça o merge" citando o(s) PR(s).**
 
-## Fluxo de trabalho (SDD — especificação primeiro)
-1. Pedido do Adauto em português.
-2. Atualizar/criar a regra em `docs/REGRAS.md` e **aprovar o texto com ele**.
-3. Escrever/ajustar o teste da regra.
-4. Implementar. Rodar testes.
-5. Branch → commit → PR. **Merge somente quando o Adauto disser "faça o merge" citando o(s) PR(s).**
-Ajustes visuais pequenos (alinhamento, cor, legenda) podem ser feitos direto; regra ou dado: perguntar antes.
+Ajustes visuais pequenos (alinhamento, cor, legenda): fazer direto. Regra ou dado: perguntar antes. Centralizar elementos e acertos parecidos ele já autorizou como padrão.
 
-## Convenções
-- Datas como texto `YYYY-MM-DD`; usar `T12:00:00` ao criar `Date` (evita erro de fuso). Fuso do negócio: America/Sao_Paulo.
-- Toda alteração de dado relevante grava auditoria: `registrarLog(tabela, id, acao, campo, antigo, novo)` → `log_alteracoes`.
-- Não apagar dados sem pedido explícito. Chaves/segredos só em segredos do Supabase, nunca no código.
-- Mensagens e textos da tela em português do Brasil.
-- Banco: todas as 38 tabelas têm RLS. Mudança de banco entra em `supabase/migrations/` (a pasta começa na Fase 0; ver `supabase/schema/`).
+## Regras de ouro do código
+- Regra de negócio vive no **domínio** (código puro, testável); tela só desenha; banco só guarda.
+- **Uma regra, um lugar.** Antes de escrever uma conta, procurar se ela já existe.
+- Valor que a empresa pode querer mudar (minutos de refeição, capacidade, setores, turnos) **é parâmetro**, não constante.
+- Nada de `if (empresa === ...)`: particularidade vira parâmetro com vigência.
+- Todo dado de negócio pertence a uma `empresa_id`; isolamento garantido no banco.
+- Arquivo ≤ 300 linhas, função ≤ 40, linha ≤ 120 caracteres.
+- Datas de negócio como `AAAA-MM-DD`; ao criar `Date` usar meio-dia (`T12:00:00`) para evitar erro de fuso. Fuso: o da empresa (hoje America/Sao_Paulo).
+- Toda alteração relevante grava auditoria. Não apagar dado sem pedido explícito; correções diretas no banco também são registradas.
+- Segredos só em cofre de segredos; nunca no código.
+- Textos de tela em português do Brasil.
+- Mudança de banco só por migração numerada (`supabase/migrations/`, enquanto a plataforma for Supabase).
 
-## Como testar hoje
-Não há suíte no repositório ainda (Fase 0 cria `tests/`). Os testes usados nas tarefas rodam em Node (`vm` com stubs) e Playwright. Funções puras exportadas por `module.exports` (ex.: `almocoAjusteDia` em `dashboard.js`) podem ser testadas direto.
+## Fora do escopo sem pedido
+- PR #64 (MTTR em tempo corrido) está aberto: **não mergear** até o Adauto voltar ao assunto.
+- Decisão de plataforma (ADR-001 em `ARQUITETURA.md`) está em aberto até os casos de ouro estarem prontos.
 
-## Fora do escopo / não mexer sem pedir
-PR #64 (MTTR em tempo corrido) está aberto e **não deve ser mergeado** até o Adauto voltar ao assunto.
+## Estado de hoje
+O que está em produção é a versão anterior ao desenho acima (site estático + Supabase). Mapa de arquivos, onde cada regra mora e plano de migração: **`docs/LEGADO.md`**. Ao mudar um `.js` do legado, subir o `?v=` dele em `app.html`.
