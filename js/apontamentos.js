@@ -837,7 +837,7 @@ function configurarCamposForm(setor) {
     grupoHorarios:    setor!=='Projeto',
     grupoHrIni:       setor!=='Projeto',
     grupoHrFim:       setor!=='Projeto',
-    grupoAlmoco:      setor!=='Projeto',
+    grupoAlmoco:      false,   // almoço agora é descontado automaticamente por dia (dashboard); não se marca mais no lançamento
     grupoTempoAuto:   setor==='Usinagem',
     grupoFuncSimples: setor!=='Bancada',
     grupoFuncExtra:   setor==='Usinagem',
