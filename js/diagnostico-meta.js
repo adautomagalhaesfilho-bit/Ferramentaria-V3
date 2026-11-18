@@ -456,9 +456,10 @@ function _dmInjetarCss() {
 .dm-hm tr.dm-turma th.tn small{display:inline;font-weight:400;color:#94a3b8}
 .dm-hm tr.dm-turma th.on{color:#0056b3}
 .dm-hm th small{display:block;font-size:10px;color:#a0aab5}
+.dm-hm td{text-align:center}
 .dm-hm td.name{position:sticky;left:0;background:#fff;padding-right:10px;font-weight:600;font-size:12.5px;white-space:nowrap;text-align:left;z-index:1;color:#1e3a5f}
 .dm-hm td.name small{display:block;font-weight:400;color:#64748b;font-size:11px}
-.dm-cell{display:block;width:32px;height:32px;line-height:32px;text-align:center;border-radius:4px;border:0;font-weight:600;font-size:11.5px;color:#1e293b;padding:0;font-variant-numeric:tabular-nums}
+.dm-cell{display:block;margin:0 auto;width:32px;height:32px;line-height:32px;text-align:center;border-radius:4px;border:0;font-weight:600;font-size:11.5px;color:#1e293b;padding:0;font-variant-numeric:tabular-nums}
 button.dm-cell{cursor:pointer}
 .dm-cell.g{background:#cdebdd}.dm-cell.m{background:#f6e3b4}.dm-cell.l{background:#f2c9c3}
 .dm-cell.j{background:repeating-linear-gradient(135deg,#dce2ee 0 4px,#fff 4px 8px);color:#5b6b8c}
