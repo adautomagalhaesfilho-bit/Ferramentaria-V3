@@ -5,10 +5,10 @@ Este documento define **como o produto calcula as coisas**. É a fonte da verdad
 ## Como ler
 - **ID** (`RG-xx`): usado em pedidos, PRs, testes e mensagens de erro.
 - **Padrão**: igual para todas as empresas. Só muda por decisão de produto.
-- **Parâmetro**: cada empresa define o valor na tela de configuração. O texto mostra o **valor inicial** (o que o produto traz de fábrica).
+- **Parâmetro**: cada empresa define o valor na tela de configuração. Este documento diz **que parâmetros existem e como a regra os usa**; os **valores** de cada empresa ficam no perfil dela (`docs/perfis/`), nunca aqui.
 - **Vigência**: todo parâmetro tem "vale a partir de". Mudar uma regra nunca altera o passado já fechado.
 - **Casos de ouro**: exemplos numéricos que viram testes automáticos. Regra sem caso de ouro não está pronta.
-- **Perfil de referência**: a primeira empresa (Bomix) serve de exemplo e de teste, não de padrão do produto. Os valores dela estão ao final de cada regra, em *Exemplo*.
+- **Perfil da empresa** (`docs/perfis/<empresa>.md`): valores configurados e regras **específicas** daquela empresa, com os casos de aceite dela. A primeira é `perfis/bomix.md`. Este documento não cita nenhuma empresa.
 
 Fluxo para mudar uma regra: editar aqui → aprovar o texto → ajustar casos de ouro → implementar.
 
@@ -37,18 +37,18 @@ Cada turno tem um **tipo de escala**:
 - **Semanal**: lista de dias da semana em que trabalha; feriado da empresa é folga. Ex.: 5x2 = segunda a sexta; 6x1 = segunda a sábado.
 - **Rodízio**: ciclo de N dias com X dias de trabalho seguidos de folga, com **data de início do ciclo** e **qual turma começa**. Ex.: 2x2 com duas turmas (A e B): A trabalha os dois primeiros dias do ciclo, B os dois seguintes.
 
-*Valor inicial:* 5x2, 6x1 e Estágio (igual 5x2) semanais; 2x2 em rodízio de 4 dias.
-*Exemplo (Bomix):* ciclo 2x2 iniciado em 17/02/2026 com a Turma A.
-*Caso de ouro:* 17/02/2026 e 18/02/2026 → Turma A trabalha, B folga; 19 e 20/02 → B trabalha, A folga; 21/02 volta A.
+*Parâmetros:* nome do turno, tipo de escala, dias da semana (semanal) ou tamanho do ciclo, data de início e turma inicial (rodízio).
+*Caso de ouro (rodízio 2x2, início no dia D, turma inicial A):* D e D+1 → A trabalha, B folga; D+2 e D+3 → B trabalha, A folga; D+4 volta A.
+*Caso de ouro (semanal seg–sex):* sábado, domingo e feriado → folga.
 
 ### RG-02 Capacidade diária — parâmetro por turno
 Minutos esperados de trabalho por dia de escala, já descontados intervalos. Vem do cadastro do turno (entrada, saída, intervalo).
-*Exemplo (Bomix):* 5x2 = 528; 6x1 e Estágio = 440; Turmas 2x2 = 660.
+*Caso de ouro:* turno cadastrado com capacidade 500 → a meta de um dia de escala é 500, não importa o nome do turno.
 
 ### RG-03 Ajuste de capacidade por setor — parâmetro com vigência
-Uma empresa pode reduzir ou aumentar a capacidade diária de um **setor + turno** a partir de uma data (ex.: tempo de segurança diária que não é produtivo). Afeta só meta e ocupação, nunca o banco de horas.
-*Exemplo (Bomix):* a partir de 01/09/2026, Usinagem (5x2 e turmas) com −30 min por dia, porque o dia produtivo começa às 08:00 e o diálogo diário de segurança não é apontado.
-*Caso de ouro:* Usinagem, 5x2, 02/09/2026 → capacidade 498; em 31/08/2026 → 528.
+Uma empresa pode reduzir ou aumentar a capacidade diária de um **setor + turnos** a partir de uma data (ex.: tempo de segurança diária que não é produtivo). Afeta só meta e ocupação, nunca o banco de horas. Sem ajuste cadastrado, vale a capacidade do turno.
+*Parâmetros:* setor, turnos atingidos, minutos (positivo ou negativo), vale a partir de.
+*Caso de ouro:* ajuste de −30 min para o setor S e turno T desde a data X → em X ou depois, capacidade de T em S = capacidade do turno − 30; antes de X, a do turno; em outro setor, a do turno.
 
 ### RG-04 Turno da pessoa em uma data
 Vale o turno do histórico que cobre a data. Antes da primeira mudança registrada, vale o **turno padrão da empresa**. Sem histórico, o turno atual do cadastro.
@@ -63,7 +63,6 @@ Subtrai as **ausências parciais** (intervalo com início e fim). Atestado e fol
 
 ### RG-06 Quem fica fora de metas e hora extra — parâmetro
 A empresa lista **cargos e/ou setores isentos** (normalmente chefia). Eles podem lançar, mas não entram em meta, ocupação nem hora extra automática.
-*Exemplo (Bomix):* setor Supervisão; cargos Supervisor, Encarregado, Líder de Ferramentaria.
 
 ---
 
@@ -79,12 +78,12 @@ Refeição é obrigatória e **não tem horário fixo**. O desconto é calculado
 - O tempo **sem apontamento entre um apontamento e outro** já conta como refeição. Só se desconta o que faltar até completar o direito.
 - Descontos já registrados em apontamentos antigos entram na conta para não descontar duas vezes.
 - Nada é gravado: é cálculo do dia.
-*Valor inicial:* limite do dia = 300 min.
-*Exemplo (Bomix):* 70 min para 5x2, 6x1 e Estágio; 60 min para 2x2 (duas refeições, 40 + 20).
-*Casos de ouro:*
-1. 5x2, apontado 08:00–12:00 e 13:10–17:30, sem outro desconto → lacuna de 70 → desconto 0.
-2. 5x2, apontado 08:00–17:30 contínuo → desconto 70.
-3. 5x2, apontado 08:00–12:30 (270 min) → desconto 0 (abaixo do limite).
+*Parâmetros:* direito de refeição por turno (minutos) e limite mínimo do dia (minutos).
+*Casos de ouro (direito de 70 min, limite 300 min):*
+1. Apontado 08:00–12:00 e 13:10–17:30, sem outro desconto → lacuna de 70 → desconto 0.
+2. Apontado 08:00–17:30 contínuo → desconto 70.
+3. Apontado 08:00–12:30 (270 min) → desconto 0 (abaixo do limite).
+4. Apontado 08:00–12:00 e 12:30–17:30 (lacuna de 30) → desconto 40.
 
 ### RG-09 Tempo em automático e ocupação de máquina — padrão
 Uso da máquina no dia = tempo único apontado + **tempo em automático** informado (a máquina seguiu sozinha). A ocupação pode passar de 100% quando o automático ultrapassa o expediente. A capacidade da máquina vem do **histórico de capacidade por vigência**.
@@ -109,7 +108,8 @@ Diariamente, em horário configurado, o produto confere os apontamentos dos últ
 *Regra de implementação:* usa **a mesma função de escala** (RG-01) que o resto do produto; não existe segunda cópia.
 
 ### RG-13 Ciclo do relatório mensal — parâmetro
-Dia de início do ciclo de fechamento. *Exemplo (Bomix):* do dia 16 ao dia 15.
+Dia do mês em que o ciclo de fechamento começa; o ciclo termina na véspera do mesmo dia do mês seguinte.
+*Caso de ouro (início dia 16):* o ciclo vai do dia 16 ao dia 15 do mês seguinte.
 
 ---
 

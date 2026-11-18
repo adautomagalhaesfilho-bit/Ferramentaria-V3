@@ -15,6 +15,7 @@ Dono do produto: Adauto (não é desenvolvedor). Ele decide, aprova e acompanha;
 | `docs/REGRAS.md` | **Fonte da verdade** das regras de negócio (RG-xx), parâmetros e casos de ouro |
 | `docs/MULTIEMPRESA.md` | Isolamento, configuração por empresa, implantação, modelos de venda |
 | `docs/ARQUITETURA.md` | Camadas, estrutura de pastas, dados, API, testes, segurança, marcos |
+| `docs/perfis/` | Valores, regras específicas e casos de aceite de **cada empresa** (hoje `bomix.md`). `REGRAS.md` nunca cita empresa |
 | `docs/LEGADO.md` | Onde o código atual (versão em produção) implementa cada regra e o plano de migração |
 
 ## Como trabalhar (especificação primeiro)
@@ -31,7 +32,7 @@ Ajustes visuais pequenos (alinhamento, cor, legenda): fazer direto. Regra ou dad
 - Regra de negócio vive no **domínio** (código puro, testável); tela só desenha; banco só guarda.
 - **Uma regra, um lugar.** Antes de escrever uma conta, procurar se ela já existe.
 - Valor que a empresa pode querer mudar (minutos de refeição, capacidade, setores, turnos) **é parâmetro**, não constante.
-- Nada de `if (empresa === ...)`: particularidade vira parâmetro com vigência.
+- Nada de `if (empresa === ...)`: particularidade vira parâmetro com vigência, registrado no perfil da empresa (`docs/perfis/`), não em `REGRAS.md`.
 - Todo dado de negócio pertence a uma `empresa_id`; isolamento garantido no banco.
 - Arquivo ≤ 300 linhas, função ≤ 40, linha ≤ 120 caracteres.
 - Datas de negócio como `AAAA-MM-DD`; ao criar `Date` usar meio-dia (`T12:00:00`) para evitar erro de fuso. Fuso: o da empresa (hoje America/Sao_Paulo).
