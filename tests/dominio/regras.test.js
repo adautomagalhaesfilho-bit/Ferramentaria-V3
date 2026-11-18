@@ -1,7 +1,7 @@
 // Casos de ouro de docs/REGRAS.md. Cada teste cita o ID da regra.
 const test = require('node:test'), assert = require('node:assert/strict');
 const { carregar } = require('./carregar');
-const c = carregar(['util.js', 'dominio-tempo.js', 'dashboard.js']);
+const c = carregar(['util.js', 'dominio-tempo.js', 'dominio-escala.js', 'dashboard.js']);
 
 const L = (a, b, extra) => Object.assign({ data: '2026-11-10', horaInicio: a, horaFim: b, minutos: 0 }, extra || {});
 
