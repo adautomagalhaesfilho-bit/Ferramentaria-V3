@@ -783,7 +783,7 @@ const db = {
     let i = toMin(ini), f = toMin(fim);
     if (f < i) f += 1440;
     let diff = f - i;
-    if (almoco && i <= 720 && f >= 790) diff -= 70;
+    if (almoco) diff -= 70;   // sem horário fixo: se marcou que passou pelo almoço, desconta 1h10
     return Math.max(0, diff);
   },
 
