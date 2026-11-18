@@ -31,12 +31,13 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') _checarDataEAtualizarPagina();
 });
 
-// Lê a configuração de turnos e rodízio da empresa (tabelas turnos e config_sistema). Se falhar, valem os valores de fábrica.
-async function carregarConfigEscala() {
+// Lê a configuração da empresa (tabelas turnos e config_sistema) para as regras de escala, refeição, ajustes e isentos.
+// Se falhar, as regras ficam sem os valores da empresa e o usuário é avisado.
+async function carregarConfigEmpresa() {
   try {
     const [turnos, config] = await Promise.all([db._get('turnos', '', '*'), db._get('config_sistema', '', '*')]);
-    escalaConfigurar({ turnos, config });
-  } catch (e) { console.warn('Configuração de escala: usando valores de fábrica.', e); }
+    configurarEmpresa({ turnos, config });
+  } catch (e) { avisarErro('carregar a configuração da empresa (turnos e regras)', e); }
 }
 
 // ==========================================
@@ -44,7 +45,7 @@ async function carregarConfigEscala() {
 // ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
   if (!(await carregarSessao())) return;
-  await carregarConfigEscala();
+  await carregarConfigEmpresa();
 
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';

@@ -7,13 +7,7 @@ var _chartsDash = {};
 
 // Escala, capacidade e turno na data (RG-01 a RG-04): ver js/dominio-escala.js
 
-// Supervisores/Encarregados são excluídos dos cálculos de ocupação/produtividade
-// (aparecem nas listas de técnico para lançamento, mas não contam na meta da equipe)
-function isSupervisor(nome, dados) {
-  const funcRH = (dados.funcionarios || []).find(f => f.nome === nome);
-  if (!funcRH) return false;
-  return funcRH.setor === 'Supervisão' || funcRH.cargo === 'Supervisor' || funcRH.cargo === 'Encarregado' || funcRH.cargo === 'Líder de Ferramentaria';
-}
+// Quem fica fora da meta e da ocupação (RG-06): ver isSupervisor em js/dominio-escala.js
 
 // ==========================================
 // 🕐 CALCULAR META
@@ -168,7 +162,7 @@ function pcmAgruparInstalado(perms) {
 
 function pcmMudarProducao(v) { _pcmProducao = v; _pcmChartTodos = false; renderizarDashAtivo('pcm'); }
 function pcmAlternarTodos() { _pcmChartTodos = !_pcmChartTodos; renderizarDashAtivo('pcm'); }
-if (typeof module !== 'undefined') module.exports = Object.assign(module.exports || {}, { pcmPermanencias, pcmAgruparInstalado, almocoAjusteDia });
+if (typeof module !== 'undefined') module.exports = Object.assign(module.exports || {}, { pcmPermanencias, pcmAgruparInstalado });
 
 // ==========================================
 // 📦 PCM — Movimentação de Moldes / Setups
@@ -1068,30 +1062,7 @@ function _minutosSemSobreposicao(lancs) {
   return Math.max(0, total - sobreposto);
 }
 
-// ==========================================
-// 🍽️ ALMOÇO OBRIGATÓRIO, DESCONTADO POR DIA E POR PESSOA
-// Não existe horário fixo de almoço. O direito é 1h10 (5x2, 6x1, estágio) ou 60 min em duas refeições de 40 + 20 (turmas 2x2).
-// O que a pessoa deixou sem lançar entre um lançamento e outro já foi refeição; só se desconta o que faltar.
-// Dia com 5 h ou menos de tempo lançado não conta (não chegou a almoçar). Lançamentos que já tiveram o desconto
-// gravado (caixa de almoço marcada) entram na conta para não descontar duas vezes. Nada é gravado: é só o cálculo do dia.
-// ==========================================
-var ALMOCO_MIN_DIA = 300;
-function almocoDireitoMin(turno) { return (turno === 'Turma A' || turno === 'Turma B') ? 60 : 70; }
-function almocoAjusteDia(lancs, turno) {
-  const iv = []; let jaDescontado = 0;
-  (lancs || []).forEach(l => {
-    const i = tempoIntervalo(l.horaInicio, l.horaFim);
-    if (!i) return;
-    iv.push(i);
-    if (l.descontaAlmoco === true || l.descontaAlmoco === 'true') jaDescontado += Math.min(70, Math.max(0, (i[1] - i[0]) - (l.minutos || 0)));
-  });
-  if (!iv.length) return 0;
-  const uniao = tempoUnico(iv);
-  if (uniao <= ALMOCO_MIN_DIA) return 0;
-  const inicioDia = Math.min(...iv.map(i => i[0])), fimDia = Math.max(...iv.map(i => i[1]));
-  const lacunas = (fimDia - inicioDia) - uniao;
-  return Math.max(0, almocoDireitoMin(turno) - lacunas - jaDescontado);
-}
+// Refeição obrigatória descontada por dia e por pessoa (RG-08): ver js/dominio-refeicao.js
 
 // "Tempo em Automático" do lançamento (campo hh:mm): a máquina seguiu trabalhando sozinha.
 function _minutosAutoLanc(l) {

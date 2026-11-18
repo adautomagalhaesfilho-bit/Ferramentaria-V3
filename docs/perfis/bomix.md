@@ -2,7 +2,7 @@
 
 Primeira empresa do produto (ferramentaria e usinagem de moldes de injeção plásticos). Responsável: Adauto (supervisor da usinagem). Fuso: America/Sao_Paulo.
 
-> Estado de hoje: estes valores estão **cadastrados no banco** para turnos, capacidade e rodízio (`turnos`, `config_sistema`). Os demais ainda estão como **valores de fábrica dentro do código** e saem de lá nos próximos passos, até a tela de Configurações existir (ver `LEGADO.md`).
+> Estado de hoje: turnos, capacidade, rodízio, ajuste da Usinagem, refeição e isentos estão **cadastrados no banco** (`turnos`, `config_sistema`; script em `supabase/perfis/bomix_config.sql`). O código não traz mais valor da Bomix. Ainda dentro do código: ciclo do relatório (RG-13) e limites de ocorrência (RG-14), que saem nos próximos passos, até a tela de Configurações existir (ver `LEGADO.md`).
 
 ## 1. Parâmetros
 | Regra | Parâmetro | Valor | Vale a partir de | Onde está hoje |
@@ -11,10 +11,10 @@ Primeira empresa do produto (ferramentaria e usinagem de moldes de injeção pl�
 | RG-01 | 6x1 | semanal, segunda a sábado | — | banco (`turnos`) |
 | RG-01 | 2x2 (Turma A e Turma B) | rodízio de 4 dias; início do ciclo em 17/02/2026, Turma A primeiro | 17/02/2026 | banco (`config_sistema`) |
 | RG-02 | Capacidade diária | 5x2 = 528 min; 6x1 = 440; Estágio = 440; Turmas = 660 | — | banco (`turnos`) |
-| RG-03 | Ajuste Usinagem (5x2, Turma A, Turma B) | −30 min por dia | 01/09/2026 | código (valor de fábrica) |
-| RG-06 | Isentos de meta e hora extra | setor Supervisão; cargos Supervisor, Encarregado, Líder de Ferramentaria | — | código |
-| RG-08 | Refeição (direito) | 70 min (5x2, 6x1, Estágio); 60 min (2x2: duas refeições, 40 + 20) | — | código |
-| RG-08 | Limite do dia | 300 min | — | código |
+| RG-03 | Ajuste Usinagem (5x2, Turma A, Turma B) | −30 min por dia | 01/09/2026 | banco (`config_sistema`) |
+| RG-06 | Isentos de meta e hora extra | setor Supervisão; cargos Supervisor, Encarregado, Líder de Ferramentaria | — | banco (`config_sistema`) |
+| RG-08 | Refeição (direito) | 70 min (5x2, 6x1, Estágio); 60 min (2x2: duas refeições, 40 + 20) | — | banco (`config_sistema`) |
+| RG-08 | Limite do dia | 300 min | — | banco (`config_sistema`) |
 | RG-12 | Hora extra automática | ligada, 07:00, janela de 3 dias | — | banco (agendamento) + função SQL |
 | RG-13 | Ciclo do relatório mensal | dia 16 ao dia 15 | — | código |
 | RG-14 | Limites de ocorrência | Produção 1 dia; Bancada 45 dias (com histórico do PCM, a partir de 30/06/2026) ou 7 dias (sem histórico) | 30/06/2026 | código |
