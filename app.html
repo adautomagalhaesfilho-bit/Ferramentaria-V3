@@ -367,7 +367,7 @@
 
     <!-- JOBS -->
     <div class="tela" id="telaJobsAdmin">
-      <div class="page-header"><h1>📁 Moldes / Jobs</h1><button class="btn-primary" onclick="abrirFormJob()">+ Novo</button></div>
+      <div class="page-header"><h1>📁 Moldes / Jobs</h1><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-secondary" id="btnExportarMoldes" onclick="exportarMoldesExcel()" title="Baixa a lista de todos os moldes e jobs cadastrados em Excel">⬇ Exportar Excel</button><button class="btn-primary" onclick="abrirFormJob()">+ Novo</button></div></div>
       <div class="card">
         <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
           <input type="text" id="buscaJobAdmin" placeholder="Buscar..." oninput="filtrarJobsAdmin()" style="flex:1">
@@ -899,6 +899,7 @@
 <script src="js/ferias-calendario.js?v=20261015"></script>
 <script src="js/ficha-injetora.js?v=20261118e"></script>
 <script src="js/ficha-funcionario.js?v=20261009"></script>
+<script src="js/exportar-moldes.js?v=20261118a"></script>
 <script src="js/app.js?v=20261116c"></script>
 <script src="js/auditoria.js?v=20261009"></script>
 <script src="js/miguelito.js?v=20261021h"></script>
