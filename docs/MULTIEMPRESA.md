@@ -46,12 +46,15 @@ Princípios:
 - Perfis e permissões por setor e por tela.
 - Integrações: chaves de API, webhooks, importações (RH).
 
+## 3b. Perfil da empresa (documento)
+Os valores e as regras específicas de cada empresa ficam em `docs/perfis/<empresa>.md` (modelo em `perfis/modelo.md`), com casos de aceite que provam a configuração. `REGRAS.md` descreve só o que vale para todas.
+
 ## 4. Tela de configuração
 Administrador da empresa acessa **Configurações**: cada grupo acima em uma página, com valor atual, vigência, histórico e botão "restaurar padrão". Alterações pedem confirmação e geram auditoria. Há **pré-visualização do efeito** quando possível ("com este valor, a meta de outubro seria X em vez de Y").
 
 ## 5. Implantação de uma nova empresa (onboarding)
 1. Criar a empresa (nome, fuso, marca).
-2. Aplicar o **modelo de configuração** (conjunto inicial de turnos, setores e regras; ex.: "Usinagem de moldes").
+2. Preencher o **perfil da empresa** (`docs/perfis/modelo.md`) e aplicar o **modelo de configuração** (conjunto inicial de turnos, setores e regras; ex.: "Usinagem de moldes").
 3. Criar o administrador da empresa.
 4. Importar pessoas (planilha ou integração com o RH, por matrícula), feriados e máquinas.
 5. Conferir com **casos de teste da empresa**: o cliente informa 3 dias reais e o resultado calculado é comparado ao que ele espera.

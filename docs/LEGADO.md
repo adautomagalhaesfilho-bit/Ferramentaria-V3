@@ -1,5 +1,7 @@
 # LEGADO.md — versão em produção hoje e plano de migração
 
+> Valores e regras específicas da Bomix: `docs/perfis/bomix.md`. Hoje parte desses valores ainda está como valor de fábrica dentro do código (ajuste da Usinagem, refeição, isentos, ciclo, limites); a coluna "Onde está hoje" do perfil mostra quais, e saem do código nos próximos passos.
+
 Este documento descreve **o que existe agora** (para quem precisa mexer no código atual) e como chegar ao desenho de `ARQUITETURA.md`. Retrato de 18/11/2026, `main` no commit 1375d60.
 
 ## 1. Como a versão atual é feita
