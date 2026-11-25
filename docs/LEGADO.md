@@ -27,7 +27,7 @@ Este documento descreve **o que existe agora** (para quem precisa mexer no códi
 | Banco de horas | `js/banco-horas.js`, `js/dominio-banco-horas.js` |
 | Configurações da empresa (tela do administrador) | `js/configuracoes.js`, `js/configuracoes-salvar.js`, regras em `js/dominio-config-form.js` |
 | Exportar moldes (Excel) | `js/exportar-moldes.js` |
-| Assistente de IA (leitura) | `supabase/functions/miguelito/index.ts` |
+| Assistente de IA (Miguelito) — **desativado em 23/11/2026** | `js/miguelito.js` (fora do `app.html`), `supabase/functions/miguelito/index.ts` (no Supabase responde "desativado") |
 
 ## 3. Onde cada regra mora hoje
 | Regra | Implementação atual | Observação |
@@ -57,7 +57,7 @@ Este documento descreve **o que existe agora** (para quem precisa mexer no códi
 - Arquivos grandes (dashboard 86 KB, rh 81, apontamentos 65, pcm 60, app 54, pcm-indicadores 53, banco-horas 51, diagnostico-meta 40, supabase 39, ficha 31) e linhas de até ~1.200 caracteres: cada alteração exige muita leitura.
 - 133 chamadas diretas ao banco fora de `supabase.js`; ~258 nomes de setor e ~78 de turno/turma escritos direto no código.
 - Pessoas e moldes ligados por nome em texto em várias tabelas.
-- Segurança pendente: `usuario_admin()`/`usuario_ativo()` executáveis por usuários autenticados; proteção de senha vazada desativada; `ia_config`/`ia_uso` com RLS sem política; girar a chave da IA; senha provisória do usuário Eder.lopes; backups.
+- Segurança pendente: proteção de senha vazada desativada (decisão: não ligar agora); `ia_config`/`ia_uso` com RLS sem política (sem uso, IA desativada); revogar a chave da IA no painel da Anthropic; backups (plano gratuito do Supabase não tem backup automático: ver `supabase/schema/README.md`). Resolvido em 23/11/2026: `usuario_admin()`/`usuario_ativo()` agora ficam no schema `private` (migração 0003).
 
 ## 5. Plano de migração (do legado ao desenho de `ARQUITETURA.md`)
 **Etapa A — Especificação e rede de proteção (em andamento)**

@@ -24,11 +24,11 @@ begin
   return new;
 end $function$;
 
-CREATE OR REPLACE FUNCTION public.usuario_ativo() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $function$
+CREATE OR REPLACE FUNCTION private.usuario_ativo() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $function$
   select exists (select 1 from public.usuarios where auth_user_id = auth.uid() and ativo is true);
 $function$;
 
-CREATE OR REPLACE FUNCTION public.usuario_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $function$
+CREATE OR REPLACE FUNCTION private.usuario_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $function$
   select exists (select 1 from public.usuarios where auth_user_id = auth.uid() and ativo is true and perfil = 'admin');
 $function$;
 
